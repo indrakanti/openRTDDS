@@ -3,10 +3,14 @@
 #include "test_support.hpp"
 
 void test_runtime_limits();
+void test_cdr();
+void test_keep_last_history();
 void test_static_pool();
 
 int main() {
   test_runtime_limits();
+  test_cdr();
+  test_keep_last_history();
   test_static_pool();
 
   if (test_failures != 0) {
@@ -16,4 +20,3 @@ int main() {
   std::cout << "all tests passed\n";
   return 0;
 }
-

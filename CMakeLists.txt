@@ -15,6 +15,7 @@ add_library(openrtdds
   src/core/runtime_limits.cpp
   src/core/version.cpp
   src/os/linux/realtime.cpp
+  src/serialization/cdr.cpp
 )
 add_library(OpenRTDDS::openrtdds ALIAS openrtdds)
 
@@ -40,6 +41,8 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
   add_executable(openrtdds_unit_tests
     tests/test_main.cpp
     tests/test_runtime_limits.cpp
+    tests/test_cdr.cpp
+    tests/test_keep_last_history.cpp
     tests/test_static_pool.cpp
   )
   target_link_libraries(openrtdds_unit_tests PRIVATE OpenRTDDS::openrtdds)
@@ -49,4 +52,3 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
   endif()
   add_test(NAME openrtdds_unit_tests COMMAND openrtdds_unit_tests)
 endif()
-
