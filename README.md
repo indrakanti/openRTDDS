@@ -19,6 +19,7 @@ standards-compliant DDS implementations.
 - built-in timing metrics, fault injection hooks, and safety evidence
 - bounded XCDR1/PLAIN_CDR serialization with explicit error propagation
 - fixed-capacity KEEP_LAST sample history
+- static RTPS DATA message construction/parsing over nonblocking UDPv4
 
 ## Profiles
 
@@ -51,7 +52,7 @@ not treated as a build/test failure.
 
 1. [x] Project foundation and deterministic Linux primitives
 2. [x] CDR serialization and bounded sample storage
-3. [ ] UDPv4 RTPS DATA path with static endpoint configuration
+3. [x] UDPv4 RTPS DATA path with static endpoint configuration
 4. [ ] HEARTBEAT/ACKNACK with bounded reliability
 5. [ ] SPDP/SEDP discovery for the General Profile
 6. [ ] Fast DDS and Cyclone DDS interoperability gates
@@ -62,6 +63,8 @@ See [the architecture](docs/architecture.md),
 [safety concept](docs/safety-concept.md) for the current design baseline.
 The supported wire subset and its deliberate limits are documented in
 [serialization](docs/serialization.md).
+The static RTPS/UDP path is documented in
+[RTPS DATA path](docs/rtps-data-path.md).
 
 ## License
 
