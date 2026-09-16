@@ -7,7 +7,7 @@
 #include <sched.h>
 #include <sys/mman.h>
 
-namespace openrtdds::os::linux {
+namespace openrtdds::os::linux_rt {
 namespace {
 
 [[nodiscard]] RealtimeResult translate_error(const int native_error) noexcept {
@@ -90,5 +90,4 @@ const char* to_string(const RealtimeError error) noexcept {
   return "unknown realtime error";
 }
 
-}  // namespace openrtdds::os::linux
-
+}  // namespace openrtdds::os::linux_rt

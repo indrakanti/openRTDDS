@@ -13,16 +13,15 @@ int main() {
     return 1;
   }
 
-  const auto memory_result = openrtdds::os::linux::lock_process_memory();
+  const auto memory_result = openrtdds::os::linux_rt::lock_process_memory();
   std::cout << "OpenRTDDS " << openrtdds::version() << '\n'
             << "CLOCK_MONOTONIC(ns): "
-            << openrtdds::os::linux::monotonic_time_ns() << '\n'
+            << openrtdds::os::linux_rt::monotonic_time_ns() << '\n'
             << "memory lock: "
-            << openrtdds::os::linux::to_string(memory_result.error);
+            << openrtdds::os::linux_rt::to_string(memory_result.error);
   if (!memory_result.ok()) {
     std::cout << " (errno=" << memory_result.native_error << ')';
   }
   std::cout << '\n';
   return 0;
 }
-

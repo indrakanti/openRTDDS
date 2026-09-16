@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace openrtdds::os::linux {
+namespace openrtdds::os::linux_rt {
 
 enum class RealtimeError : std::uint8_t {
   none = 0,
@@ -38,5 +38,4 @@ struct RealtimeResult final {
 
 [[nodiscard]] const char* to_string(RealtimeError error) noexcept;
 
-}  // namespace openrtdds::os::linux
-
+}  // namespace openrtdds::os::linux_rt
