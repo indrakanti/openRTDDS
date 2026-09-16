@@ -17,6 +17,8 @@ standards-compliant DDS implementations.
 - first-class PREEMPT_RT, affinity, memory locking, and monotonic clocks
 - RTPS wire interoperability rather than a proprietary transport
 - built-in timing metrics, fault injection hooks, and safety evidence
+- bounded XCDR1/PLAIN_CDR serialization with explicit error propagation
+- fixed-capacity KEEP_LAST sample history
 
 ## Profiles
 
@@ -47,19 +49,20 @@ not treated as a build/test failure.
 
 ## Initial roadmap
 
-1. Project foundation and deterministic Linux primitives
-2. CDR serialization and bounded sample storage
-3. UDPv4 RTPS DATA path with static endpoint configuration
-4. HEARTBEAT/ACKNACK with bounded reliability
-5. SPDP/SEDP discovery for the General Profile
-6. Fast DDS and Cyclone DDS interoperability gates
-7. Shared-memory transport, latency instrumentation, and fault injection
+1. [x] Project foundation and deterministic Linux primitives
+2. [x] CDR serialization and bounded sample storage
+3. [ ] UDPv4 RTPS DATA path with static endpoint configuration
+4. [ ] HEARTBEAT/ACKNACK with bounded reliability
+5. [ ] SPDP/SEDP discovery for the General Profile
+6. [ ] Fast DDS and Cyclone DDS interoperability gates
+7. [ ] Shared-memory transport, latency instrumentation, and fault injection
 
 See [the architecture](docs/architecture.md),
 [deterministic profile](docs/deterministic-profile.md), and
 [safety concept](docs/safety-concept.md) for the current design baseline.
+The supported wire subset and its deliberate limits are documented in
+[serialization](docs/serialization.md).
 
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE).
-
