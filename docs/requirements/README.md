@@ -15,6 +15,7 @@ verification evidence.
 | RTPS DATA path | `ORT-RTPS` | [rtps-data](rtps-data/requirements.md) |
 | UDPv4 transport | `ORT-UDP` | [udp-transport](udp-transport/requirements.md) |
 | Bounded reliability | `ORT-REL` | [reliability](reliability/requirements.md) |
+| Static DDS API | `ORT-DDS` | [static-dds](static-dds/requirements.md) |
 
 The consolidated code and evidence mapping is the
 [traceability matrix](traceability.md).
@@ -65,4 +66,3 @@ their verification method.
 4. Add test and example tags matching the declared verification method.
 5. Update `traceability.md` and run the trace checker.
 6. Only mark a requirement Verified after all declared evidence passes CI.
-

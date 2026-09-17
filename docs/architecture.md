@@ -22,11 +22,12 @@ Linux real-time abstraction
 Cross-cutting safety services will provide end-to-end data protection,
 deadline supervision, health events, metrics, and fault injection.
 
-## Planned source ownership
+## Source ownership
 
 | Area | Responsibility |
 |---|---|
-| `core` | Entity lifecycle, resource limits, histories, QoS |
+| `dds` | Static typed entity composition and endpoint configuration |
+| `core` | Resource limits, histories, and fixed storage |
 | `rtps` | Wire protocol, matching, sequence state, reliability |
 | `serialization` | Bounded CDR encoding and decoding |
 | `transport` | UDPv4 and shared-memory I/O |
@@ -41,8 +42,8 @@ must consume explicit events rather than infer hidden middleware state.
 
 ## Execution model
 
-The first implementation will use a small fixed thread set: RX, TX,
-reliability/timers, and monitoring. Static discovery removes discovery from
-the steady-state safety timing path. Any future thread or blocking primitive
-must be added to the architecture and interference analysis.
-
+The current library owns no threads, locks, timers, or blocking waits. The
+application drives receive, transmit, reliability timer events, and fault
+policy using its deployment-specific scheduling model. A future managed
+runtime may define a small fixed thread set, but any such thread or blocking
+primitive must first be added to the architecture and interference analysis.

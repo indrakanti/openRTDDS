@@ -22,6 +22,7 @@ deadline or retry bound is exceeded.
 | RTPS | `RtpsError` | construction, protocol, subset, or parse failure |
 | Reliability control | `ReliabilityMessageError` | HEARTBEAT/ACKNACK construction, bounds, subset, or parse failure |
 | Reliability state | `ReliabilityError` + `RepairFailure` | history, receive window, count ordering, repair, or timing result |
+| Static DDS composition | `DdsError` + preserved lower-layer error | entity configuration, typed conversion, identity, DATA, or reliability operation |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
 
 Error enums are symbolic API values. Their implicit integer representation is
@@ -49,6 +50,8 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-UDP-002` | Error | send failure or oversize datagram | publisher/application |
 | `ORT-FLT-UDP-003` | Error | receive failure or truncation | subscriber/application |
 | `ORT-FLT-REL-001` | Error | repair/retry bound exceeded or gap no longer repairable | reliability/application |
+| `ORT-FLT-DDS-001` | Fatal at startup | invalid participant, topic, endpoint, or type binding | startup controller |
+| `ORT-FLT-DDS-002` | Warning/Error | unexpected participant or endpoint identity | receiver/application |
 | `ORT-FLT-DEADLINE-001` | Error/Fatal by topic | planned delivery deadline exceeded | application safety monitor |
 
 Severity is deployment-configurable except where the selected deterministic
@@ -79,6 +82,18 @@ Current state-machine mappings are:
 | `time_regression` | `ORT-FLT-TIME-001` |
 | `history_full`, `receive_window_exceeded`, `action_capacity_exceeded` | resource/configuration policy |
 | `stale_control`, `duplicate_data`, `stale_data` | observable status; no fault by itself |
+
+Current static DDS composition mappings are:
+
+| `DdsError` | Fault code / policy |
+|---|---|
+| `invalid_participant`, `invalid_topic`, `invalid_endpoint` | `ORT-FLT-DDS-001` |
+| `unexpected_participant`, `unexpected_endpoint` | `ORT-FLT-DDS-002`; reject without state change |
+| `serialization_failed`, `deserialization_failed` | map the preserved `CdrError` to `ORT-FLT-SER-001` or `ORT-FLT-SER-002` |
+| `rtps_data_failed` | map the preserved `RtpsError` to the applicable `ORT-FLT-RTPS-*` code |
+| `reliability_message_failed` | map the preserved `ReliabilityMessageError` to the applicable `ORT-FLT-RTPS-*` code |
+| `reliability_state_failed` | map the preserved `ReliabilityError` to the applicable reliability, timing, or resource policy |
+| `invalid_action` | local integration defect; do not transmit |
 
 ## Fault event payload (Planned)
 
