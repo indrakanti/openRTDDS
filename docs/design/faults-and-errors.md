@@ -20,6 +20,7 @@ deadline or retry bound is exceeded.
 | Serialization | `CdrError` | buffer, representation, bound, or data failure |
 | History | `HistoryError` | invalid or oversized sample |
 | RTPS | `RtpsError` | construction, protocol, subset, or parse failure |
+| Reliability control | `ReliabilityMessageError` | HEARTBEAT/ACKNACK construction, bounds, subset, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
 
 Error enums are symbolic API values. Their implicit integer representation is
@@ -53,6 +54,19 @@ Severity is deployment-configurable except where the selected deterministic
 profile cannot satisfy its assumptions. The component detecting an API error
 does not decide system-level safe state.
 
+Current reliability-control mappings are:
+
+| Reliability error | Fault code |
+|---|---|
+| `truncated`, `invalid_protocol`, `invalid_submessage`, `bitmap_bound_exceeded` | `ORT-FLT-RTPS-001` |
+| `unsupported_version`, `unsupported_submessage`, `unsupported_feature` | `ORT-FLT-RTPS-002` |
+| `invalid_sequence_number` | `ORT-FLT-RTPS-003` |
+| `invalid_argument`, `buffer_overflow` | caller configuration/resource error |
+
+The wire codec returns these errors but does not publish fault events. It
+rejects malformed control input without modifying the caller's prior parsed
+view.
+
 ## Fault event payload (Planned)
 
 The future bounded diagnostic interface should carry:
@@ -83,4 +97,3 @@ expected/actual sizes or sequence numbers; they shall not contain pointers.
 - Transport errors do not trigger hidden retries.
 - The application owns retry, deadline, degradation, restart, and safe-state
   decisions until a bounded health-monitor API is implemented.
-

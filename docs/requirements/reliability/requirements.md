@@ -1,7 +1,7 @@
 # Bounded reliability requirements
 
-These are the approved subject area for the next implementation milestone.
-They remain Draft until reviewed; no implementation is claimed by this PR.
+This feature set is delivered incrementally. The control-message wire subset is
+implemented and verified; writer/reader repair state remains Draft.
 
 ### ORT-REL-001 — Bounded writer history window
 
@@ -15,23 +15,25 @@ DATA samples for repair and shall report exhaustion or replacement explicitly.
 
 ### ORT-REL-002 — HEARTBEAT wire subset
 
-**Status:** Draft  
+**Status:** Verified  
 **Verification:** Test
 
-The reliability component shall build and parse a bounded RTPS HEARTBEAT
-submessage containing writer identity, first and last available sequence
-numbers, and a monotonically advancing count.
+The reliability component shall build and parse a full RTPS message containing
+exactly one bounded HEARTBEAT submessage with reader and writer identity,
+first and last available sequence numbers, signed 32-bit count, Final flag,
+and Liveliness flag in either RTPS byte order without runtime allocation.
 
 **Rationale:** Readers need a bounded declaration of writer availability.
 
 ### ORT-REL-003 — ACKNACK wire subset
 
-**Status:** Draft  
+**Status:** Verified  
 **Verification:** Test
 
-The reliability component shall build and parse an RTPS ACKNACK submessage with
-a fixed maximum bitmap of 256 sequence positions and a monotonically advancing
-count.
+The reliability component shall build and parse a full RTPS message containing
+exactly one ACKNACK submessage with reader and writer identity, signed 32-bit
+count, Final flag, and an MSB-first SequenceNumberSet of no more than 256
+positions in either RTPS byte order without runtime allocation.
 
 **Rationale:** Repair requests must not allocate or carry unbounded bitmaps.
 
@@ -65,4 +67,3 @@ Reliability processing shall use fixed storage, no runtime heap allocation, no
 internal blocking waits, and a documented upper bound on work per event.
 
 **Rationale:** Reliability must preserve the deterministic profile.
-

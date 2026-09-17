@@ -15,6 +15,7 @@ feature designs.
 | `serialization/cdr.hpp` | `openrtdds::serialization` | bounded XCDR1 reader and writer |
 | `rtps/types.hpp` | `openrtdds::rtps` | RTPS identity value types |
 | `rtps/data_message.hpp` | `openrtdds::rtps` | DATA message construction and parsing |
+| `rtps/reliability_messages.hpp` | `openrtdds::rtps` | bounded HEARTBEAT/ACKNACK construction and parsing |
 | `transport/udp_socket.hpp` | `openrtdds::transport` | nonblocking UDPv4 ownership and I/O |
 | `version.hpp` | `openrtdds` | library semantic version string |
 
@@ -31,8 +32,12 @@ The current network interface is one IPv4 UDP datagram containing:
 3. 20-byte fixed DATA content;
 4. one XCDR1 `CDR_BE` or `CDR_LE` serialized payload.
 
-Maximum datagram size is 65,507 bytes. See the
-[RTPS DATA design](rtps-data/detailed-design.md) for offsets and validation.
+The DATA path has a maximum datagram size of 65,507 bytes. The current
+reliability-control path contains exactly one HEARTBEAT (52 bytes) or ACKNACK
+(48 through 80 bytes) submessage. See the
+[RTPS DATA design](rtps-data/detailed-design.md) and
+[reliability design](reliability/detailed-design.md) for offsets and
+validation.
 
 ## Linux interfaces
 
@@ -58,8 +63,6 @@ must not be stored or transmitted.
 
 ## Planned interfaces
 
-The reliability design introduces bounded HEARTBEAT and ACKNACK types and a
-caller-driven writer/reader reliability state machine. Those APIs remain
-Planned and must not be treated as available until their design status becomes
-Current.
-
+The caller-driven writer/reader reliability state machines remain Planned.
+The HEARTBEAT/ACKNACK wire codec is Current and must remain usable without
+state-machine ownership, threads, timers, or transport callbacks.
