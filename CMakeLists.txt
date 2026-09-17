@@ -12,6 +12,7 @@ option(OPENRTDDS_BUILD_EXAMPLES "Build OpenRTDDS examples" ON)
 option(OPENRTDDS_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 add_library(openrtdds
+  src/dds/static_entities.cpp
   src/core/runtime_limits.cpp
   src/core/version.cpp
   src/os/linux/realtime.cpp
@@ -61,12 +62,18 @@ if(OPENRTDDS_BUILD_EXAMPLES)
     PRIVATE OpenRTDDS::openrtdds
   )
 
+  add_executable(openrtdds_static_dds_udp examples/static_dds_udp.cpp)
+  target_link_libraries(openrtdds_static_dds_udp
+    PRIVATE OpenRTDDS::openrtdds
+  )
+
   foreach(example_target IN ITEMS
       openrtdds_runtime_probe
       openrtdds_vehicle_state
       openrtdds_rtps_static_message
       openrtdds_rtps_reliability_message
-      openrtdds_reliable_pair)
+      openrtdds_reliable_pair
+      openrtdds_static_dds_udp)
     target_compile_options(${example_target} PRIVATE -Wall -Wextra -Wpedantic)
     if(OPENRTDDS_WARNINGS_AS_ERRORS)
       target_compile_options(${example_target} PRIVATE -Werror)
@@ -86,6 +93,7 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     tests/test_reliability_state.cpp
     tests/test_rtps_data_message.cpp
     tests/test_static_pool.cpp
+    tests/test_static_dds.cpp
     tests/test_udp_socket.cpp
   )
   target_link_libraries(openrtdds_unit_tests PRIVATE OpenRTDDS::openrtdds)
@@ -104,6 +112,9 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     )
     add_test(NAME openrtdds_reliable_pair_example
       COMMAND openrtdds_reliable_pair
+    )
+    add_test(NAME openrtdds_static_dds_udp_example
+      COMMAND openrtdds_static_dds_udp
     )
   endif()
 endif()

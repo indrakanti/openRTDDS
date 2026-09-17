@@ -15,9 +15,11 @@ runtime enters `RUN`, the Safety Profile will prohibit:
 - unbounded queues, retries, fragmentation, or discovery work
 - blocking diagnostic output on real-time threads
 
-The enforcement mechanism will be implemented after the bounded core storage
-and transport path exist. PR1 only establishes the relevant interfaces and
-rules; it does not claim enforcement yet.
+The current bounded storage, serialization, RTPS, reliability, UDP, and
+static typed DDS components allocate no runtime heap storage internally. A
+future runtime lifecycle controller will enforce the system-wide transition
+and detect allocations in application/type-support code; the library does not
+yet claim whole-process enforcement.
 
 ## Linux contract
 
@@ -34,4 +36,3 @@ carried separately where globally correlated timestamps are required.
 Planned release gates include allocation counts after initialization, queue
 high-water marks, scheduler latency, RX-to-callback latency, deadline misses,
 packet loss/recovery bounds, and long-duration stress runs.
-

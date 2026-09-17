@@ -8,6 +8,7 @@ feature designs.
 
 | Header | Namespace | Public contract |
 |---|---|---|
+| `dds/static_entities.hpp` | `openrtdds::dds` | bounded static participant, typed topic, writer, and reader composition |
 | `core/runtime_limits.hpp` | `openrtdds::core` | startup bounds and validation |
 | `core/static_pool.hpp` | `openrtdds::core` | fixed-capacity object ownership |
 | `core/keep_last_history.hpp` | `openrtdds::core` | bounded sample and KEEP_LAST history |
@@ -61,6 +62,22 @@ Wire-format changes must remain compliant with the supported DDSI-RTPS subset
 and require interoperability tests. Error enum names are API contracts;
 implicit numeric enum values are not persistent diagnostic identifiers and
 must not be stored or transmitted.
+
+## Static typed DDS interface
+
+`dds/static_entities.hpp` composes the serialization, DATA, and reliability
+interfaces without taking ownership of transport or scheduling. The
+application provides a generated type-support adapter, static participant and
+endpoint identities, fixed datagram buffers, monotonic timestamps, and
+caller-owned action buffers. Successful writer and reader calls respectively
+produce or consume exactly one complete RTPS datagram.
+
+The typed API validates remote GUID prefixes and endpoint entity IDs before
+committing receive state or a decoded sample. `DdsResult` preserves the
+relevant `CdrError`, `RtpsError`, `ReliabilityMessageError`, or
+`ReliabilityError` rather than collapsing lower-layer evidence. See the
+[static DDS design](static-dds/detailed-design.md) for the type-support
+contract, ordering, lifetime, and failure guarantees.
 
 ## Reliability state interface
 

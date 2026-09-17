@@ -20,6 +20,8 @@ standards-compliant DDS implementations.
 - bounded XCDR1/PLAIN_CDR serialization with explicit error propagation
 - fixed-capacity KEEP_LAST sample history
 - static RTPS DATA message construction/parsing over nonblocking UDPv4
+- typed static DDS participants, topics, writers, and readers
+- bounded HEARTBEAT/ACKNACK reliability with explicit repair actions
 
 ## Profiles
 
@@ -56,9 +58,10 @@ not treated as a build/test failure.
 3. [x] UDPv4 RTPS DATA path with static endpoint configuration
 4. [x] Bounded HEARTBEAT/ACKNACK wire codec
 5. [x] Bounded single-pair writer/reader reliability state machines
-6. [ ] SPDP/SEDP discovery for the General Profile
-7. [ ] Fast DDS and Cyclone DDS interoperability gates
-8. [ ] Shared-memory transport, latency instrumentation, and fault injection
+6. [x] Typed static DDS API and UDP loopback path
+7. [ ] SPDP/SEDP discovery for the General Profile
+8. [ ] Fast DDS and Cyclone DDS interoperability gates
+9. [ ] Shared-memory transport, latency instrumentation, and fault injection
 
 See [the architecture](docs/architecture.md),
 [deterministic profile](docs/deterministic-profile.md), and

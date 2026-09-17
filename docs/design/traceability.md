@@ -40,3 +40,9 @@ machine checker independently validates requirement references in feature
 | ORT-REL-004 | Current | `reliability/detailed-design.md` |
 | ORT-REL-005 | Current | `reliability/detailed-design.md` |
 | ORT-REL-006 | Current | `reliability/detailed-design.md` |
+| ORT-DDS-001 | Current | `static-dds/detailed-design.md` |
+| ORT-DDS-002 | Current | `static-dds/detailed-design.md` |
+| ORT-DDS-003 | Current | `static-dds/detailed-design.md` |
+| ORT-DDS-004 | Current | `static-dds/detailed-design.md` |
+| ORT-DDS-005 | Current | `static-dds/detailed-design.md` |
+| ORT-DDS-006 | Current | `static-dds/detailed-design.md` |

@@ -39,6 +39,12 @@ from source tags and rejects missing or unknown evidence.
 | ORT-REL-004 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | — |
 | ORT-REL-005 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | — |
 | ORT-REL-006 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | `reliable_pair.cpp` |
+| ORT-DDS-001 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
+| ORT-DDS-002 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
+| ORT-DDS-003 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
+| ORT-DDS-004 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
+| ORT-DDS-005 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
+| ORT-DDS-006 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

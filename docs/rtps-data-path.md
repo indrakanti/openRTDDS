@@ -1,8 +1,9 @@
 # Static RTPS DATA path
 
-PR3 adds the first network path: one statically configured, unfragmented RTPS
-`DATA` submessage carried in one UDPv4 datagram. It is a foundation for
-interoperability testing, not a complete DDS writer or reader.
+The bounded RTPS DATA component carries one statically configured,
+unfragmented `DATA` submessage in one UDPv4 datagram. It is also composed by
+the typed static DDS writer and reader; it remains a deliberately restricted
+wire subset rather than a complete DDS implementation.
 
 ## Transmit path
 
@@ -36,8 +37,9 @@ payload encapsulation before returning a non-owning view. It honors
 `octetsToInlineQos` rather than assuming that future header extensions cannot
 exist.
 
-Unsupported inline QoS, keys, non-standard payloads, fragmentation, discovery,
-and reliability are explicit errors in this profile.
+Unsupported inline QoS, keys, non-standard payloads, fragmentation, and
+discovery are explicit errors in this DATA profile. HEARTBEAT/ACKNACK use the
+separate bounded reliability-control codec.
 
 ## UDP behavior
 

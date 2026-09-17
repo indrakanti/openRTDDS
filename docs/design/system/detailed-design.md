@@ -1,55 +1,51 @@
 # System detailed design
 
 **Design status:** Current  
-**Scope:** PR1–PR3 implementation baseline  
+**Scope:** PR1–PR9 implementation baseline  
 **Requirements:** This document is architectural context; normative feature
 requirements are traced in their feature designs.
 
 ## Responsibility and boundary
 
 The current library is a synchronous, caller-driven C++17 component. It
-provides bounded storage, XCDR1 serialization, one unfragmented RTPS DATA
-message, and nonblocking UDPv4 transport. It does not create threads, schedule
-callbacks, perform discovery, or implement reliability.
+provides bounded storage, XCDR1 serialization, unfragmented RTPS DATA,
+bounded HEARTBEAT/ACKNACK reliability, a static typed DDS API, and nonblocking
+UDPv4 transport. It does not create threads, schedule callbacks, or perform
+dynamic discovery.
 
 ```mermaid
 flowchart TD
-    App[Application] --> CDR[XCDR1 writer]
-    CDR --> RTPS[RTPS DATA builder]
-    RTPS --> UDP[Nonblocking UDPv4]
+    App[Application] --> DDS[Static typed DDS entities]
+    DDS --> CDR[XCDR1]
+    DDS --> RTPS[RTPS DATA and control]
+    DDS --> REL[Bounded reliability state]
+    App --> UDP[Nonblocking UDPv4]
+    DDS --> UDP
     UDP --> Peer[Static peer]
-    Peer --> Parser[RTPS DATA parser]
-    Parser --> Reader[XCDR1 reader]
-    Reader --> App
-    History[KEEP_LAST history] -. bounded storage .-> App
     Linux[Linux RT primitives] -. process/thread setup .-> App
 ```
 
 The application owns orchestration. It selects static identifiers and
-endpoints, provides all message buffers, calls APIs, handles errors, and
-decides retry, deadline, and degradation policies.
+endpoints, provides all message and action buffers, moves complete datagrams
+through transport, calls timer events, handles errors and actions, and decides
+retry, deadline, and degradation policies.
 
 ## End-to-end transmit and receive behavior
 
 ```mermaid
 sequenceDiagram
     participant A as Application
-    participant C as CdrWriter
-    participant R as DataMessageBuilder
+    participant W as Typed DataWriter
     participant U as UdpSocket
-    participant P as Peer
-    A->>C: begin(byte_order)
-    A->>C: write fields
-    C-->>A: payload pointer + size
-    A->>R: build(config, payload, size)
-    R-->>A: RTPS datagram pointer + size
+    participant R as Typed DataReader
+    A->>W: write(sample, now, buffer)
+    W->>W: serialize, build DATA, retain history
+    W-->>A: RTPS datagram + sequence
     A->>U: send_to(endpoint, datagram)
-    U-->>P: one UDP datagram
-    P->>U: one UDP datagram
     A->>U: receive_from(buffer)
-    A->>R: parse_data_message(buffer)
-    R-->>A: validated DataMessageView
-    A->>C: begin() + read fields
+    A->>R: take(datagram, sample)
+    R->>R: validate, deserialize, update window
+    R-->>A: typed sample + sequence
 ```
 
 Each step is explicit and synchronous. There are no internal queues between
@@ -74,8 +70,10 @@ analyze any synchronization for priority inversion and bounded blocking.
 
 ## Ownership model
 
-- Writers and builders borrow mutable caller buffers for their entire object
-  lifetime.
+- CDR writers/readers and RTPS builders/views borrow caller buffers for their
+  object or view lifetime.
+- Static DDS writers and readers copy their configuration; each call only
+  borrows its supplied datagram, action, or sample storage.
 - Readers and parsed views borrow immutable input buffers.
 - A `DataMessageView` becomes invalid when its source datagram storage is
   modified or destroyed.
@@ -111,6 +109,7 @@ design-level fault codes defined in [faults-and-errors](../faults-and-errors.md)
 - Static endpoints; no SPDP or SEDP.
 - One unfragmented DATA submessage per datagram.
 - No inline QoS, keys, DATA_FRAG, security, or dynamic types.
-- No HEARTBEAT, ACKNACK, retransmission, deadlines, or health monitor yet.
+- One statically matched reliable pair per typed writer or reader; no
+  multi-reader aggregation or best-effort entity policy yet.
+- No DDS deadline implementation or health monitor yet.
 - No internal application-level end-to-end safety envelope yet.
-
