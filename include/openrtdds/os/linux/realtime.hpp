@@ -5,6 +5,8 @@
 
 namespace openrtdds::os::linux_rt {
 
+// Requirements: ORT-LNX-001, ORT-LNX-002, ORT-LNX-003, ORT-LNX-004
+
 enum class RealtimeError : std::uint8_t {
   none = 0,
   invalid_argument,

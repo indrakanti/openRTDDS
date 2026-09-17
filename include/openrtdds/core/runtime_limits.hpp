@@ -5,6 +5,8 @@
 
 namespace openrtdds::core {
 
+// Requirements: ORT-CORE-001
+
 enum class LimitError : std::uint8_t {
   none = 0,
   zero_participants,
@@ -50,4 +52,3 @@ struct RuntimeLimits final {
 [[nodiscard]] const char* to_string(LimitError error) noexcept;
 
 }  // namespace openrtdds::core
-

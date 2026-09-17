@@ -4,6 +4,8 @@
 #include "openrtdds/core/keep_last_history.hpp"
 #include "test_support.hpp"
 
+// Verifies: ORT-HIST-001, ORT-HIST-002, ORT-HIST-003, ORT-HIST-004
+
 void test_keep_last_history() {
   using History = openrtdds::core::KeepLastHistory<2U, 4U>;
   using openrtdds::core::HistoryError;
@@ -34,6 +36,11 @@ void test_keep_last_history() {
   CHECK(history.push(oversized.data(), oversized.size(),
                      SampleMetadata{13U, 130U}) ==
         HistoryError::payload_too_large);
+  CHECK(history.size() == 2U);
+  CHECK(history.newest()->metadata().sequence_number == 12U);
+
+  CHECK(history.push(nullptr, 1U, SampleMetadata{14U, 140U}) ==
+        HistoryError::invalid_argument);
   CHECK(history.size() == 2U);
   CHECK(history.newest()->metadata().sequence_number == 12U);
 

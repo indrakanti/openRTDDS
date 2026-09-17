@@ -36,6 +36,26 @@ target_link_libraries(openrtdds PUBLIC pthread)
 if(OPENRTDDS_BUILD_EXAMPLES)
   add_executable(openrtdds_runtime_probe examples/runtime_probe.cpp)
   target_link_libraries(openrtdds_runtime_probe PRIVATE OpenRTDDS::openrtdds)
+
+  add_executable(openrtdds_vehicle_state examples/vehicle_state.cpp)
+  target_link_libraries(openrtdds_vehicle_state PRIVATE OpenRTDDS::openrtdds)
+
+  add_executable(openrtdds_rtps_static_message
+    examples/rtps_static_message.cpp
+  )
+  target_link_libraries(openrtdds_rtps_static_message
+    PRIVATE OpenRTDDS::openrtdds
+  )
+
+  foreach(example_target IN ITEMS
+      openrtdds_runtime_probe
+      openrtdds_vehicle_state
+      openrtdds_rtps_static_message)
+    target_compile_options(${example_target} PRIVATE -Wall -Wextra -Wpedantic)
+    if(OPENRTDDS_WARNINGS_AS_ERRORS)
+      target_compile_options(${example_target} PRIVATE -Werror)
+    endif()
+  endforeach()
 endif()
 
 include(CTest)
@@ -45,6 +65,7 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     tests/test_runtime_limits.cpp
     tests/test_cdr.cpp
     tests/test_keep_last_history.cpp
+    tests/test_realtime.cpp
     tests/test_rtps_data_message.cpp
     tests/test_static_pool.cpp
     tests/test_udp_socket.cpp
@@ -55,4 +76,10 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     target_compile_options(openrtdds_unit_tests PRIVATE -Werror)
   endif()
   add_test(NAME openrtdds_unit_tests COMMAND openrtdds_unit_tests)
+  if(OPENRTDDS_BUILD_EXAMPLES)
+    add_test(NAME openrtdds_vehicle_state_example COMMAND openrtdds_vehicle_state)
+    add_test(NAME openrtdds_rtps_static_message_example
+      COMMAND openrtdds_rtps_static_message
+    )
+  endif()
 endif()

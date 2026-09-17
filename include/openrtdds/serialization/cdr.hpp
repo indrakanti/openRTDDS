@@ -5,6 +5,9 @@
 
 namespace openrtdds::serialization {
 
+// Requirements: ORT-SER-001, ORT-SER-002, ORT-SER-003, ORT-SER-004,
+// Requirements: ORT-SER-005, ORT-SER-006
+
 enum class ByteOrder : std::uint8_t {
   big_endian = 0,
   little_endian = 1,

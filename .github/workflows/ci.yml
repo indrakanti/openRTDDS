@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check requirement traces
+        run: python3 tools/check_requirement_traces.py
       - name: Select compiler
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
@@ -31,4 +33,3 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
-

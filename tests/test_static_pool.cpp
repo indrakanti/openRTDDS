@@ -1,6 +1,8 @@
 #include "openrtdds/core/static_pool.hpp"
 #include "test_support.hpp"
 
+// Verifies: ORT-CORE-002
+
 namespace {
 
 struct Tracked final {
@@ -40,4 +42,3 @@ void test_static_pool() {
   CHECK(pool.empty());
   CHECK(Tracked::live_count == 0);
 }
-

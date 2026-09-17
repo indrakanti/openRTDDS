@@ -7,6 +7,9 @@
 #include "openrtdds/serialization/cdr.hpp"
 #include "test_support.hpp"
 
+// Verifies: ORT-RTPS-001, ORT-RTPS-002, ORT-RTPS-003, ORT-RTPS-004,
+// Verifies: ORT-RTPS-005, ORT-RTPS-006, ORT-RTPS-007
+
 namespace {
 
 using openrtdds::rtps::DataMessageBuilder;
@@ -151,6 +154,12 @@ void test_builder_and_parser_rejections() {
   CHECK(openrtdds::rtps::parse_data_message(malformed.data(), builder.size(),
                                             view) ==
         RtpsError::invalid_submessage);
+
+  std::array<std::uint8_t, 65'508U> oversized_payload{};
+  oversized_payload[1] = 1U;
+  CHECK(!builder.build(config, oversized_payload.data(),
+                       oversized_payload.size()));
+  CHECK(builder.error() == RtpsError::message_too_large);
 }
 
 }  // namespace
