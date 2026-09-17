@@ -45,6 +45,12 @@ from source tags and rejects missing or unknown evidence.
 | ORT-DDS-004 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
 | ORT-DDS-005 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
 | ORT-DDS-006 | Verified | `dds/static_entities.hpp` | `test_static_dds.cpp` | `static_dds_udp.cpp` |
+| ORT-SPDP-001 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
+| ORT-SPDP-002 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
+| ORT-SPDP-003 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | — |
+| ORT-SPDP-004 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
+| ORT-SPDP-005 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
+| ORT-SPDP-006 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

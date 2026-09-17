@@ -1,7 +1,7 @@
 # System detailed design
 
 **Design status:** Current  
-**Scope:** PR1–PR9 implementation baseline  
+**Scope:** PR1–PR10 implementation baseline  
 **Requirements:** This document is architectural context; normative feature
 requirements are traced in their feature designs.
 
@@ -9,9 +9,9 @@ requirements are traced in their feature designs.
 
 The current library is a synchronous, caller-driven C++17 component. It
 provides bounded storage, XCDR1 serialization, unfragmented RTPS DATA,
-bounded HEARTBEAT/ACKNACK reliability, a static typed DDS API, and nonblocking
-UDPv4 transport. It does not create threads, schedule callbacks, or perform
-dynamic discovery.
+bounded HEARTBEAT/ACKNACK reliability, a static typed DDS API, bounded SPDP
+participant discovery, and nonblocking UDPv4 transport. It does not create
+threads, schedule callbacks, or perform endpoint discovery.
 
 ```mermaid
 flowchart TD
@@ -19,6 +19,7 @@ flowchart TD
     DDS --> CDR[XCDR1]
     DDS --> RTPS[RTPS DATA and control]
     DDS --> REL[Bounded reliability state]
+    App --> SPDP[Bounded SPDP discovery]
     App --> UDP[Nonblocking UDPv4]
     DDS --> UDP
     UDP --> Peer[Static peer]
@@ -106,7 +107,8 @@ design-level fault codes defined in [faults-and-errors](../faults-and-errors.md)
 ## Current limitations
 
 - Linux and UDPv4 only.
-- Static endpoints; no SPDP or SEDP.
+- Static data endpoints; SPDP participant discovery is available but SEDP
+  endpoint discovery and dynamic matching are not.
 - One unfragmented DATA submessage per datagram.
 - No inline QoS, keys, DATA_FRAG, security, or dynamic types.
 - One statically matched reliable pair per typed writer or reader; no

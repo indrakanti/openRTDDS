@@ -46,3 +46,9 @@ machine checker independently validates requirement references in feature
 | ORT-DDS-004 | Current | `static-dds/detailed-design.md` |
 | ORT-DDS-005 | Current | `static-dds/detailed-design.md` |
 | ORT-DDS-006 | Current | `static-dds/detailed-design.md` |
+| ORT-SPDP-001 | Current | `spdp/detailed-design.md` |
+| ORT-SPDP-002 | Current | `spdp/detailed-design.md` |
+| ORT-SPDP-003 | Current | `spdp/detailed-design.md` |
+| ORT-SPDP-004 | Current | `spdp/detailed-design.md` |
+| ORT-SPDP-005 | Current | `spdp/detailed-design.md` |
+| ORT-SPDP-006 | Current | `spdp/detailed-design.md` |

@@ -16,11 +16,12 @@ statically configured participants and supplies the topic/type binding,
 reader and writer entity IDs, remote GUID prefix, byte order, reliability
 bounds, datagram buffers, current monotonic time, and UDP scheduling.
 
-The library does not perform SPDP/SEDP discovery, name lookup, endpoint
+The static DDS API does not invoke SPDP/SEDP discovery, name lookup, endpoint
 matching, socket ownership, thread creation, waiting, timer scheduling, or
-hidden retry. `topic_id` and `type_id` are local/generated identifiers in this
-profile; they are not added to the RTPS DATA wire representation. Static
-configuration establishes the topic match before activation.
+hidden retry. The separate General Profile SPDP component may populate remote
+participant information, but static endpoint configuration still establishes
+the topic match before activation. `topic_id` and `type_id` are
+local/generated identifiers and are not added to the RTPS DATA wire format.
 
 ## Types and ownership
 
