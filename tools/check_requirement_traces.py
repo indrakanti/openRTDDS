@@ -83,12 +83,16 @@ def load_requirements() -> tuple[dict[str, Requirement], list[str]]:
     return requirements, errors
 
 
-def collect_references(directory: str, tag: str) -> dict[str, set[str]]:
+def collect_references(
+    directory: str, tag: str, filename: str | None = None
+) -> dict[str, set[str]]:
     references: dict[str, set[str]] = {}
     root = ROOT / directory
     if not root.exists():
         return references
     for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        if filename is not None and path.name != filename:
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
@@ -107,6 +111,9 @@ def main() -> int:
         code.setdefault(identifier, set()).update(paths)
     tests = collect_references("tests", "Verifies")
     examples = collect_references("examples", "Demonstrates")
+    designs = collect_references(
+        "docs/design", "Requirements", "detailed-design.md"
+    )
 
     known = set(requirements)
     matrix_path = REQUIREMENTS_ROOT / "traceability.md"
@@ -115,10 +122,24 @@ def main() -> int:
         errors.append(f"{identifier} is missing from the traceability matrix")
     for identifier in sorted(matrix_ids - known):
         errors.append(f"unknown requirement {identifier} in traceability matrix")
+
+    design_matrix_path = ROOT / "docs" / "design" / "traceability.md"
+    design_matrix_ids = set(
+        REFERENCE.findall(design_matrix_path.read_text(encoding="utf-8"))
+    )
+    for identifier in sorted(known - design_matrix_ids):
+        errors.append(
+            f"{identifier} is missing from the design traceability matrix"
+        )
+    for identifier in sorted(design_matrix_ids - known):
+        errors.append(
+            f"unknown requirement {identifier} in design traceability matrix"
+        )
     for evidence_name, evidence in (
         ("code", code),
         ("test", tests),
         ("example", examples),
+        ("design", designs),
     ):
         for identifier, paths in evidence.items():
             if identifier not in known:
@@ -129,6 +150,8 @@ def main() -> int:
 
     enforced = {"Implemented", "Verified"}
     for identifier, requirement in sorted(requirements.items()):
+        if requirement.status != "Deprecated" and identifier not in designs:
+            errors.append(f"{identifier} has no detailed-design trace")
         if requirement.status not in enforced:
             continue
         if identifier not in code:
