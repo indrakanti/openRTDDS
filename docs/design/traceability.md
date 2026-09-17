@@ -35,9 +35,8 @@ machine checker independently validates requirement references in feature
 | ORT-UDP-004 | Current | `udp-transport/detailed-design.md` |
 | ORT-UDP-005 | Current | `udp-transport/detailed-design.md` |
 | ORT-REL-001 | Planned | `reliability/detailed-design.md` |
-| ORT-REL-002 | Planned | `reliability/detailed-design.md` |
-| ORT-REL-003 | Planned | `reliability/detailed-design.md` |
+| ORT-REL-002 | Current | `reliability/detailed-design.md` |
+| ORT-REL-003 | Current | `reliability/detailed-design.md` |
 | ORT-REL-004 | Planned | `reliability/detailed-design.md` |
 | ORT-REL-005 | Planned | `reliability/detailed-design.md` |
 | ORT-REL-006 | Planned | `reliability/detailed-design.md` |
-

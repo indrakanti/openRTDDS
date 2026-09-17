@@ -54,10 +54,11 @@ not treated as a build/test failure.
 1. [x] Project foundation and deterministic Linux primitives
 2. [x] CDR serialization and bounded sample storage
 3. [x] UDPv4 RTPS DATA path with static endpoint configuration
-4. [ ] HEARTBEAT/ACKNACK with bounded reliability
-5. [ ] SPDP/SEDP discovery for the General Profile
-6. [ ] Fast DDS and Cyclone DDS interoperability gates
-7. [ ] Shared-memory transport, latency instrumentation, and fault injection
+4. [x] Bounded HEARTBEAT/ACKNACK wire codec
+5. [ ] Bounded writer/reader reliability state machines
+6. [ ] SPDP/SEDP discovery for the General Profile
+7. [ ] Fast DDS and Cyclone DDS interoperability gates
+8. [ ] Shared-memory transport, latency instrumentation, and fault injection
 
 See [the architecture](docs/architecture.md),
 [deterministic profile](docs/deterministic-profile.md), and

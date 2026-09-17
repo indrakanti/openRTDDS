@@ -16,7 +16,7 @@ interfaces are exposed, and how errors and faults propagate.
 | Bounded history | Current | [History design](history/detailed-design.md) |
 | RTPS DATA | Current | [RTPS DATA design](rtps-data/detailed-design.md) |
 | UDPv4 transport | Current | [UDP transport design](udp-transport/detailed-design.md) |
-| Bounded reliability | Planned | [Reliability design](reliability/detailed-design.md) |
+| Bounded reliability | Current | [Reliability design](reliability/detailed-design.md) |
 
 Cross-cutting contracts are documented in:
 
@@ -90,4 +90,3 @@ A feature is not ready to merge until:
 - examples carry `Demonstrates:` tags where required;
 - both traceability matrices are updated;
 - trace checks, GCC, Clang, tests, and examples pass.
-
