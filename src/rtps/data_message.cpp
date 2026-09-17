@@ -32,7 +32,7 @@ constexpr std::uint16_t octets_to_inline_qos = 16U;
     const std::size_t payload_size) noexcept {
   return (payload != nullptr) &&
          (payload_size >= minimum_serialized_payload_size) &&
-         (payload[0] == 0U) && ((payload[1] == 0U) || (payload[1] == 1U));
+         (payload[0] == 0U) && (payload[1] <= 3U);
 }
 
 void write_uint16(std::uint8_t* const destination, const std::uint16_t value,

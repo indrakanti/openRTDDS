@@ -23,6 +23,7 @@ deadline or retry bound is exceeded.
 | Reliability control | `ReliabilityMessageError` | HEARTBEAT/ACKNACK construction, bounds, subset, or parse failure |
 | Reliability state | `ReliabilityError` + `RepairFailure` | history, receive window, count ordering, repair, or timing result |
 | Static DDS composition | `DdsError` + preserved lower-layer error | entity configuration, typed conversion, identity, DATA, or reliability operation |
+| SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
 
 Error enums are symbolic API values. Their implicit integer representation is
@@ -52,6 +53,10 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-REL-001` | Error | repair/retry bound exceeded or gap no longer repairable | reliability/application |
 | `ORT-FLT-DDS-001` | Fatal at startup | invalid participant, topic, endpoint, or type binding | startup controller |
 | `ORT-FLT-DDS-002` | Warning/Error | unexpected participant or endpoint identity | receiver/application |
+| `ORT-FLT-DISC-001` | Fatal at startup | invalid local discovery configuration | startup controller |
+| `ORT-FLT-DISC-002` | Error | discovery buffer, locator, participant, or event bound exceeded | discovery/application |
+| `ORT-FLT-DISC-003` | Warning/Error | malformed or unsupported discovery announcement | discovery/application |
+| `ORT-FLT-DISC-004` | Warning/Error | unknown must-understand discovery parameter | compatibility owner |
 | `ORT-FLT-DEADLINE-001` | Error/Fatal by topic | planned delivery deadline exceeded | application safety monitor |
 
 Severity is deployment-configurable except where the selected deterministic
@@ -94,6 +99,10 @@ Current static DDS composition mappings are:
 | `reliability_message_failed` | map the preserved `ReliabilityMessageError` to the applicable `ORT-FLT-RTPS-*` code |
 | `reliability_state_failed` | map the preserved `ReliabilityError` to the applicable reliability, timing, or resource policy |
 | `invalid_action` | local integration defect; do not transmit |
+
+SPDP rejects malformed, wrong-domain, self, stale, and incompatible
+announcements without committing the parsed view or a new participant state.
+Participant expiry is a bounded discovery event, not a fault by itself.
 
 ## Fault event payload (Planned)
 

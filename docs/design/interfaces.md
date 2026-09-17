@@ -18,6 +18,7 @@ feature designs.
 | `rtps/data_message.hpp` | `openrtdds::rtps` | DATA message construction and parsing |
 | `rtps/reliability_messages.hpp` | `openrtdds::rtps` | bounded HEARTBEAT/ACKNACK construction and parsing |
 | `rtps/reliability_state.hpp` | `openrtdds::rtps` | fixed writer/reader reliability state and caller-owned actions |
+| `rtps/spdp.hpp` | `openrtdds::rtps` | bounded SPDP codec, UDP port mapping, and participant cache |
 | `transport/udp_socket.hpp` | `openrtdds::transport` | nonblocking UDPv4 ownership and I/O |
 | `version.hpp` | `openrtdds` | library semantic version string |
 
@@ -32,7 +33,8 @@ The current network interface is one IPv4 UDP datagram containing:
 1. 20-byte RTPS message header;
 2. four-byte RTPS submessage header;
 3. 20-byte fixed DATA content;
-4. one XCDR1 `CDR_BE` or `CDR_LE` serialized payload.
+4. one supported XCDR1 `CDR_BE`, `CDR_LE`, `PL_CDR_BE`, or `PL_CDR_LE`
+   serialized payload.
 
 The DATA path has a maximum datagram size of 65,507 bytes. The current
 reliability-control path contains exactly one HEARTBEAT (52 bytes) or ACKNACK
@@ -86,3 +88,11 @@ codec are Current. They remain separate interfaces: applications may use the
 codec without state ownership, and state actions must be explicitly translated
 to transport operations by the caller. Neither interface owns threads, timers,
 sockets, or callbacks.
+
+## SPDP discovery interface
+
+`rtps/spdp.hpp` provides DDSI-RTPS default/custom port calculation, bounded
+UDPv4 locators, PL_CDR participant announcement construction/parsing, and a
+compile-time-capacity participant table. The application supplies UDP sockets,
+multicast policy, announcement/expiry scheduling, and monotonic time. See the
+[SPDP design](spdp/detailed-design.md).

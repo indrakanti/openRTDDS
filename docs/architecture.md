@@ -29,6 +29,7 @@ deadline supervision, health events, metrics, and fault injection.
 | `dds` | Static typed entity composition and endpoint configuration |
 | `core` | Resource limits, histories, and fixed storage |
 | `rtps` | Wire protocol, matching, sequence state, reliability |
+| `rtps/spdp` | Bounded General Profile participant discovery and leases |
 | `serialization` | Bounded CDR encoding and decoding |
 | `transport` | UDPv4 and shared-memory I/O |
 | `os/linux` | Threads, scheduling, affinity, clocks, memory, sockets |
