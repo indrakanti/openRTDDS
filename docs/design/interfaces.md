@@ -16,6 +16,7 @@ feature designs.
 | `rtps/types.hpp` | `openrtdds::rtps` | RTPS identity value types |
 | `rtps/data_message.hpp` | `openrtdds::rtps` | DATA message construction and parsing |
 | `rtps/reliability_messages.hpp` | `openrtdds::rtps` | bounded HEARTBEAT/ACKNACK construction and parsing |
+| `rtps/reliability_state.hpp` | `openrtdds::rtps` | fixed writer/reader reliability state and caller-owned actions |
 | `transport/udp_socket.hpp` | `openrtdds::transport` | nonblocking UDPv4 ownership and I/O |
 | `version.hpp` | `openrtdds` | library semantic version string |
 
@@ -61,8 +62,10 @@ and require interoperability tests. Error enum names are API contracts;
 implicit numeric enum values are not persistent diagnostic identifiers and
 must not be stored or transmitted.
 
-## Planned interfaces
+## Reliability state interface
 
-The caller-driven writer/reader reliability state machines remain Planned.
-The HEARTBEAT/ACKNACK wire codec is Current and must remain usable without
-state-machine ownership, threads, timers, or transport callbacks.
+The caller-driven writer/reader state machines and HEARTBEAT/ACKNACK wire
+codec are Current. They remain separate interfaces: applications may use the
+codec without state ownership, and state actions must be explicitly translated
+to transport operations by the caller. Neither interface owns threads, timers,
+sockets, or callbacks.

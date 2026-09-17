@@ -7,6 +7,7 @@ void test_cdr();
 void test_keep_last_history();
 void test_realtime();
 void test_reliability_messages();
+void test_reliability_state();
 void test_rtps_data_message();
 void test_static_pool();
 void test_udp_socket();
@@ -17,6 +18,7 @@ int main() {
   test_keep_last_history();
   test_realtime();
   test_reliability_messages();
+  test_reliability_state();
   test_rtps_data_message();
   test_static_pool();
   test_udp_socket();

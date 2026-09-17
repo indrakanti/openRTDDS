@@ -33,12 +33,12 @@ from source tags and rejects missing or unknown evidence.
 | ORT-UDP-003 | Verified | `udp_socket.hpp` | `test_udp_socket.cpp` | — |
 | ORT-UDP-004 | Verified | `udp_socket.hpp` | `test_udp_socket.cpp` | — |
 | ORT-UDP-005 | Verified | `udp_socket.hpp` | `test_udp_socket.cpp` | — |
-| ORT-REL-001 | Draft | Not implemented | Planned | — |
+| ORT-REL-001 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | `reliable_pair.cpp` |
 | ORT-REL-002 | Verified | `rtps/reliability_messages.hpp` | `test_reliability_messages.cpp` | `rtps_reliability_message.cpp` |
 | ORT-REL-003 | Verified | `rtps/reliability_messages.hpp` | `test_reliability_messages.cpp` | `rtps_reliability_message.cpp` |
-| ORT-REL-004 | Draft | Not implemented | Planned | — |
-| ORT-REL-005 | Draft | Not implemented | Planned | — |
-| ORT-REL-006 | Draft | Not implemented | Planned | — |
+| ORT-REL-004 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | — |
+| ORT-REL-005 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | — |
+| ORT-REL-006 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | `reliable_pair.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

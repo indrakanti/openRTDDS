@@ -21,6 +21,7 @@ deadline or retry bound is exceeded.
 | History | `HistoryError` | invalid or oversized sample |
 | RTPS | `RtpsError` | construction, protocol, subset, or parse failure |
 | Reliability control | `ReliabilityMessageError` | HEARTBEAT/ACKNACK construction, bounds, subset, or parse failure |
+| Reliability state | `ReliabilityError` + `RepairFailure` | history, receive window, count ordering, repair, or timing result |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
 
 Error enums are symbolic API values. Their implicit integer representation is
@@ -47,7 +48,7 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-UDP-001` | Fatal at startup | socket, bind, or endpoint-query failure | startup controller |
 | `ORT-FLT-UDP-002` | Error | send failure or oversize datagram | publisher/application |
 | `ORT-FLT-UDP-003` | Error | receive failure or truncation | subscriber/application |
-| `ORT-FLT-REL-001` | Error | planned repair/retry bound exceeded | reliability/application |
+| `ORT-FLT-REL-001` | Error | repair/retry bound exceeded or gap no longer repairable | reliability/application |
 | `ORT-FLT-DEADLINE-001` | Error/Fatal by topic | planned delivery deadline exceeded | application safety monitor |
 
 Severity is deployment-configurable except where the selected deterministic
@@ -61,11 +62,23 @@ Current reliability-control mappings are:
 | `truncated`, `invalid_protocol`, `invalid_submessage`, `bitmap_bound_exceeded` | `ORT-FLT-RTPS-001` |
 | `unsupported_version`, `unsupported_submessage`, `unsupported_feature` | `ORT-FLT-RTPS-002` |
 | `invalid_sequence_number` | `ORT-FLT-RTPS-003` |
+| `unexpected_peer` | routing/configuration error; reject without state change |
 | `invalid_argument`, `buffer_overflow` | caller configuration/resource error |
 
 The wire codec returns these errors but does not publish fault events. It
 rejects malformed control input without modifying the caller's prior parsed
 view.
+
+Current state-machine mappings are:
+
+| Reliability state result | Fault code |
+|---|---|
+| terminal `repair_limit_exceeded` or `repair_window_expired` action | `ORT-FLT-REL-001` |
+| `gap_not_repairable` | `ORT-FLT-REL-001` |
+| `invalid_sequence_number` | `ORT-FLT-RTPS-003` |
+| `time_regression` | `ORT-FLT-TIME-001` |
+| `history_full`, `receive_window_exceeded`, `action_capacity_exceeded` | resource/configuration policy |
+| `stale_control`, `duplicate_data`, `stale_data` | observable status; no fault by itself |
 
 ## Fault event payload (Planned)
 
