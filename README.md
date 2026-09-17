@@ -69,6 +69,9 @@ The static RTPS/UDP path is documented in
 Feature requirements and their implementation, test, and example evidence are
 indexed in the [requirements catalog](docs/requirements/README.md) and
 [traceability matrix](docs/requirements/traceability.md).
+Behavior, classes, APIs, sequences, interfaces, errors, and fault mappings are
+maintained in the [detailed-design catalog](docs/design/README.md) and
+[design traceability matrix](docs/design/traceability.md).
 
 ## License
 

@@ -1,0 +1,43 @@
+# Requirement-to-design traceability
+
+This matrix identifies the detailed-design owner for every requirement. The
+machine checker independently validates requirement references in feature
+`detailed-design.md` files.
+
+| Requirement | Design status | Detailed design |
+|---|---|---|
+| ORT-CORE-001 | Current | `core/detailed-design.md` |
+| ORT-CORE-002 | Current | `core/detailed-design.md` |
+| ORT-LNX-001 | Current | `linux-realtime/detailed-design.md` |
+| ORT-LNX-002 | Current | `linux-realtime/detailed-design.md` |
+| ORT-LNX-003 | Current | `linux-realtime/detailed-design.md` |
+| ORT-LNX-004 | Current | `linux-realtime/detailed-design.md` |
+| ORT-SER-001 | Current | `serialization/detailed-design.md` |
+| ORT-SER-002 | Current | `serialization/detailed-design.md` |
+| ORT-SER-003 | Current | `serialization/detailed-design.md` |
+| ORT-SER-004 | Current | `serialization/detailed-design.md` |
+| ORT-SER-005 | Current | `serialization/detailed-design.md` |
+| ORT-SER-006 | Current | `serialization/detailed-design.md` |
+| ORT-HIST-001 | Current | `history/detailed-design.md` |
+| ORT-HIST-002 | Current | `history/detailed-design.md` |
+| ORT-HIST-003 | Current | `history/detailed-design.md` |
+| ORT-HIST-004 | Current | `history/detailed-design.md` |
+| ORT-RTPS-001 | Current | `rtps-data/detailed-design.md` |
+| ORT-RTPS-002 | Current | `rtps-data/detailed-design.md` |
+| ORT-RTPS-003 | Current | `rtps-data/detailed-design.md` |
+| ORT-RTPS-004 | Current | `rtps-data/detailed-design.md` |
+| ORT-RTPS-005 | Current | `rtps-data/detailed-design.md` |
+| ORT-RTPS-006 | Current | `rtps-data/detailed-design.md` |
+| ORT-RTPS-007 | Current | `rtps-data/detailed-design.md` |
+| ORT-UDP-001 | Current | `udp-transport/detailed-design.md` |
+| ORT-UDP-002 | Current | `udp-transport/detailed-design.md` |
+| ORT-UDP-003 | Current | `udp-transport/detailed-design.md` |
+| ORT-UDP-004 | Current | `udp-transport/detailed-design.md` |
+| ORT-UDP-005 | Current | `udp-transport/detailed-design.md` |
+| ORT-REL-001 | Planned | `reliability/detailed-design.md` |
+| ORT-REL-002 | Planned | `reliability/detailed-design.md` |
+| ORT-REL-003 | Planned | `reliability/detailed-design.md` |
+| ORT-REL-004 | Planned | `reliability/detailed-design.md` |
+| ORT-REL-005 | Planned | `reliability/detailed-design.md` |
+| ORT-REL-006 | Planned | `reliability/detailed-design.md` |
+

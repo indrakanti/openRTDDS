@@ -7,10 +7,14 @@ no harder to explain.
 ## Pull-request expectations
 
 - define or update requirements before implementing feature behavior
+- update the matching `docs/design/<feature>/detailed-design.md` with code
+- document behavior, classes, APIs, interfaces, sequences, errors, faults,
+  ownership, bounds, concurrency, and timing impacts
 - use stable `ORT-<FEATURE>-<NNN>` IDs from `docs/requirements/`
 - put `Requirements:` IDs beside the implementing code
 - put `Verifies:` IDs in tests and `Demonstrates:` IDs in examples
 - update `docs/requirements/traceability.md` when traces change
+- update `docs/design/traceability.md` when design ownership changes
 - include tests for observable behavior
 - avoid new runtime heap allocation on Safety Profile paths
 - document new threads, locks, queues, timers, and retry loops
@@ -28,4 +32,6 @@ ctest --test-dir build --output-on-failure
 ```
 
 See [requirements governance](docs/requirements/README.md) for the lifecycle,
-required evidence, and change rules.
+required evidence, and change rules. See
+[detailed-design governance](docs/design/README.md) for the design lifecycle
+and required content.
