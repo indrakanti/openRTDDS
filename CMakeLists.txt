@@ -17,6 +17,7 @@ add_library(openrtdds
   src/os/linux/realtime.cpp
   src/rtps/data_message.cpp
   src/rtps/reliability_messages.cpp
+  src/rtps/reliability_state.cpp
   src/serialization/cdr.cpp
   src/transport/udp_socket.cpp
 )
@@ -55,11 +56,17 @@ if(OPENRTDDS_BUILD_EXAMPLES)
     PRIVATE OpenRTDDS::openrtdds
   )
 
+  add_executable(openrtdds_reliable_pair examples/reliable_pair.cpp)
+  target_link_libraries(openrtdds_reliable_pair
+    PRIVATE OpenRTDDS::openrtdds
+  )
+
   foreach(example_target IN ITEMS
       openrtdds_runtime_probe
       openrtdds_vehicle_state
       openrtdds_rtps_static_message
-      openrtdds_rtps_reliability_message)
+      openrtdds_rtps_reliability_message
+      openrtdds_reliable_pair)
     target_compile_options(${example_target} PRIVATE -Wall -Wextra -Wpedantic)
     if(OPENRTDDS_WARNINGS_AS_ERRORS)
       target_compile_options(${example_target} PRIVATE -Werror)
@@ -76,6 +83,7 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     tests/test_keep_last_history.cpp
     tests/test_realtime.cpp
     tests/test_reliability_messages.cpp
+    tests/test_reliability_state.cpp
     tests/test_rtps_data_message.cpp
     tests/test_static_pool.cpp
     tests/test_udp_socket.cpp
@@ -93,6 +101,9 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     )
     add_test(NAME openrtdds_rtps_reliability_message_example
       COMMAND openrtdds_rtps_reliability_message
+    )
+    add_test(NAME openrtdds_reliable_pair_example
+      COMMAND openrtdds_reliable_pair
     )
   endif()
 endif()

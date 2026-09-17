@@ -55,7 +55,7 @@ not treated as a build/test failure.
 2. [x] CDR serialization and bounded sample storage
 3. [x] UDPv4 RTPS DATA path with static endpoint configuration
 4. [x] Bounded HEARTBEAT/ACKNACK wire codec
-5. [ ] Bounded writer/reader reliability state machines
+5. [x] Bounded single-pair writer/reader reliability state machines
 6. [ ] SPDP/SEDP discovery for the General Profile
 7. [ ] Fast DDS and Cyclone DDS interoperability gates
 8. [ ] Shared-memory transport, latency instrumentation, and fault injection

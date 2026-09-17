@@ -1,15 +1,17 @@
 # Bounded reliability requirements
 
-This feature set is delivered incrementally. The control-message wire subset is
-implemented and verified; writer/reader repair state remains Draft.
+The bounded control-message and single-pair reliability state-machine profile
+is implemented and verified. Multi-reader aggregation remains future scope.
 
 ### ORT-REL-001 — Bounded writer history window
 
-**Status:** Draft  
+**Status:** Verified  
 **Verification:** Test
 
-A reliable writer shall retain at most a configured fixed number of sequenced
-DATA samples for repair and shall report exhaustion or replacement explicitly.
+A reliable-writer state-machine instance shall retain at most its compile-time
+history depth of sequenced DATA samples for one statically matched reader and
+shall reject a new sample with `history_full` rather than replace an
+unacknowledged sample.
 
 **Rationale:** Repair state must have a known memory bound.
 
@@ -39,31 +41,36 @@ positions in either RTPS byte order without runtime allocation.
 
 ### ORT-REL-004 — Bounded repair policy
 
-**Status:** Draft  
+**Status:** Verified  
 **Verification:** Test
 
-The writer shall enforce configured maximum repair attempts and repair-window
-duration for each sample and shall emit an explicit terminal failure when
-either bound is exceeded.
+The reliable writer shall enforce configured maximum repair attempts and
+repair-window duration for each retained sample and shall emit exactly one
+terminal `sample_failed` action before releasing a sample when either bound is
+reached.
 
 **Rationale:** Reliable delivery must not become unbounded recovery.
 
 ### ORT-REL-005 — Duplicate and stale control traffic
 
-**Status:** Draft  
+**Status:** Verified  
 **Verification:** Test
 
-The reliability state machine shall ignore duplicate or stale HEARTBEAT and
-ACKNACK counts without changing acknowledged state or repair-attempt limits.
+The reliability state machines shall identify duplicate or stale HEARTBEAT and
+ACKNACK counts using wrap-aware 32-bit ordering and shall return
+`stale_control` without changing state, producing actions, or consuming repair
+attempts.
 
 **Rationale:** Reordered control traffic must not trigger extra work.
 
 ### ORT-REL-006 — Deterministic state machine
 
-**Status:** Draft  
+**Status:** Verified  
 **Verification:** Test, Analysis
 
-Reliability processing shall use fixed storage, no runtime heap allocation, no
-internal blocking waits, and a documented upper bound on work per event.
+Reliability processing shall use compile-time fixed state and caller-owned
+fixed action storage, perform no runtime heap allocation or internal blocking
+wait, and examine at most the configured history depth or receive-window size
+per event.
 
 **Rationale:** Reliability must preserve the deterministic profile.
