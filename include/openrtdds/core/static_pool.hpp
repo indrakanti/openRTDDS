@@ -9,6 +9,7 @@
 
 namespace openrtdds::core {
 
+// Requirements: ORT-CORE-002
 // Fixed-capacity object storage. This type is intentionally single-owner;
 // synchronization belongs at the subsystem boundary where priority and
 // blocking behavior can be analyzed explicitly.
@@ -84,4 +85,3 @@ class StaticPool final {
 };
 
 }  // namespace openrtdds::core
-

@@ -7,6 +7,8 @@
 
 namespace openrtdds::core {
 
+// Requirements: ORT-HIST-001, ORT-HIST-002, ORT-HIST-003, ORT-HIST-004
+
 enum class HistoryError : std::uint8_t {
   none = 0,
   invalid_argument,

@@ -1,17 +1,33 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
+#include <utility>
 
 #include "openrtdds/rtps/data_message.hpp"
 #include "openrtdds/serialization/cdr.hpp"
 #include "openrtdds/transport/udp_socket.hpp"
 #include "test_support.hpp"
 
+// Verifies: ORT-UDP-001, ORT-UDP-002, ORT-UDP-003, ORT-UDP-004,
+// Verifies: ORT-UDP-005
+
 void test_udp_socket() {
   using openrtdds::transport::Ipv4Address;
   using openrtdds::transport::UdpEndpoint;
   using openrtdds::transport::UdpError;
   using openrtdds::transport::UdpSocket;
+
+  static_assert(!std::is_copy_constructible_v<UdpSocket>);
+  static_assert(!std::is_copy_assignable_v<UdpSocket>);
+  static_assert(std::is_nothrow_move_constructible_v<UdpSocket>);
+  static_assert(std::is_nothrow_move_assignable_v<UdpSocket>);
+
+  UdpSocket unopened;
+  std::array<std::uint8_t, 1U> scratch{};
+  UdpEndpoint scratch_endpoint{};
+  CHECK(unopened.receive_from(scratch.data(), scratch.size(), scratch_endpoint)
+            .error == UdpError::not_open);
 
   UdpSocket receiver;
   CHECK(receiver.open().ok());
@@ -24,6 +40,12 @@ void test_udp_socket() {
 
   UdpSocket sender;
   CHECK(sender.open().ok());
+  UdpSocket moved_sender = std::move(sender);
+  CHECK(!sender.is_open());
+  CHECK(moved_sender.is_open());
+  CHECK(moved_sender.send_to({Ipv4Address::loopback(), 0U}, scratch.data(),
+                             scratch.size())
+            .error == UdpError::invalid_argument);
 
   std::array<std::uint8_t, 16U> payload{};
   openrtdds::serialization::CdrWriter cdr(payload.data(), payload.size());
@@ -42,7 +64,7 @@ void test_udp_socket() {
   openrtdds::rtps::DataMessageBuilder builder(sent.data(), sent.size());
   CHECK(builder.build(config, payload.data(), cdr.size()));
   const auto send_result =
-      sender.send_to(receiver_endpoint, builder.data(), builder.size());
+      moved_sender.send_to(receiver_endpoint, builder.data(), builder.size());
   CHECK(send_result.ok());
   CHECK(send_result.bytes == builder.size());
 
@@ -67,10 +89,16 @@ void test_udp_socket() {
       received.data(), received.size(), sender_endpoint);
   CHECK(empty_result.error == UdpError::would_block);
 
-  CHECK(sender.send_to(receiver_endpoint, builder.data(), builder.size()).ok());
+  CHECK(moved_sender.send_to(receiver_endpoint, builder.data(), builder.size())
+            .ok());
   std::array<std::uint8_t, 16U> too_small{};
   const auto truncated_result = receiver.receive_from(
       too_small.data(), too_small.size(), sender_endpoint);
   CHECK(truncated_result.error == UdpError::truncated);
   CHECK(truncated_result.bytes == builder.size());
+
+  std::array<std::uint8_t, 65'508U> oversized{};
+  const auto oversized_result = moved_sender.send_to(
+      receiver_endpoint, oversized.data(), oversized.size());
+  CHECK(oversized_result.error == UdpError::message_too_large);
 }

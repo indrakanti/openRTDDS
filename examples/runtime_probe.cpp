@@ -4,6 +4,8 @@
 #include "openrtdds/os/linux/realtime.hpp"
 #include "openrtdds/version.hpp"
 
+// Demonstrates: ORT-LNX-001, ORT-LNX-004
+
 int main() {
   const openrtdds::core::RuntimeLimits limits{};
   const auto limit_error = limits.validate();

@@ -6,6 +6,9 @@
 #include "openrtdds/serialization/cdr.hpp"
 #include "test_support.hpp"
 
+// Verifies: ORT-SER-001, ORT-SER-002, ORT-SER-003, ORT-SER-004,
+// Verifies: ORT-SER-005, ORT-SER-006
+
 namespace {
 
 using openrtdds::serialization::ByteOrder;
@@ -70,6 +73,60 @@ void test_big_endian_and_alignment() {
   CHECK(second == 0x01020304U);
 }
 
+void test_primitive_round_trip() {
+  std::array<std::uint8_t, 128U> buffer{};
+  CdrWriter writer(buffer.data(), buffer.size());
+  const std::array<std::uint8_t, 3U> bytes{{0xA1U, 0xB2U, 0xC3U}};
+  CHECK(writer.begin(ByteOrder::little_endian));
+  CHECK(writer.write_bool(true));
+  CHECK(writer.write_uint8(0x5AU));
+  CHECK(writer.write_int16(-1234));
+  CHECK(writer.write_uint16(54321U));
+  CHECK(writer.write_int32(-1234567));
+  CHECK(writer.write_uint32(3456789012U));
+  CHECK(writer.write_int64(-1234567890123LL));
+  CHECK(writer.write_uint64(12'345'678'901'234ULL));
+  CHECK(writer.write_float32(1.25F));
+  CHECK(writer.write_float64(-2.5));
+  CHECK(writer.write_bytes(bytes.data(), bytes.size()));
+
+  CdrReader reader(buffer.data(), writer.size());
+  bool boolean = false;
+  std::uint8_t uint8 = 0U;
+  std::int16_t int16 = 0;
+  std::uint16_t uint16 = 0U;
+  std::int32_t int32 = 0;
+  std::uint32_t uint32 = 0U;
+  std::int64_t int64 = 0;
+  std::uint64_t uint64 = 0U;
+  float float32 = 0.0F;
+  double float64 = 0.0;
+  std::array<std::uint8_t, 3U> decoded_bytes{};
+  CHECK(reader.begin());
+  CHECK(reader.read_bool(boolean));
+  CHECK(reader.read_uint8(uint8));
+  CHECK(reader.read_int16(int16));
+  CHECK(reader.read_uint16(uint16));
+  CHECK(reader.read_int32(int32));
+  CHECK(reader.read_uint32(uint32));
+  CHECK(reader.read_int64(int64));
+  CHECK(reader.read_uint64(uint64));
+  CHECK(reader.read_float32(float32));
+  CHECK(reader.read_float64(float64));
+  CHECK(reader.read_bytes(decoded_bytes.data(), decoded_bytes.size()));
+  CHECK(boolean);
+  CHECK(uint8 == 0x5AU);
+  CHECK(int16 == -1234);
+  CHECK(uint16 == 54321U);
+  CHECK(int32 == -1234567);
+  CHECK(uint32 == 3456789012U);
+  CHECK(int64 == -1234567890123LL);
+  CHECK(uint64 == 12'345'678'901'234ULL);
+  CHECK(float32 == 1.25F);
+  CHECK(float64 == -2.5);
+  CHECK(decoded_bytes == bytes);
+}
+
 void test_bounds_and_atomic_failure() {
   std::array<std::uint8_t, 8U> buffer{};
   CdrWriter writer(buffer.data(), buffer.size());
@@ -127,6 +184,7 @@ void test_rejects_unsupported_encapsulation() {
 void test_cdr() {
   test_little_endian_golden_payload();
   test_big_endian_and_alignment();
+  test_primitive_round_trip();
   test_bounds_and_atomic_failure();
   test_bounded_string();
   test_rejects_unsupported_encapsulation();

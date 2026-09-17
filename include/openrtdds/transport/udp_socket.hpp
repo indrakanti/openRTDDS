@@ -6,6 +6,9 @@
 
 namespace openrtdds::transport {
 
+// Requirements: ORT-UDP-001, ORT-UDP-002, ORT-UDP-003, ORT-UDP-004,
+// Requirements: ORT-UDP-005
+
 struct Ipv4Address final {
   std::array<std::uint8_t, 4U> octets{};
 

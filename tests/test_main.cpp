@@ -5,6 +5,7 @@
 void test_runtime_limits();
 void test_cdr();
 void test_keep_last_history();
+void test_realtime();
 void test_rtps_data_message();
 void test_static_pool();
 void test_udp_socket();
@@ -13,6 +14,7 @@ int main() {
   test_runtime_limits();
   test_cdr();
   test_keep_last_history();
+  test_realtime();
   test_rtps_data_message();
   test_static_pool();
   test_udp_socket();

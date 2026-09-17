@@ -35,6 +35,7 @@ standards-compliant DDS implementations.
 ## Build
 
 ```bash
+python3 tools/check_requirement_traces.py
 cmake -S . -B build -DOPENRTDDS_WARNINGS_AS_ERRORS=ON
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
@@ -65,6 +66,9 @@ The supported wire subset and its deliberate limits are documented in
 [serialization](docs/serialization.md).
 The static RTPS/UDP path is documented in
 [RTPS DATA path](docs/rtps-data-path.md).
+Feature requirements and their implementation, test, and example evidence are
+indexed in the [requirements catalog](docs/requirements/README.md) and
+[traceability matrix](docs/requirements/traceability.md).
 
 ## License
 

@@ -8,6 +8,9 @@
 
 namespace openrtdds::rtps {
 
+// Requirements: ORT-RTPS-001, ORT-RTPS-002, ORT-RTPS-003, ORT-RTPS-004,
+// Requirements: ORT-RTPS-005, ORT-RTPS-006, ORT-RTPS-007
+
 enum class RtpsError : std::uint8_t {
   none = 0,
   invalid_argument,
