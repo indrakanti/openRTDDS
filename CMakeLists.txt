@@ -15,7 +15,9 @@ add_library(openrtdds
   src/core/runtime_limits.cpp
   src/core/version.cpp
   src/os/linux/realtime.cpp
+  src/rtps/data_message.cpp
   src/serialization/cdr.cpp
+  src/transport/udp_socket.cpp
 )
 add_library(OpenRTDDS::openrtdds ALIAS openrtdds)
 
@@ -43,7 +45,9 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     tests/test_runtime_limits.cpp
     tests/test_cdr.cpp
     tests/test_keep_last_history.cpp
+    tests/test_rtps_data_message.cpp
     tests/test_static_pool.cpp
+    tests/test_udp_socket.cpp
   )
   target_link_libraries(openrtdds_unit_tests PRIVATE OpenRTDDS::openrtdds)
   target_compile_options(openrtdds_unit_tests PRIVATE -Wall -Wextra -Wpedantic)
