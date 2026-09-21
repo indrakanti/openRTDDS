@@ -69,7 +69,7 @@ validated input datagram and does not copy payload bytes.
 | 32 | 4 | writer EntityId |
 | 36 | 4 | sequence high word |
 | 40 | 4 | sequence low word |
-| 44 | N | XCDR1 serialized payload |
+| 44 | N | supported XCDR1 payload (`CDR_*` or `PL_CDR_*`) |
 
 The minimum payload is its four-byte encapsulation. Total message size must not
 exceed 65,507 bytes. The fixed RTPS/DATA overhead is 44 bytes.
@@ -159,4 +159,3 @@ require caller-controlled concurrency.
 - `tests/test_rtps_data_message.cpp`
 - `tests/test_udp_socket.cpp` for end-to-end datagram use
 - `examples/rtps_static_message.cpp`
-

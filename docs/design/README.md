@@ -18,6 +18,7 @@ interfaces are exposed, and how errors and faults propagate.
 | UDPv4 transport | Current | [UDP transport design](udp-transport/detailed-design.md) |
 | Bounded reliability | Current | [Reliability design](reliability/detailed-design.md) |
 | Static DDS API | Current | [Static DDS design](static-dds/detailed-design.md) |
+| SPDP participant discovery | Current | [SPDP design](spdp/detailed-design.md) |
 
 Cross-cutting contracts are documented in:
 
