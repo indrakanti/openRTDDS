@@ -1,5 +1,7 @@
 #include "openrtdds/rtps/data_message.hpp"
 
+#include "openrtdds/rtps/message_router.hpp"
+
 #include <cstring>
 #include <limits>
 
@@ -20,6 +22,22 @@ constexpr std::uint8_t data_flag = 0x04U;
 constexpr std::uint8_t key_flag = 0x08U;
 constexpr std::uint8_t nonstandard_payload_flag = 0x10U;
 constexpr std::uint16_t octets_to_inline_qos = 16U;
+
+[[nodiscard]] RtpsError route_error(
+    const MessageRouteError error) noexcept {
+  switch (error) {
+    case MessageRouteError::none: return RtpsError::none;
+    case MessageRouteError::invalid_argument: return RtpsError::invalid_argument;
+    case MessageRouteError::truncated: return RtpsError::truncated;
+    case MessageRouteError::invalid_protocol: return RtpsError::invalid_protocol;
+    case MessageRouteError::unsupported_version: return RtpsError::unsupported_version;
+    case MessageRouteError::submessage_not_found: return RtpsError::unsupported_submessage;
+    case MessageRouteError::malformed_submessage:
+    case MessageRouteError::invalid_info_submessage:
+      return RtpsError::invalid_submessage;
+  }
+  return RtpsError::invalid_submessage;
+}
 
 [[nodiscard]] bool supported_byte_order(
     const serialization::ByteOrder byte_order) noexcept {
@@ -217,30 +235,14 @@ bool DataMessageBuilder::fail(const RtpsError error) noexcept {
 RtpsError parse_data_message(const std::uint8_t* const message,
                              const std::size_t message_size,
                              DataMessageView& view) noexcept {
-  if ((message == nullptr) && (message_size != 0U)) {
-    return RtpsError::invalid_argument;
+  RoutedSubmessageView routed{};
+  const MessageRouteError routed_error = find_submessage(
+      message, message_size, data_submessage_id, 0U, routed);
+  if (routed_error != MessageRouteError::none) {
+    return route_error(routed_error);
   }
-  if (message_size < (data_message_overhead +
-                      minimum_serialized_payload_size)) {
-    return RtpsError::truncated;
-  }
-  if ((message[0] != static_cast<std::uint8_t>('R')) ||
-      (message[1] != static_cast<std::uint8_t>('T')) ||
-      (message[2] != static_cast<std::uint8_t>('P')) ||
-      (message[3] != static_cast<std::uint8_t>('S'))) {
-    return RtpsError::invalid_protocol;
-  }
-  if ((message[4] != 2U) || (message[5] == 0U)) {
-    return RtpsError::unsupported_version;
-  }
-  if (message[20] != data_submessage_id) {
-    return RtpsError::unsupported_submessage;
-  }
-
-  const std::uint8_t flags = message[21];
-  const auto byte_order = (flags & endianness_flag) != 0U
-                              ? serialization::ByteOrder::little_endian
-                              : serialization::ByteOrder::big_endian;
+  const std::uint8_t flags = routed.flags;
+  const auto byte_order = routed.byte_order;
   if ((flags & data_flag) == 0U) {
     return RtpsError::invalid_submessage;
   }
@@ -249,48 +251,34 @@ RtpsError parse_data_message(const std::uint8_t* const message,
     return RtpsError::unsupported_feature;
   }
 
-  const std::uint16_t declared_content_size = read_uint16(&message[22],
-                                                           byte_order);
-  const std::size_t content_available =
-      message_size - rtps_header_size - submessage_header_size;
-  const std::size_t content_size =
-      declared_content_size == 0U
-          ? content_available
-          : static_cast<std::size_t>(declared_content_size);
-  if (content_size > content_available) {
-    return RtpsError::truncated;
-  }
+  const std::size_t content_size = routed.content_size;
   if (content_size <
       (data_fixed_content_size + minimum_serialized_payload_size)) {
     return RtpsError::invalid_submessage;
   }
-
-  const std::size_t submessage_end =
-      rtps_header_size + submessage_header_size + content_size;
-  const std::uint16_t extra_flags = read_uint16(&message[24], byte_order);
+  const std::uint8_t* const content = routed.content;
+  const std::uint16_t extra_flags = read_uint16(content, byte_order);
   if (extra_flags != 0U) {
     return RtpsError::unsupported_feature;
   }
-  const std::uint16_t inline_qos_offset = read_uint16(&message[26],
-                                                       byte_order);
+  const std::uint16_t inline_qos_offset = read_uint16(&content[2], byte_order);
   if (inline_qos_offset < octets_to_inline_qos) {
     return RtpsError::invalid_submessage;
   }
 
-  constexpr std::size_t after_inline_qos_offset_field = 28U;
+  constexpr std::size_t after_inline_qos_offset_field = 4U;
   const std::size_t payload_offset =
       after_inline_qos_offset_field +
       static_cast<std::size_t>(inline_qos_offset);
-  if ((payload_offset > submessage_end) ||
-      ((submessage_end - payload_offset) < minimum_serialized_payload_size)) {
+  if ((payload_offset > content_size) ||
+      ((content_size - payload_offset) < minimum_serialized_payload_size)) {
     return RtpsError::invalid_submessage;
   }
 
-  const std::uint32_t sequence_high_bits = read_uint32(&message[36],
-                                                        byte_order);
+  const std::uint32_t sequence_high_bits = read_uint32(&content[12], byte_order);
   std::int32_t sequence_high = 0;
   std::memcpy(&sequence_high, &sequence_high_bits, sizeof(sequence_high));
-  const std::uint32_t sequence_low = read_uint32(&message[40], byte_order);
+  const std::uint32_t sequence_low = read_uint32(&content[16], byte_order);
   if (sequence_high < 0) {
     return RtpsError::invalid_sequence_number;
   }
@@ -302,21 +290,24 @@ RtpsError parse_data_message(const std::uint8_t* const message,
     return RtpsError::invalid_sequence_number;
   }
 
-  const std::size_t payload_size = submessage_end - payload_offset;
-  const std::uint8_t* const payload = &message[payload_offset];
+  const std::size_t payload_size = content_size - payload_offset;
+  const std::uint8_t* const payload = &content[payload_offset];
   if (!supported_serialized_payload(payload, payload_size)) {
     return RtpsError::invalid_serialized_payload;
   }
 
   DataMessageView candidate{};
-  candidate.version = {message[4], message[5]};
-  std::memcpy(candidate.vendor_id.value.data(), &message[6],
-              candidate.vendor_id.value.size());
-  std::memcpy(candidate.guid_prefix.value.data(), &message[8],
-              candidate.guid_prefix.value.size());
-  std::memcpy(candidate.reader_id.value.data(), &message[28],
+  candidate.version = routed.version;
+  candidate.vendor_id = routed.vendor_id;
+  candidate.guid_prefix = routed.source_guid_prefix;
+  candidate.destination_guid_prefix = routed.destination_guid_prefix;
+  candidate.has_destination = routed.has_destination;
+  candidate.source_timestamp_seconds = routed.source_timestamp.seconds;
+  candidate.source_timestamp_fraction = routed.source_timestamp.fraction;
+  candidate.has_source_timestamp = routed.has_source_timestamp;
+  std::memcpy(candidate.reader_id.value.data(), &content[4],
               candidate.reader_id.value.size());
-  std::memcpy(candidate.writer_id.value.data(), &message[32],
+  std::memcpy(candidate.writer_id.value.data(), &content[8],
               candidate.writer_id.value.size());
   candidate.sequence_number = sequence_number;
   candidate.submessage_byte_order = byte_order;

@@ -24,6 +24,7 @@ standards-compliant DDS implementations.
 - bounded HEARTBEAT/ACKNACK reliability with explicit repair actions
 - bounded SPDP participant discovery with explicit lease expiry
 - bounded SEDP endpoint discovery and request/offered matching
+- allocation-free compound RTPS message routing and interpreter context
 
 ## Profiles
 
@@ -64,6 +65,9 @@ not treated as a build/test failure.
 7. [x] Bounded SPDP participant discovery for the General Profile
 8. [x] Bounded SEDP endpoint discovery and dynamic matching
 9. [ ] Fast DDS and Cyclone DDS interoperability gates
+   - [x] Compound RTPS message routing prerequisite
+   - [ ] Versioned vendor packet corpus
+   - [ ] Live bidirectional vendor exchange
 10. [ ] ROS 2 RMW adapter and graph integration
 11. [ ] Shared-memory transport, latency instrumentation, and fault injection
 
@@ -80,6 +84,8 @@ indexed in the [requirements catalog](docs/requirements/README.md) and
 Behavior, classes, APIs, sequences, interfaces, errors, and fault mappings are
 maintained in the [detailed-design catalog](docs/design/README.md) and
 [design traceability matrix](docs/design/traceability.md).
+The evidence required before interoperability or ROS 2 compatibility claims
+is defined in the [interoperability qualification plan](docs/interoperability.md).
 
 ## License
 

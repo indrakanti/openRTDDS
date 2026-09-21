@@ -70,6 +70,11 @@ struct DataMessageView final {
   ProtocolVersion version{};
   VendorId vendor_id{};
   GuidPrefix guid_prefix{};
+  GuidPrefix destination_guid_prefix{};
+  bool has_destination{false};
+  std::int32_t source_timestamp_seconds{0};
+  std::uint32_t source_timestamp_fraction{0U};
+  bool has_source_timestamp{false};
   EntityId reader_id{};
   EntityId writer_id{};
   std::uint64_t sequence_number{0U};
@@ -79,8 +84,10 @@ struct DataMessageView final {
   std::size_t payload_size{0U};
 };
 
-// Parses the first submessage of a bounded RTPS message. PR3 intentionally
-// supports only an unfragmented DATA submessage without inline QoS.
+// Finds and parses the first DATA submessage in a bounded compound RTPS
+// message. INFO_SRC, INFO_DST, INFO_TS, PAD, and unknown length-delimited
+// submessages may precede or follow DATA. The DATA subset remains
+// unfragmented and without inline QoS.
 [[nodiscard]] RtpsError parse_data_message(const std::uint8_t* message,
                                            std::size_t message_size,
                                            DataMessageView& view) noexcept;

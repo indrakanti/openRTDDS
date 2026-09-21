@@ -58,3 +58,9 @@ machine checker independently validates requirement references in feature
 | ORT-SEDP-004 | Current | `sedp/detailed-design.md` |
 | ORT-SEDP-005 | Current | `sedp/detailed-design.md` |
 | ORT-SEDP-006 | Current | `sedp/detailed-design.md` |
+| ORT-ROUTE-001 | Current | `rtps-routing/detailed-design.md` |
+| ORT-ROUTE-002 | Current | `rtps-routing/detailed-design.md` |
+| ORT-ROUTE-003 | Current | `rtps-routing/detailed-design.md` |
+| ORT-ROUTE-004 | Current | `rtps-routing/detailed-design.md` |
+| ORT-ROUTE-005 | Current | `rtps-routing/detailed-design.md` |
+| ORT-ROUTE-006 | Current | `rtps-routing/detailed-design.md` |
