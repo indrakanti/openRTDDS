@@ -24,6 +24,7 @@ deadline or retry bound is exceeded.
 | Reliability state | `ReliabilityError` + `RepairFailure` | history, receive window, count ordering, repair, or timing result |
 | Static DDS composition | `DdsError` + preserved lower-layer error | entity configuration, typed conversion, identity, DATA, or reliability operation |
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
+| SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
 
 Error enums are symbolic API values. Their implicit integer representation is
@@ -103,6 +104,12 @@ Current static DDS composition mappings are:
 SPDP rejects malformed, wrong-domain, self, stale, and incompatible
 announcements without committing the parsed view or a new participant state.
 Participant expiry is a bounded discovery event, not a fault by itself.
+
+SEDP applies the same `ORT-FLT-DISC-*` mappings to endpoint records. Invalid
+identity or participant ownership is rejected without cache mutation. Stale
+announcements and request/offered QoS incompatibility are observable discovery
+outcomes, not faults by themselves. Participant-driven endpoint removal is
+atomic when the caller-provided event array is too small.
 
 ## Fault event payload (Planned)
 

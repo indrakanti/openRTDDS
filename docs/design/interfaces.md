@@ -19,6 +19,7 @@ feature designs.
 | `rtps/reliability_messages.hpp` | `openrtdds::rtps` | bounded HEARTBEAT/ACKNACK construction and parsing |
 | `rtps/reliability_state.hpp` | `openrtdds::rtps` | fixed writer/reader reliability state and caller-owned actions |
 | `rtps/spdp.hpp` | `openrtdds::rtps` | bounded SPDP codec, UDP port mapping, and participant cache |
+| `rtps/sedp.hpp` | `openrtdds::rtps` | bounded SEDP codec, endpoint cache, and matching |
 | `transport/udp_socket.hpp` | `openrtdds::transport` | nonblocking UDPv4 ownership and I/O |
 | `version.hpp` | `openrtdds` | library semantic version string |
 
@@ -96,3 +97,12 @@ UDPv4 locators, PL_CDR participant announcement construction/parsing, and a
 compile-time-capacity participant table. The application supplies UDP sockets,
 multicast policy, announcement/expiry scheduling, and monotonic time. See the
 [SPDP design](spdp/detailed-design.md).
+
+## SEDP discovery interface
+
+`rtps/sedp.hpp` provides bounded PL_CDR publication/subscription announcement
+construction and parsing, a compile-time-capacity remote endpoint table,
+participant-driven endpoint removal, and pure request/offered matching for the
+supported reliability and durability subset. The caller validates participant
+presence through SPDP and owns reliable built-in endpoint transport. See the
+[SEDP design](sedp/detailed-design.md).
