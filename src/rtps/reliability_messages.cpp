@@ -1,5 +1,7 @@
 #include "openrtdds/rtps/reliability_messages.hpp"
 
+#include "openrtdds/rtps/message_router.hpp"
+
 #include <cstring>
 #include <limits>
 
@@ -80,17 +82,6 @@ void write_sequence_number(
                byte_order);
 }
 
-[[nodiscard]] std::uint16_t read_uint16(
-    const std::uint8_t* const source,
-    const serialization::ByteOrder byte_order) noexcept {
-  if (byte_order == serialization::ByteOrder::little_endian) {
-    return static_cast<std::uint16_t>(source[0]) |
-           (static_cast<std::uint16_t>(source[1]) << 8U);
-  }
-  return (static_cast<std::uint16_t>(source[0]) << 8U) |
-         static_cast<std::uint16_t>(source[1]);
-}
-
 [[nodiscard]] std::uint32_t read_uint32(
     const std::uint8_t* const source,
     const serialization::ByteOrder byte_order) noexcept {
@@ -158,7 +149,28 @@ struct ParsedPrefix final {
       serialization::ByteOrder::little_endian};
   std::uint8_t flags{0U};
   std::size_t content_size{0U};
+  const std::uint8_t* content{nullptr};
 };
+
+[[nodiscard]] ReliabilityMessageError route_error(
+    const MessageRouteError error) noexcept {
+  switch (error) {
+    case MessageRouteError::none: return ReliabilityMessageError::none;
+    case MessageRouteError::invalid_argument:
+      return ReliabilityMessageError::invalid_argument;
+    case MessageRouteError::truncated: return ReliabilityMessageError::truncated;
+    case MessageRouteError::invalid_protocol:
+      return ReliabilityMessageError::invalid_protocol;
+    case MessageRouteError::unsupported_version:
+      return ReliabilityMessageError::unsupported_version;
+    case MessageRouteError::submessage_not_found:
+      return ReliabilityMessageError::unsupported_submessage;
+    case MessageRouteError::malformed_submessage:
+    case MessageRouteError::invalid_info_submessage:
+      return ReliabilityMessageError::invalid_submessage;
+  }
+  return ReliabilityMessageError::invalid_submessage;
+}
 
 [[nodiscard]] ReliabilityMessageError parse_prefix(
     const std::uint8_t* const message, const std::size_t message_size,
@@ -167,48 +179,21 @@ struct ParsedPrefix final {
   if ((message == nullptr) && (message_size != 0U)) {
     return ReliabilityMessageError::invalid_argument;
   }
-  if (message_size < (rtps_header_size + submessage_header_size)) {
-    return ReliabilityMessageError::truncated;
+  RoutedSubmessageView routed{};
+  const MessageRouteError find_error = find_submessage(
+      message, message_size, expected_submessage_id, 0U, routed);
+  if (find_error != MessageRouteError::none) {
+    return route_error(find_error);
   }
-  if ((message[0] != static_cast<std::uint8_t>('R')) ||
-      (message[1] != static_cast<std::uint8_t>('T')) ||
-      (message[2] != static_cast<std::uint8_t>('P')) ||
-      (message[3] != static_cast<std::uint8_t>('S'))) {
-    return ReliabilityMessageError::invalid_protocol;
-  }
-
-  const ProtocolVersion version{message[4], message[5]};
-  if (!supported_version(version)) {
-    return ReliabilityMessageError::unsupported_version;
-  }
-  if (message[20] != expected_submessage_id) {
-    return ReliabilityMessageError::unsupported_submessage;
-  }
-
   ParsedPrefix candidate{};
-  candidate.header.version = version;
-  std::memcpy(candidate.header.vendor_id.value.data(), &message[6],
-              candidate.header.vendor_id.value.size());
-  std::memcpy(candidate.header.guid_prefix.value.data(), &message[8],
-              candidate.header.guid_prefix.value.size());
-  candidate.flags = message[21];
-  candidate.byte_order = (candidate.flags & endianness_flag) != 0U
-                             ? serialization::ByteOrder::little_endian
-                             : serialization::ByteOrder::big_endian;
+  candidate.header.version = routed.version;
+  candidate.header.vendor_id = routed.vendor_id;
+  candidate.header.guid_prefix = routed.source_guid_prefix;
+  candidate.flags = routed.flags;
+  candidate.byte_order = routed.byte_order;
   candidate.header.submessage_byte_order = candidate.byte_order;
-
-  const std::size_t available =
-      message_size - rtps_header_size - submessage_header_size;
-  const std::uint16_t declared = read_uint16(&message[22],
-                                              candidate.byte_order);
-  candidate.content_size =
-      declared == 0U ? available : static_cast<std::size_t>(declared);
-  if (candidate.content_size > available) {
-    return ReliabilityMessageError::truncated;
-  }
-  if ((declared != 0U) && (candidate.content_size != available)) {
-    return ReliabilityMessageError::invalid_submessage;
-  }
+  candidate.content_size = routed.content_size;
+  candidate.content = routed.content;
 
   prefix = candidate;
   return ReliabilityMessageError::none;
@@ -433,19 +418,19 @@ ReliabilityMessageError parse_heartbeat_message(
 
   HeartbeatView candidate{};
   candidate.header = prefix.header;
-  std::memcpy(candidate.reader_id.value.data(), &message[24],
+  std::memcpy(candidate.reader_id.value.data(), prefix.content,
               candidate.reader_id.value.size());
-  std::memcpy(candidate.writer_id.value.data(), &message[28],
+  std::memcpy(candidate.writer_id.value.data(), &prefix.content[4],
               candidate.writer_id.value.size());
-  if (!read_sequence_number(&message[32], prefix.byte_order, false,
+  if (!read_sequence_number(&prefix.content[8], prefix.byte_order, false,
                             candidate.first_sequence_number) ||
-      !read_sequence_number(&message[40], prefix.byte_order, true,
+      !read_sequence_number(&prefix.content[16], prefix.byte_order, true,
                             candidate.last_sequence_number) ||
       (candidate.last_sequence_number <
        (candidate.first_sequence_number - 1U))) {
     return ReliabilityMessageError::invalid_sequence_number;
   }
-  candidate.count = read_int32(&message[48], prefix.byte_order);
+  candidate.count = read_int32(&prefix.content[24], prefix.byte_order);
   candidate.final_flag = (prefix.flags & final_flag) != 0U;
   candidate.liveliness_flag = (prefix.flags & liveliness_flag) != 0U;
   view = candidate;
@@ -471,11 +456,11 @@ ReliabilityMessageError parse_acknack_message(
   }
 
   std::uint64_t bitmap_base = 0U;
-  if (!read_sequence_number(&message[32], prefix.byte_order, false,
+  if (!read_sequence_number(&prefix.content[8], prefix.byte_order, false,
                             bitmap_base)) {
     return ReliabilityMessageError::invalid_sequence_number;
   }
-  const std::uint32_t num_bits = read_uint32(&message[40], prefix.byte_order);
+  const std::uint32_t num_bits = read_uint32(&prefix.content[16], prefix.byte_order);
   if (num_bits > SequenceNumberSet::maximum_bits) {
     return ReliabilityMessageError::bitmap_bound_exceeded;
   }
@@ -488,17 +473,17 @@ ReliabilityMessageError parse_acknack_message(
 
   AckNackView candidate{};
   candidate.header = prefix.header;
-  std::memcpy(candidate.reader_id.value.data(), &message[24],
+  std::memcpy(candidate.reader_id.value.data(), prefix.content,
               candidate.reader_id.value.size());
-  std::memcpy(candidate.writer_id.value.data(), &message[28],
+  std::memcpy(candidate.writer_id.value.data(), &prefix.content[4],
               candidate.writer_id.value.size());
   if (!candidate.reader_state.reset(bitmap_base, num_bits)) {
     return ReliabilityMessageError::invalid_sequence_number;
   }
 
-  std::size_t offset = 44U;
+  std::size_t offset = 20U;
   for (std::size_t word_index = 0U; word_index < word_count; ++word_index) {
-    const std::uint32_t word = read_uint32(&message[offset], prefix.byte_order);
+    const std::uint32_t word = read_uint32(&prefix.content[offset], prefix.byte_order);
     for (std::uint32_t bit_index = 0U; bit_index < 32U; ++bit_index) {
       const std::uint32_t bit_offset =
           static_cast<std::uint32_t>(word_index * 32U) + bit_index;
@@ -509,7 +494,7 @@ ReliabilityMessageError parse_acknack_message(
     }
     offset += 4U;
   }
-  candidate.count = read_int32(&message[offset], prefix.byte_order);
+  candidate.count = read_int32(&prefix.content[offset], prefix.byte_order);
   candidate.final_flag = (prefix.flags & final_flag) != 0U;
   view = candidate;
   return ReliabilityMessageError::none;

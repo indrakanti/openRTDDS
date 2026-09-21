@@ -16,6 +16,7 @@ feature designs.
 | `serialization/cdr.hpp` | `openrtdds::serialization` | bounded XCDR1 reader and writer |
 | `rtps/types.hpp` | `openrtdds::rtps` | RTPS identity value types |
 | `rtps/data_message.hpp` | `openrtdds::rtps` | DATA message construction and parsing |
+| `rtps/message_router.hpp` | `openrtdds::rtps` | bounded compound RTPS submessage routing and interpreter context |
 | `rtps/reliability_messages.hpp` | `openrtdds::rtps` | bounded HEARTBEAT/ACKNACK construction and parsing |
 | `rtps/reliability_state.hpp` | `openrtdds::rtps` | fixed writer/reader reliability state and caller-owned actions |
 | `rtps/spdp.hpp` | `openrtdds::rtps` | bounded SPDP codec, UDP port mapping, and participant cache |
@@ -32,17 +33,17 @@ structure. Exceptions are neither thrown nor translated.
 The current network interface is one IPv4 UDP datagram containing:
 
 1. 20-byte RTPS message header;
-2. four-byte RTPS submessage header;
-3. 20-byte fixed DATA content;
-4. one supported XCDR1 `CDR_BE`, `CDR_LE`, `PL_CDR_BE`, or `PL_CDR_LE`
-   serialized payload.
+2. one or more bounded RTPS submessages;
+3. optional `PAD`, `INFO_SRC`, `INFO_DST`, `INFO_TS`, or unknown
+   length-delimited submessages;
+4. one selected DATA, HEARTBEAT, or ACKNACK submessage for typed parsing.
 
 The DATA path has a maximum datagram size of 65,507 bytes. The current
-reliability-control path contains exactly one HEARTBEAT (52 bytes) or ACKNACK
-(48 through 80 bytes) submessage. See the
+builders emit exactly one DATA, HEARTBEAT, or ACKNACK submessage, while parsers
+can route those supported forms inside a compound message. See the
 [RTPS DATA design](rtps-data/detailed-design.md) and
-[reliability design](reliability/detailed-design.md) for offsets and
-validation.
+[reliability design](reliability/detailed-design.md) for typed validation and
+the [routing design](rtps-routing/detailed-design.md) for dispatch behavior.
 
 ## Linux interfaces
 

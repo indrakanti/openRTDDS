@@ -1,14 +1,15 @@
 # System detailed design
 
 **Design status:** Current  
-**Scope:** PR1–PR11 implementation baseline  
+**Scope:** PR1–PR13 implementation baseline  
 **Requirements:** This document is architectural context; normative feature
 requirements are traced in their feature designs.
 
 ## Responsibility and boundary
 
 The current library is a synchronous, caller-driven C++17 component. It
-provides bounded storage, XCDR1 serialization, unfragmented RTPS DATA,
+provides bounded storage, XCDR1 serialization, compound RTPS routing,
+unfragmented RTPS DATA,
 bounded HEARTBEAT/ACKNACK reliability, a static typed DDS API, bounded SPDP
 participant discovery, and nonblocking UDPv4 transport. It does not create
 threads or schedule callbacks. Bounded SEDP endpoint discovery and matching
@@ -19,6 +20,7 @@ flowchart TD
     App[Application] --> DDS[Static typed DDS entities]
     DDS --> CDR[XCDR1]
     DDS --> RTPS[RTPS DATA and control]
+    RTPS --> ROUTE[Compound message router]
     DDS --> REL[Bounded reliability state]
     App --> SPDP[Bounded SPDP discovery]
     App --> SEDP[Bounded SEDP discovery]
@@ -113,7 +115,8 @@ design-level fault codes defined in [faults-and-errors](../faults-and-errors.md)
 - Static typed data endpoints remain the only application data path; SPDP and
   SEDP discovery can identify and match peers, but do not yet instantiate
   typed endpoints automatically.
-- One unfragmented DATA submessage per datagram.
+- Builders emit one unfragmented DATA/control submessage; parsers route a
+  supported target within a compound datagram.
 - No inline QoS, keys, DATA_FRAG, security, or dynamic types.
 - One statically matched reliable pair per typed writer or reader; no
   multi-reader aggregation or best-effort entity policy yet.

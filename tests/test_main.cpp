@@ -5,6 +5,7 @@
 void test_runtime_limits();
 void test_cdr();
 void test_keep_last_history();
+void test_message_router();
 void test_realtime();
 void test_reliability_messages();
 void test_reliability_state();
@@ -19,6 +20,7 @@ int main() {
   test_runtime_limits();
   test_cdr();
   test_keep_last_history();
+  test_message_router();
   test_realtime();
   test_reliability_messages();
   test_reliability_state();

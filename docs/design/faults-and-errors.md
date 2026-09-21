@@ -20,6 +20,7 @@ deadline or retry bound is exceeded.
 | Serialization | `CdrError` | buffer, representation, bound, or data failure |
 | History | `HistoryError` | invalid or oversized sample |
 | RTPS | `RtpsError` | construction, protocol, subset, or parse failure |
+| RTPS routing | `MessageRouteError` | compound-message bounds, interpreter context, or target lookup failure |
 | Reliability control | `ReliabilityMessageError` | HEARTBEAT/ACKNACK construction, bounds, subset, or parse failure |
 | Reliability state | `ReliabilityError` + `RepairFailure` | history, receive window, count ordering, repair, or timing result |
 | Static DDS composition | `DdsError` + preserved lower-layer error | entity configuration, typed conversion, identity, DATA, or reliability operation |
@@ -77,6 +78,18 @@ Current reliability-control mappings are:
 The wire codec returns these errors but does not publish fault events. It
 rejects malformed control input without modifying the caller's prior parsed
 view.
+
+Current compound-message routing mappings are:
+
+| `MessageRouteError` | Fault code / policy |
+|---|---|
+| `truncated`, `malformed_submessage`, `invalid_info_submessage` | `ORT-FLT-RTPS-001` |
+| `unsupported_version`, `submessage_not_found` | `ORT-FLT-RTPS-002` |
+| `invalid_protocol` | `ORT-FLT-RTPS-001`; reject datagram |
+| `invalid_argument` | local caller defect; do not process input |
+
+DATA and reliability parsers translate router errors into their existing
+public error domains and preserve atomic output semantics.
 
 Current state-machine mappings are:
 

@@ -57,6 +57,12 @@ from source tags and rejects missing or unknown evidence.
 | ORT-SEDP-004 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
 | ORT-SEDP-005 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
 | ORT-SEDP-006 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
+| ORT-ROUTE-001 | Verified | `rtps/message_router.hpp` | `test_message_router.cpp` | — |
+| ORT-ROUTE-002 | Verified | `rtps/message_router.hpp` | `test_message_router.cpp` | — |
+| ORT-ROUTE-003 | Verified | `rtps/message_router.hpp`, `rtps/data_message.hpp` | `test_message_router.cpp` | `compound_rtps_message.cpp` |
+| ORT-ROUTE-004 | Verified | `rtps/message_router.hpp`, `rtps/reliability_messages.hpp` | `test_message_router.cpp` | — |
+| ORT-ROUTE-005 | Verified | `rtps/message_router.hpp` | `test_message_router.cpp` | — |
+| ORT-ROUTE-006 | Verified | `rtps/message_router.hpp` | `test_message_router.cpp` | `compound_rtps_message.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each
