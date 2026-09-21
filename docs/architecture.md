@@ -30,6 +30,7 @@ deadline supervision, health events, metrics, and fault injection.
 | `core` | Resource limits, histories, and fixed storage |
 | `rtps` | Wire protocol, matching, sequence state, reliability |
 | `rtps/spdp` | Bounded General Profile participant discovery and leases |
+| `rtps/sedp` | Bounded General Profile endpoint discovery and matching |
 | `serialization` | Bounded CDR encoding and decoding |
 | `transport` | UDPv4 and shared-memory I/O |
 | `os/linux` | Threads, scheduling, affinity, clocks, memory, sockets |

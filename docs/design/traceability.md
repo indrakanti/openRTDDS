@@ -52,3 +52,9 @@ machine checker independently validates requirement references in feature
 | ORT-SPDP-004 | Current | `spdp/detailed-design.md` |
 | ORT-SPDP-005 | Current | `spdp/detailed-design.md` |
 | ORT-SPDP-006 | Current | `spdp/detailed-design.md` |
+| ORT-SEDP-001 | Current | `sedp/detailed-design.md` |
+| ORT-SEDP-002 | Current | `sedp/detailed-design.md` |
+| ORT-SEDP-003 | Current | `sedp/detailed-design.md` |
+| ORT-SEDP-004 | Current | `sedp/detailed-design.md` |
+| ORT-SEDP-005 | Current | `sedp/detailed-design.md` |
+| ORT-SEDP-006 | Current | `sedp/detailed-design.md` |

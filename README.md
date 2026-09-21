@@ -23,6 +23,7 @@ standards-compliant DDS implementations.
 - typed static DDS participants, topics, writers, and readers
 - bounded HEARTBEAT/ACKNACK reliability with explicit repair actions
 - bounded SPDP participant discovery with explicit lease expiry
+- bounded SEDP endpoint discovery and request/offered matching
 
 ## Profiles
 
@@ -61,9 +62,10 @@ not treated as a build/test failure.
 5. [x] Bounded single-pair writer/reader reliability state machines
 6. [x] Typed static DDS API and UDP loopback path
 7. [x] Bounded SPDP participant discovery for the General Profile
-8. [ ] SEDP endpoint discovery and dynamic matching
+8. [x] Bounded SEDP endpoint discovery and dynamic matching
 9. [ ] Fast DDS and Cyclone DDS interoperability gates
-10. [ ] Shared-memory transport, latency instrumentation, and fault injection
+10. [ ] ROS 2 RMW adapter and graph integration
+11. [ ] Shared-memory transport, latency instrumentation, and fault injection
 
 See [the architecture](docs/architecture.md),
 [deterministic profile](docs/deterministic-profile.md), and

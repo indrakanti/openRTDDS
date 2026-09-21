@@ -19,6 +19,7 @@ interfaces are exposed, and how errors and faults propagate.
 | Bounded reliability | Current | [Reliability design](reliability/detailed-design.md) |
 | Static DDS API | Current | [Static DDS design](static-dds/detailed-design.md) |
 | SPDP participant discovery | Current | [SPDP design](spdp/detailed-design.md) |
+| SEDP endpoint discovery | Current | [SEDP design](sedp/detailed-design.md) |
 
 Cross-cutting contracts are documented in:
 

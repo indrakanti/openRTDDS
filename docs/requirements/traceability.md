@@ -51,6 +51,12 @@ from source tags and rejects missing or unknown evidence.
 | ORT-SPDP-004 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
 | ORT-SPDP-005 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
 | ORT-SPDP-006 | Verified | `rtps/spdp.hpp` | `test_spdp.cpp` | `spdp_participants.cpp` |
+| ORT-SEDP-001 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
+| ORT-SEDP-002 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | — |
+| ORT-SEDP-003 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
+| ORT-SEDP-004 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
+| ORT-SEDP-005 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
+| ORT-SEDP-006 | Verified | `rtps/sedp.hpp` | `test_sedp.cpp` | `sedp_matching.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each
