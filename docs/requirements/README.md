@@ -17,6 +17,7 @@ verification evidence.
 | Bounded reliability | `ORT-REL` | [reliability](reliability/requirements.md) |
 | Static DDS API | `ORT-DDS` | [static-dds](static-dds/requirements.md) |
 | SPDP participant discovery | `ORT-SPDP` | [spdp](spdp/requirements.md) |
+| SEDP endpoint discovery | `ORT-SEDP` | [sedp](sedp/requirements.md) |
 
 The consolidated code and evidence mapping is the
 [traceability matrix](traceability.md).
