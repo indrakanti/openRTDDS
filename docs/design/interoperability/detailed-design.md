@@ -19,6 +19,14 @@ file. The companion `.json` manifest records exact package version, command,
 domain/endpoint, SHA-256 digest, byte count, and format. CI uploads both
 files even when the parse gate fails, provided capture succeeded.
 
+One capture from each pinned package is committed under
+`tests/interop/fixtures/<vendor>/<package-version>/`. The manifests also
+identify the originating Actions run and generator source. Ordinary GCC and
+Clang jobs check the committed SHA-256 digests and parse both fixed payloads,
+so a vendor installation is only needed for the independent fresh-capture
+job. Capture-specific GUIDs and timestamps may change between fresh runs;
+acceptance is semantic, not a byte-for-byte comparison with the frozen files.
+
 The C++ probe reads at most 65,507 bytes, calls `parse_spdp_message` with
 domain 43, and rejects missing participant sequence or unicast locators. It
 returns `0` on acceptance, `1` on parser failure, or `2` on invocation/input
@@ -55,6 +63,7 @@ sequenceDiagram
 | Multicast or SPDP absent | capture deadline | CI environment/network maintainer |
 | Malformed datagram | bounded filter or C++ parser failure | receiver implementation owner |
 | Missing required participant fields | probe fails | SPDP implementation owner |
+| Committed fixture bytes or metadata changed | SHA/manifest checker fails | evidence owner |
 
 No failure is silently skipped. The C++ probe never transmits, retries,
 allocates in the RTPS parser, or changes the production receive API. File I/O,

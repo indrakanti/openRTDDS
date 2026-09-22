@@ -26,9 +26,11 @@ vendor versions and run in a network environment that supports UDP multicast.
 
 PR14 captures SPDP packets with Fast DDS `2.11.2+ds-6.1build3` and Cyclone
 DDS `0.10.4-1.1build3` on Ubuntu 24.04. Each run publishes the raw payload and
-JSON provenance as a CI artifact. A green vendor job proves only the inbound
-SPDP path for those exact versions and settings. G2 remains partial until the
-SEDP and user DATA corpus also passes. The corpus requirements and behavior
+JSON provenance as a CI artifact. Frozen captures under
+`tests/interop/fixtures/` also run in normal GCC/Clang CTest and their SHA-256
+digests are checked on each PR. A green vendor job proves only the inbound SPDP
+path for those exact versions and settings. G2 remains partial until the SEDP
+and user DATA corpus also passes. The corpus requirements and behavior
 are in [vendor packet evidence](requirements/interoperability/requirements.md)
 and [detailed design](design/interoperability/detailed-design.md).
 

@@ -1,0 +1,16 @@
+{
+  "vendor": "cyclonedds",
+  "package_version": "0.10.4-1.1build3",
+  "domain_id": 43,
+  "multicast_group": "239.255.0.1",
+  "multicast_port": 18150,
+  "generator": [
+    "/tmp/emit_cyclone"
+  ],
+  "generator_source": "tests/interop/emit_cyclone.c",
+  "capture_run": "https://github.com/indrakanti/openRTDDS/actions/runs/35732024818",
+  "capture_commit": "0f8f204c149b14ae63fd8b124f9bfff22222c16e",
+  "capture_format": "raw IPv4 UDP payload (.rtps)",
+  "byte_count": 424,
+  "sha256": "c573776047f7d3abb538ce55e27e0a3024b7b01cec6f77a0dd3f1da9c2371c15"
+}

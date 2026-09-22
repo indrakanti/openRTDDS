@@ -1,0 +1,16 @@
+{
+  "vendor": "fastdds",
+  "package_version": "2.11.2+ds-6.1build3",
+  "domain_id": 43,
+  "multicast_group": "239.255.0.1",
+  "multicast_port": 18150,
+  "generator": [
+    "/tmp/emit_fastdds"
+  ],
+  "generator_source": "tests/interop/emit_fastdds.cpp",
+  "capture_run": "https://github.com/indrakanti/openRTDDS/actions/runs/35732024818",
+  "capture_commit": "0f8f204c149b14ae63fd8b124f9bfff22222c16e",
+  "capture_format": "raw IPv4 UDP payload (.rtps)",
+  "byte_count": 496,
+  "sha256": "9aa9d7a1ed1328cf2d97edf90b65a49ac663354bd5dc8004c198aa2337682034"
+}
