@@ -106,6 +106,19 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
+  add_executable(openrtdds_vendor_packet_probe
+    tests/interop/vendor_packet_probe.cpp
+  )
+  target_link_libraries(openrtdds_vendor_packet_probe
+    PRIVATE OpenRTDDS::openrtdds
+  )
+  target_compile_options(openrtdds_vendor_packet_probe
+    PRIVATE -Wall -Wextra -Wpedantic
+  )
+  if(OPENRTDDS_WARNINGS_AS_ERRORS)
+    target_compile_options(openrtdds_vendor_packet_probe PRIVATE -Werror)
+  endif()
+
   add_executable(openrtdds_unit_tests
     tests/test_main.cpp
     tests/test_runtime_limits.cpp

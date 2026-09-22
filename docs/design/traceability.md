@@ -64,3 +64,7 @@ machine checker independently validates requirement references in feature
 | ORT-ROUTE-004 | Current | `rtps-routing/detailed-design.md` |
 | ORT-ROUTE-005 | Current | `rtps-routing/detailed-design.md` |
 | ORT-ROUTE-006 | Current | `rtps-routing/detailed-design.md` |
+| ORT-INT-001 | Current | `interoperability/detailed-design.md` |
+| ORT-INT-002 | Current | `interoperability/detailed-design.md` |
+| ORT-INT-003 | Current | `interoperability/detailed-design.md` |
+| ORT-INT-004 | Planned | `interoperability/detailed-design.md` |

@@ -109,6 +109,12 @@ def main() -> int:
     code = collect_references("include", "Requirements")
     for identifier, paths in collect_references("src", "Requirements").items():
         code.setdefault(identifier, set()).update(paths)
+    # The vendor interoperability harness lives under tests/interop. Its
+    # capture and emitter code implements test-infrastructure requirements.
+    for identifier, paths in collect_references(
+        "tests/interop", "Requirements"
+    ).items():
+        code.setdefault(identifier, set()).update(paths)
     tests = collect_references("tests", "Verifies")
     examples = collect_references("examples", "Demonstrates")
     designs = collect_references(

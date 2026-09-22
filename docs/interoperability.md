@@ -9,7 +9,7 @@ green.
 |---|---|---|
 | G0 — Internal wire conformance | Golden RTPS 2.5 subset bytes and defensive parser tests | Passed |
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
-| G2 — Vendor packet corpus | Versioned Fast DDS and Cyclone DDS packet fixtures parsed in CI | Planned |
+| G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Partial: SPDP receive only (PR14) |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Planned |
 | G4 — ROS 2 RMW | `rmw_openrtdds` passes selected ROS 2 conformance and graph tests | Planned |
 
@@ -23,6 +23,14 @@ green.
 Fixture provenance shall record vendor name, exact version, configuration,
 generator command, capture format, and expected result. Live CI shall pin
 vendor versions and run in a network environment that supports UDP multicast.
+
+PR14 captures SPDP packets with Fast DDS `2.11.2+ds-6.1build3` and Cyclone
+DDS `0.10.4-1.1build3` on Ubuntu 24.04. Each run publishes the raw payload and
+JSON provenance as a CI artifact. A green vendor job proves only the inbound
+SPDP path for those exact versions and settings. G2 remains partial until the
+SEDP and user DATA corpus also passes. The corpus requirements and behavior
+are in [vendor packet evidence](requirements/interoperability/requirements.md)
+and [detailed design](design/interoperability/detailed-design.md).
 
 ## ROS 2 boundary
 

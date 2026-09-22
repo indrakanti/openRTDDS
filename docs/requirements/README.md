@@ -19,6 +19,7 @@ verification evidence.
 | SPDP participant discovery | `ORT-SPDP` | [spdp](spdp/requirements.md) |
 | SEDP endpoint discovery | `ORT-SEDP` | [sedp](sedp/requirements.md) |
 | Compound RTPS routing | `ORT-ROUTE` | [rtps-routing](rtps-routing/requirements.md) |
+| Vendor packet evidence | `ORT-INT` | [interoperability](interoperability/requirements.md) |
 
 The consolidated code and evidence mapping is the
 [traceability matrix](traceability.md).
