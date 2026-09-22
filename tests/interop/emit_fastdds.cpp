@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   if (argc > 1 && argv[1][0] == 'p') {
     using namespace eprosima::fastrtps::types;
     auto* const factory_type = DynamicTypeBuilderFactory::get_instance();
-    DynamicTypeBuilder_ptr builder(factory_type->create_struct_builder());
+    auto builder = factory_type->create_struct_builder();
     builder->set_name("VendorProbe");
     builder->add_member(0, "value", factory_type->create_uint32_type());
     TypeSupport type(new DynamicPubSubType(builder->build()));
