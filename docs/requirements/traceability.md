@@ -67,6 +67,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-INT-002 | Verified | `tests/interop/capture_spdp.py`, `verify_fixtures.py` | pinned fixtures, CI artifacts | — |
 | ORT-INT-003 | Verified | `tests/interop/vendor_packet_probe.cpp` | `vendor-spdp-packets` CI job | — |
 | ORT-INT-004 | Approved | Planned vendor SEDP/DATA corpus | Planned | — |
+| ORT-INT-005 | Implemented | `tests/interop/emit_*.{c,cpp}`, `capture_sedp.py`, `vendor_packet_probe.cpp` | `test_capture_sedp.py`, `vendor-discovery-packets` CI job | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

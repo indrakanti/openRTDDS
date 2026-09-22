@@ -1,8 +1,8 @@
 # Vendor packet evidence detailed design
 
-**Design status:** Current for SPDP; Planned for SEDP and user DATA  
+**Design status:** Current for SPDP and SEDP publications; Planned for user DATA  
 **Requirements:** ORT-INT-001, ORT-INT-002, ORT-INT-003  
-**Requirements:** ORT-INT-004
+**Requirements:** ORT-INT-004, ORT-INT-005
 
 ## Behavior and interfaces
 
@@ -33,6 +33,24 @@ returns `0` on acceptance, `1` on parser failure, or `2` on invocation/input
 failure. A CI failure is a visible interoperability gap and shall not be
 converted to a passing result.
 
+For ORT-INT-005, vendor programs additionally create a `VendorProbe` writer
+on `OpenRTDDSProbe`; the IDL specifies one unsigned 32-bit value. A second
+participant in the same domain triggers SEDP exchange. The Linux capture
+process opens an IPv4 packet socket before either participant starts. It
+extracts bounded UDP payloads and selects a DATA submessage from the
+publications built-in writer (`00 00 03 c2`). This permits observation of
+unicast announcements while the vendor owns its UDP receive ports. Captures
+are emitted as raw `.rtps` and `.json` records; no packet is rewritten.
+
+`vendor_packet_probe --sedp <file>` obtains the message's source GUID prefix
+using the RTPS router, calls `parse_sedp_message` with that prefix, and
+requires positive sequence, nonempty topic and type, and a supported locator.
+The output remains an inbound parser gate; a second vendor process does not
+constitute an OpenRTDDS discovery exchange. Python and C++ return nonzero for
+timeouts, invalid packets, and missing endpoint fields. `SedpError` and
+`RtpsError` identify failures at the probe boundary. The probe owns only a
+fixed input buffer and one bounded `SedpMessageView`.
+
 Fast DDS also advertises a shared-memory locator in the same packet as UDPv4
 locators. The SPDP parser skips unsupported locator kinds only when the value
 has the required wire length, then requires supported UDPv4 unicast locators.
@@ -54,6 +72,10 @@ sequenceDiagram
     Probe-->>CI: pass or exact parser error
 ```
 
+The SEDP sequence creates the packet socket first, then the vendor writer and
+peer participant. The publisher announces its endpoint to the peer; capture
+selects the publication DATA; the probe checks the unmodified payload.
+
 ## Failure behavior
 
 | Failure | Detection | Recovery owner |
@@ -64,6 +86,8 @@ sequenceDiagram
 | Malformed datagram | bounded filter or C++ parser failure | receiver implementation owner |
 | Missing required participant fields | probe fails | SPDP implementation owner |
 | Committed fixture bytes or metadata changed | SHA/manifest checker fails | evidence owner |
+| No outbound SEDP within ten seconds | packet socket deadline | CI/network owner |
+| SEDP identity, parameter or locator invalid | `SedpError` or `RtpsError` from probe | receive parser owner |
 
 No failure is silently skipped. The C++ probe never transmits, retries,
 allocates in the RTPS parser, or changes the production receive API. File I/O,
@@ -79,7 +103,7 @@ buffer and does not retain the parsed view after its call.
 
 ## Planned extension
 
-ORT-INT-004 extends this same provenance and parse pattern to SEDP and user
+ORT-INT-004 extends this same provenance and parse pattern to user
 DATA from both vendors. G2 stays partial until those packets are captured and
 accepted in CI. G3 additionally requires both directions of live discovery
 and application data exchange. No ROS 2 RMW evidence is claimed here.

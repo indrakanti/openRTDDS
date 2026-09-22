@@ -47,3 +47,18 @@ DATA, and reliable user DATA for both vendors before G2 is marked complete.
 
 **Rationale:** SPDP coverage alone does not qualify discovery, matching, or
 application communication.
+
+### ORT-INT-005 — Vendor SEDP publication receive gate
+
+**Status:** Implemented  
+**Verification:** Test
+
+The CI interoperability job shall create a user writer and a second
+participant with each pinned vendor, capture a publications SEDP DATA
+datagram within a fixed timeout, and pass the unchanged UDP payload to
+`parse_sedp_message`. It shall reject invalid endpoint identity, topic,
+type, or supported locators. The job shall preserve the packet and a manifest
+of the vendor version, commands, domain, byte count, and SHA-256 digest.
+
+**Rationale:** Discovery announcements produced by vendors expose gaps that
+internally generated endpoint messages cannot exercise.

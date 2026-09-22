@@ -1,0 +1,3 @@
+struct VendorProbe {
+    unsigned long value;
+};
