@@ -266,6 +266,12 @@ template <std::size_t Capacity>
   Locator locator{};
   const std::uint32_t kind_bits = read_u32(value, order);
   std::memcpy(&locator.kind, &kind_bits, sizeof(locator.kind));
+  // Requirements: ORT-SEDP-002, ORT-INT-005
+  // Vendor endpoints may advertise shared memory or IPv6 beside UDPv4.
+  // Preserve the supported transport requirement after parsing all locators.
+  if (locator.kind != 1) {
+    return SedpError::none;
+  }
   locator.port = read_u32(&value[4], order);
   std::memcpy(locator.address.data(), &value[8], locator.address.size());
   if (!valid_udp_v4_locator(locator)) {

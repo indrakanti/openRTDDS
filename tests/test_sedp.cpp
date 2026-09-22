@@ -8,7 +8,7 @@
 #include "test_support.hpp"
 
 // Verifies: ORT-SEDP-001, ORT-SEDP-002, ORT-SEDP-003,
-// Verifies: ORT-SEDP-004, ORT-SEDP-005, ORT-SEDP-006
+// Verifies: ORT-SEDP-004, ORT-SEDP-005, ORT-SEDP-006, ORT-INT-005
 
 namespace {
 
@@ -143,6 +143,37 @@ void test_defensive_parsing() {
   CHECK(builder.error() == SedpError::invalid_configuration);
 }
 
+void test_unsupported_transport_requires_supported_locator() {
+  // Verifies: ORT-SEDP-002, ORT-INT-005
+  auto config = announcement(openrtdds::rtps::EndpointKind::writer, 0x37U);
+  openrtdds::rtps::Locator second{};
+  CHECK(openrtdds::rtps::make_udp_v4_locator(
+      {{127U, 0U, 0U, 2U}}, 9201U, second));
+  CHECK(config.endpoint.unicast_locators.push_back(second));
+  std::array<std::uint8_t, 1600U> message{};
+  openrtdds::rtps::SedpMessageBuilder builder(message.data(), message.size());
+  CHECK(builder.build(config));
+  const auto first = find_parameter(message.data(), builder.size(), 0x002FU);
+  CHECK(first + 8U < builder.size());
+  message[first + 4U] = 16U; // shared-memory kind in a little-endian PL_CDR
+  openrtdds::rtps::SedpMessageView view{};
+  CHECK(openrtdds::rtps::parse_sedp_message(
+      message.data(), builder.size(),
+      config.endpoint.participant_guid_prefix, view).ok());
+  CHECK(view.endpoint.unicast_locators.size == 1U);
+
+  // A packet with only unsupported locators must still fail.
+  config.endpoint.unicast_locators.size = 1U;
+  CHECK(builder.build(config));
+  const auto only = find_parameter(message.data(), builder.size(), 0x002FU);
+  CHECK(only + 8U < builder.size());
+  message[only + 4U] = 16U;
+  CHECK(openrtdds::rtps::parse_sedp_message(
+      message.data(), builder.size(),
+      config.endpoint.participant_guid_prefix, view).error ==
+      openrtdds::rtps::SedpError::missing_required_parameter);
+}
+
 void test_bounded_table() {
   using Table = openrtdds::rtps::DiscoveredEndpointTable<2U>;
   using openrtdds::rtps::EndpointUpdate;
@@ -243,6 +274,7 @@ void test_sedp() {
   test_roundtrip(openrtdds::rtps::EndpointKind::reader,
                  openrtdds::serialization::ByteOrder::big_endian);
   test_defensive_parsing();
+  test_unsupported_transport_requires_supported_locator();
   test_bounded_table();
   test_matching();
   test_static_properties();
