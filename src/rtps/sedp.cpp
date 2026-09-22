@@ -517,6 +517,7 @@ SedpResult parse_sedp_message(const std::uint8_t* const message,
 
   bool seen_endpoint = false;
   bool seen_participant = false;
+  bool seen_locator = false;
   bool seen_topic = false;
   bool seen_type = false;
   bool seen_reliability = false;
@@ -609,10 +610,12 @@ SedpResult parse_sedp_message(const std::uint8_t* const message,
         seen_inline = true;
         break;
       case pid_unicast_locator:
+        seen_locator = true;
         parse_error = append_parsed_locator(
             value, length, order, candidate.endpoint.unicast_locators);
         break;
       case pid_multicast_locator:
+        seen_locator = true;
         parse_error = append_parsed_locator(
             value, length, order, candidate.endpoint.multicast_locators);
         break;
@@ -631,9 +634,12 @@ SedpResult parse_sedp_message(const std::uint8_t* const message,
   if (!seen_sentinel) {
     return fail(SedpError::malformed_parameter);
   }
-  if (!seen_endpoint || !seen_participant || !seen_topic || !seen_type ||
-      ((candidate.endpoint.unicast_locators.size +
-        candidate.endpoint.multicast_locators.size) == 0U)) {
+  // Some peers omit PID_PARTICIPANT_GUID and locators. The endpoint GUID
+  // supplies the participant prefix; empty locator lists inherit the matched
+  // participant's SPDP default locators at the caller boundary.
+  if (!seen_endpoint || !seen_topic || !seen_type ||
+      (seen_locator && candidate.endpoint.unicast_locators.size +
+           candidate.endpoint.multicast_locators.size == 0U)) {
     return fail(SedpError::missing_required_parameter);
   }
   if (!valid_endpoint_id(candidate.endpoint.endpoint_id, kind)) {

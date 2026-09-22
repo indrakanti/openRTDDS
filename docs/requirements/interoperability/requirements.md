@@ -56,9 +56,12 @@ application communication.
 The CI interoperability job shall create a user writer and a second
 participant with each pinned vendor, capture a publications SEDP DATA
 datagram within a fixed timeout, and pass the unchanged UDP payload to
-`parse_sedp_message`. It shall reject invalid endpoint identity, topic,
-type, or supported locators. The job shall preserve the packet and a manifest
-of the vendor version, commands, domain, byte count, and SHA-256 digest.
+`parse_sedp_message`. It shall validate the endpoint identity against an SPDP
+packet captured from the same participant and require usable participant
+default UDPv4 locators when the endpoint omits them. It shall reject invalid
+topic, type, or explicitly supplied UDPv4 locators. The job shall preserve
+both packets and a manifest of vendor version, commands, domain, byte counts,
+and SHA-256 digests.
 
 **Rationale:** Discovery announcements produced by vendors expose gaps that
 internally generated endpoint messages cannot exercise.

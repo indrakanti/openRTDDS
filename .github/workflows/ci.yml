@@ -89,7 +89,8 @@ jobs:
             --output artifacts/vendor-packets/fastdds/sedp.rtps \
             -- /tmp/emit_fastdds
           ./build/openrtdds_vendor_packet_probe --sedp \
-            artifacts/vendor-packets/fastdds/sedp.rtps
+            artifacts/vendor-packets/fastdds/sedp.rtps \
+            artifacts/vendor-packets/fastdds/sedp-participant.rtps
       - name: Capture Cyclone DDS SEDP publication
         run: |
           sudo python3 tests/interop/capture_sedp.py \
@@ -98,7 +99,8 @@ jobs:
             --output artifacts/vendor-packets/cyclonedds/sedp.rtps \
             -- /tmp/emit_cyclone
           ./build/openrtdds_vendor_packet_probe --sedp \
-            artifacts/vendor-packets/cyclonedds/sedp.rtps
+            artifacts/vendor-packets/cyclonedds/sedp.rtps \
+            artifacts/vendor-packets/cyclonedds/sedp-participant.rtps
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4

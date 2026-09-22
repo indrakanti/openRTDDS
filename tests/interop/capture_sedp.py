@@ -12,6 +12,8 @@ import sys
 import time
 from pathlib import Path
 
+from capture_spdp import contains_spdp
+
 
 def udp_payload(ip: bytes) -> bytes:
     if len(ip) < 28 or ip[0] >> 4 != 4 or ip[9] != 17:
@@ -69,6 +71,8 @@ def main() -> int:
             time.sleep(0.3)
             with subprocess.Popen(command) as peer:
                 packet = None
+                participant_packet = None
+                spdp_by_prefix = {}
                 deadline = time.monotonic() + 10.0
                 while time.monotonic() < deadline:
                     try:
@@ -76,11 +80,17 @@ def main() -> int:
                     except socket.timeout:
                         continue
                     candidate = udp_payload(ip)
+                    if contains_spdp(candidate):
+                        spdp_by_prefix[candidate[8:20]] = candidate
                     if is_sedp_publication(candidate):
                         packet = candidate
+                    if packet is not None:
+                        participant_packet = spdp_by_prefix.get(packet[8:20])
+                    if packet is not None and participant_packet is not None:
                         break
-                if packet is None:
-                    print("no SEDP publication DATA captured", file=sys.stderr)
+                if packet is None or participant_packet is None:
+                    print("no matched SEDP/SPDP publication pair captured",
+                          file=sys.stderr)
                 try:
                     publisher.wait(timeout=10)
                     peer.wait(timeout=10)
@@ -92,10 +102,13 @@ def main() -> int:
                 if publisher.returncode != 0 or peer.returncode != 0:
                     print("vendor peer failed", file=sys.stderr)
                     return 1
-    if packet is None:
+    if packet is None or participant_packet is None:
         return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(packet)
+    participant_path = args.output.with_name(
+        args.output.stem + "-participant.rtps")
+    participant_path.write_bytes(participant_packet)
     manifest = {
         "vendor": args.vendor,
         "package_version": args.version,
@@ -105,6 +118,8 @@ def main() -> int:
         "capture_format": "raw IPv4 UDP payload (.rtps)",
         "byte_count": len(packet),
         "sha256": hashlib.sha256(packet).hexdigest(),
+        "participant_byte_count": len(participant_packet),
+        "participant_sha256": hashlib.sha256(participant_packet).hexdigest(),
     }
     args.output.with_suffix(".json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

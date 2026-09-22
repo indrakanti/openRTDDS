@@ -172,6 +172,18 @@ void test_unsupported_transport_requires_supported_locator() {
       message.data(), builder.size(),
       config.endpoint.participant_guid_prefix, view).error ==
       openrtdds::rtps::SedpError::missing_required_parameter);
+
+  // Peers may omit both PIDs and inherit transport from matching SPDP.
+  message[only] = 0U;
+  message[only + 1U] = 0U;
+  const auto participant = find_parameter(message.data(), builder.size(), 0x0050U);
+  CHECK(participant + 4U < builder.size());
+  message[participant] = 0U;
+  message[participant + 1U] = 0U;
+  CHECK(openrtdds::rtps::parse_sedp_message(
+      message.data(), builder.size(),
+      config.endpoint.participant_guid_prefix, view).ok());
+  CHECK(view.endpoint.unicast_locators.size == 0U);
 }
 
 void test_bounded_table() {

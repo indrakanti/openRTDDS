@@ -38,13 +38,21 @@ on `OpenRTDDSProbe`; the IDL specifies one unsigned 32-bit value. A second
 participant in the same domain triggers SEDP exchange. The Linux capture
 process opens an IPv4 packet socket before either participant starts. It
 extracts bounded UDP payloads and selects a DATA submessage from the
-publications built-in writer (`00 00 03 c2`). This permits observation of
+publications built-in writer (`00 00 03 c2`) plus the SPDP announcement with
+the same RTPS source GUID prefix. This permits observation of
 unicast announcements while the vendor owns its UDP receive ports. Captures
 are emitted as raw `.rtps` and `.json` records; no packet is rewritten.
 
-`vendor_packet_probe --sedp <file>` obtains the message's source GUID prefix
-using the RTPS router, calls `parse_sedp_message` with that prefix, and
-requires positive sequence, nonempty topic and type, and a supported locator.
+`vendor_packet_probe --sedp <file> <matched-participant-file>` parses the
+same-run SPDP first, obtains the SEDP source GUID prefix using the RTPS router,
+requires the two prefixes to match, and calls `parse_sedp_message`. It requires
+positive sequence, nonempty topic and type, plus SPDP default UDPv4 unicast
+locators. Some vendors omit `PID_PARTICIPANT_GUID` and endpoint locator PIDs:
+the endpoint GUID supplies the participant prefix and an empty endpoint
+locator list indicates inheritance from this matched SPDP participant.
+Explicit unsupported-only locator lists remain an error; malformed UDPv4
+locator values still fail. Fast DDS includes shared-memory locators beside
+UDPv4; valid-length unsupported kinds are skipped without consuming a slot.
 The output remains an inbound parser gate; a second vendor process does not
 constitute an OpenRTDDS discovery exchange. Python and C++ return nonzero for
 timeouts, invalid packets, and missing endpoint fields. `SedpError` and
@@ -73,8 +81,9 @@ sequenceDiagram
 ```
 
 The SEDP sequence creates the packet socket first, then the vendor writer and
-peer participant. The publisher announces its endpoint to the peer; capture
-selects the publication DATA; the probe checks the unmodified payload.
+peer participant. The publisher announces its participant and endpoint; capture
+selects both unmodified packets sharing the source prefix; the probe checks
+participant locators, endpoint fields, and identity correspondence.
 
 ## Failure behavior
 
