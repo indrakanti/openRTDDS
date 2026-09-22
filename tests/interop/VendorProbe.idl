@@ -1,3 +1,4 @@
+// Requirements: ORT-INT-005
 struct VendorProbe {
     unsigned long value;
 };

@@ -19,6 +19,11 @@ file. The companion `.json` manifest records exact package version, command,
 domain/endpoint, SHA-256 digest, byte count, and format. CI uploads both
 files even when the parse gate fails, provided capture succeeded.
 
+The matched SEDP/SPDP pair from each vendor is also committed beside the
+original frozen SPDP packets. The SEDP manifest identifies both hashes and
+the originating Actions run; ordinary GCC and Clang CTest jobs parse both
+frozen endpoint packets and their matching participants on each PR.
+
 One capture from each pinned package is committed under
 `tests/interop/fixtures/<vendor>/<package-version>/`. The manifests also
 identify the originating Actions run and generator source. Ordinary GCC and
@@ -94,6 +99,7 @@ participant locators, endpoint fields, and identity correspondence.
 | Multicast or SPDP absent | capture deadline | CI environment/network maintainer |
 | Malformed datagram | bounded filter or C++ parser failure | receiver implementation owner |
 | Missing required participant fields | probe fails | SPDP implementation owner |
+| SEDP and SPDP source prefixes differ | matched-packet probe fails | capture owner |
 | Committed fixture bytes or metadata changed | SHA/manifest checker fails | evidence owner |
 | No outbound SEDP within ten seconds | packet socket deadline | CI/network owner |
 | SEDP identity, parameter or locator invalid | `SedpError` or `RtpsError` from probe | receive parser owner |

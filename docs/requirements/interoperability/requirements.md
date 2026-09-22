@@ -1,7 +1,7 @@
 # Vendor packet interoperability evidence
 
-This feature verifies the received SPDP wire subset against actual vendor
-implementations. It does not establish live DDS interoperability.
+This feature verifies received SPDP and publications SEDP wire subsets against
+actual vendor implementations. It does not establish live DDS interoperability.
 
 ### ORT-INT-001 — Vendor packet generation
 
@@ -50,7 +50,7 @@ application communication.
 
 ### ORT-INT-005 — Vendor SEDP publication receive gate
 
-**Status:** Implemented  
+**Status:** Verified  
 **Verification:** Test
 
 The CI interoperability job shall create a user writer and a second
