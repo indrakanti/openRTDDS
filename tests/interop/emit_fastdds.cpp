@@ -16,5 +16,6 @@ int main() {
     return 1;
   }
   std::this_thread::sleep_for(std::chrono::seconds(5));
-  return factory->delete_participant(participant) == RETCODE_OK ? 0 : 1;
+  return factory->delete_participant(participant) ==
+                 ReturnCode_t::RETCODE_OK ? 0 : 1;
 }
