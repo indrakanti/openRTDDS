@@ -106,6 +106,19 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
+  add_executable(openrtdds_vendor_packet_probe
+    tests/interop/vendor_packet_probe.cpp
+  )
+  target_link_libraries(openrtdds_vendor_packet_probe
+    PRIVATE OpenRTDDS::openrtdds
+  )
+  target_compile_options(openrtdds_vendor_packet_probe
+    PRIVATE -Wall -Wextra -Wpedantic
+  )
+  if(OPENRTDDS_WARNINGS_AS_ERRORS)
+    target_compile_options(openrtdds_vendor_packet_probe PRIVATE -Werror)
+  endif()
+
   add_executable(openrtdds_unit_tests
     tests/test_main.cpp
     tests/test_runtime_limits.cpp
@@ -128,6 +141,14 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     target_compile_options(openrtdds_unit_tests PRIVATE -Werror)
   endif()
   add_test(NAME openrtdds_unit_tests COMMAND openrtdds_unit_tests)
+  add_test(NAME openrtdds_fastdds_spdp_fixture
+    COMMAND openrtdds_vendor_packet_probe
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/spdp.rtps
+  )
+  add_test(NAME openrtdds_cyclonedds_spdp_fixture
+    COMMAND openrtdds_vendor_packet_probe
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/spdp.rtps
+  )
   if(OPENRTDDS_BUILD_EXAMPLES)
     add_test(NAME openrtdds_vehicle_state_example COMMAND openrtdds_vehicle_state)
     add_test(NAME openrtdds_rtps_static_message_example

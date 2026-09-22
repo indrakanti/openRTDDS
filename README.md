@@ -66,7 +66,7 @@ not treated as a build/test failure.
 8. [x] Bounded SEDP endpoint discovery and dynamic matching
 9. [ ] Fast DDS and Cyclone DDS interoperability gates
    - [x] Compound RTPS message routing prerequisite
-   - [ ] Versioned vendor packet corpus
+   - [ ] Versioned vendor packet corpus (SPDP CI capture added)
    - [ ] Live bidirectional vendor exchange
 10. [ ] ROS 2 RMW adapter and graph integration
 11. [ ] Shared-memory transport, latency instrumentation, and fault injection

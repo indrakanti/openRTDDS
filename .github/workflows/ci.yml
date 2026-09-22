@@ -18,6 +18,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check requirement traces
         run: python3 tools/check_requirement_traces.py
+      - name: Verify pinned vendor fixture hashes
+        run: python3 tests/interop/verify_fixtures.py
       - name: Select compiler
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
@@ -33,3 +35,53 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  vendor-spdp-packets:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned vendor implementations
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libfastrtps-dev=2.11.2+ds-6.1build3 \
+            cyclonedds-dev=0.10.4-1.1build3
+      - name: Build vendor emitters and OpenRTDDS probe
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror \
+            tests/interop/emit_cyclone.c -lddsc -o /tmp/emit_cyclone
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            tests/interop/emit_fastdds.cpp -lfastrtps -lfastcdr -pthread \
+            -o /tmp/emit_fastdds
+          cmake -S . -B build -DOPENRTDDS_WARNINGS_AS_ERRORS=ON \
+            -DOPENRTDDS_BUILD_EXAMPLES=OFF
+          cmake --build build --target openrtdds_vendor_packet_probe --parallel
+      - name: Validate capture filter
+        run: python3 -m unittest discover -s tests/interop -p 'test_*.py'
+      - name: Capture Fast DDS SPDP packet
+        run: |
+          python3 tests/interop/capture_spdp.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --output artifacts/vendor-packets/fastdds/spdp.rtps \
+            -- /tmp/emit_fastdds
+          ./build/openrtdds_vendor_packet_probe \
+            artifacts/vendor-packets/fastdds/spdp.rtps
+      - name: Capture Cyclone DDS SPDP packet
+        run: |
+          python3 tests/interop/capture_spdp.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --output artifacts/vendor-packets/cyclonedds/spdp.rtps \
+            -- /tmp/emit_cyclone
+          ./build/openrtdds_vendor_packet_probe \
+            artifacts/vendor-packets/cyclonedds/spdp.rtps
+      - name: Preserve captured packet evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinned-vendor-spdp-packets
+          path: artifacts/vendor-packets/
+          if-no-files-found: warn
