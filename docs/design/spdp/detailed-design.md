@@ -79,7 +79,11 @@ $$P_{unicast}=PB+DG\cdot domain+d1+PG\cdot participant$$
 An operation fails if the result is zero or exceeds 65,535. The current
 `Locator` validation accepts only `LOCATOR_KIND_UDPv4`, a nonzero 16-bit port,
 12 leading zero address bytes, and a nonzero IPv4 address in the final four
-bytes. UDPv6 is a deliberate future extension.
+bytes. The parser skips locator values with unsupported transport kinds such
+as Fast DDS shared memory (kind 16), while retaining any valid UDPv4 locators.
+Malformed UDPv4 locators still fail parsing, and at least one supported
+default-unicast and metatraffic locator must remain. UDPv6 is a future
+transport extension.
 
 ## Announcement wire behavior
 
@@ -132,7 +136,8 @@ The parser performs these stages before assigning the caller's view:
 2. require the SPDP writer and unknown or SPDP detector reader identity;
 3. require PL_CDR_BE or PL_CDR_LE;
 4. walk four-byte-aligned parameters within the payload bound;
-5. validate singleton cardinality and locator capacity;
+5. validate singleton cardinality and UDPv4 locator capacity, skipping
+   unsupported transport kinds after checking their parameter length;
 6. skip unknown ignorable parameters and reject unknown bit-14
    must-understand parameters;
 7. require the sentinel and mandatory participant fields;

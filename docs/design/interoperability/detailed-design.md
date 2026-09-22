@@ -25,6 +25,10 @@ returns `0` on acceptance, `1` on parser failure, or `2` on invocation/input
 failure. A CI failure is a visible interoperability gap and shall not be
 converted to a passing result.
 
+Fast DDS also advertises a shared-memory locator in the same packet as UDPv4
+locators. The SPDP parser skips unsupported locator kinds only when the value
+has the required wire length, then requires supported UDPv4 unicast locators.
+
 ## Normal sequence
 
 ```mermaid

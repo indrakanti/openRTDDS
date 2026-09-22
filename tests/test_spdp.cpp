@@ -165,6 +165,44 @@ void test_defensive_parsing() {
   CHECK(builder.error() == SpdpError::invalid_configuration);
 }
 
+// Verifies: ORT-INT-003, ORT-SPDP-003
+void test_mixed_transport_locators() {
+  auto config = announcement(0x40U);
+  std::array<std::uint8_t, 1024U> message{};
+  openrtdds::rtps::SpdpMessageBuilder builder(message.data(), message.size());
+  CHECK(builder.build(config));
+  const std::size_t size = builder.size();
+  const std::size_t multicast = find_parameter(message.data(), size, 0x0033U);
+  const std::size_t unicast = find_parameter(message.data(), size, 0x0031U);
+  CHECK(multicast < size);
+  CHECK(unicast < size);
+  if (multicast >= size || unicast >= size) return;
+
+  auto mixed = message;
+  mixed[multicast + 4U] = 16U;  // shared memory locator, not UDPv4
+  openrtdds::rtps::SpdpMessageView view{};
+  CHECK(openrtdds::rtps::parse_spdp_message(mixed.data(), size, 7U, view)
+            .ok());
+  CHECK(view.participant.metatraffic_multicast.size == 0U);
+  CHECK(view.participant.metatraffic_unicast.size == 1U);
+  CHECK(view.participant.default_unicast.size == 1U);
+
+  mixed = message;
+  mixed[unicast + 4U] = 16U;  // no supported default unicast left
+  view.sequence_number = 99U;
+  CHECK(openrtdds::rtps::parse_spdp_message(mixed.data(), size, 7U, view)
+            .error == openrtdds::rtps::SpdpError::missing_required_parameter);
+  CHECK(view.sequence_number == 99U);
+
+  mixed = message;
+  mixed[unicast + 8U] = 0U;  // malformed UDPv4 port remains an error
+  mixed[unicast + 9U] = 0U;
+  mixed[unicast + 10U] = 0U;
+  mixed[unicast + 11U] = 0U;
+  CHECK(openrtdds::rtps::parse_spdp_message(mixed.data(), size, 7U, view)
+            .error == openrtdds::rtps::SpdpError::invalid_locator);
+}
+
 void test_bounded_table_and_expiration() {
   using Table = openrtdds::rtps::DiscoveredParticipantTable<1U>;
   using openrtdds::rtps::ParticipantUpdate;
@@ -223,6 +261,7 @@ void test_spdp() {
   test_roundtrip(openrtdds::serialization::ByteOrder::little_endian);
   test_roundtrip(openrtdds::serialization::ByteOrder::big_endian);
   test_defensive_parsing();
+  test_mixed_transport_locators();
   test_bounded_table_and_expiration();
   test_static_properties();
 }
