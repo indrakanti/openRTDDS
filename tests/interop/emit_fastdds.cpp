@@ -9,6 +9,7 @@
 #include <fastdds/dds/publisher/DataWriter.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
 #include <fastrtps/types/DynamicTypeBuilderFactory.h>
+#include <fastrtps/types/DynamicTypeBuilder.h>
 #include <fastrtps/types/DynamicPubSubType.h>
 
 int main(int argc, char** argv) {
