@@ -1,0 +1,20 @@
+{
+  "vendor": "cyclonedds",
+  "package_version": "0.10.4-1.1build3",
+  "domain_id": 43,
+  "generator": [
+    "/tmp/emit_cyclone",
+    "publish"
+  ],
+  "peer": [
+    "/tmp/emit_cyclone"
+  ],
+  "capture_format": "raw IPv4 UDP payload (.rtps)",
+  "byte_count": 412,
+  "sha256": "c90e8623e40918f13293d50d5f55201785d74a2e6db986838dbe1318c68eb0fe",
+  "participant_byte_count": 440,
+  "participant_sha256": "e6ceba8cf3a5c686805695ba77918e65de3bfc3f49e73755b7f441e6e1a4f009",
+  "generator_source": "tests/interop/emit_cyclone.c",
+  "capture_run": "https://github.com/indrakanti/openRTDDS/actions/runs/35758464915",
+  "capture_commit": "9144cfe3bb0985a7756c0dd850739001aa280ee3"
+}

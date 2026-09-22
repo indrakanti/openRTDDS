@@ -36,7 +36,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-  vendor-spdp-packets:
+  vendor-discovery-packets:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -47,11 +47,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libfastrtps-dev=2.11.2+ds-6.1build3 \
-            cyclonedds-dev=0.10.4-1.1build3
+            cyclonedds-dev=0.10.4-1.1build3 cyclonedds-tools
       - name: Build vendor emitters and OpenRTDDS probe
         run: |
-          cc -std=c11 -Wall -Wextra -Werror \
-            tests/interop/emit_cyclone.c -lddsc -o /tmp/emit_cyclone
+          mkdir -p /tmp/vendor-idl
+          idlc -l c -o /tmp/vendor-idl tests/interop/VendorProbe.idl
+          cc -std=c11 -Wall -Wextra -Werror -I/tmp/vendor-idl \
+            tests/interop/emit_cyclone.c /tmp/vendor-idl/VendorProbe.c \
+            -lddsc -o /tmp/emit_cyclone
           c++ -std=c++17 -Wall -Wextra -Werror \
             tests/interop/emit_fastdds.cpp -lfastrtps -lfastcdr -pthread \
             -o /tmp/emit_fastdds
@@ -78,10 +81,30 @@ jobs:
             -- /tmp/emit_cyclone
           ./build/openrtdds_vendor_packet_probe \
             artifacts/vendor-packets/cyclonedds/spdp.rtps
+      - name: Capture Fast DDS SEDP publication
+        run: |
+          sudo python3 tests/interop/capture_sedp.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --output artifacts/vendor-packets/fastdds/sedp.rtps \
+            -- /tmp/emit_fastdds
+          ./build/openrtdds_vendor_packet_probe --sedp \
+            artifacts/vendor-packets/fastdds/sedp.rtps \
+            artifacts/vendor-packets/fastdds/sedp-participant.rtps
+      - name: Capture Cyclone DDS SEDP publication
+        run: |
+          sudo python3 tests/interop/capture_sedp.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --output artifacts/vendor-packets/cyclonedds/sedp.rtps \
+            -- /tmp/emit_cyclone
+          ./build/openrtdds_vendor_packet_probe --sedp \
+            artifacts/vendor-packets/cyclonedds/sedp.rtps \
+            artifacts/vendor-packets/cyclonedds/sedp-participant.rtps
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pinned-vendor-spdp-packets
+          name: pinned-vendor-discovery-packets
           path: artifacts/vendor-packets/
           if-no-files-found: warn

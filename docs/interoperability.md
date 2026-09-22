@@ -9,7 +9,7 @@ green.
 |---|---|---|
 | G0 — Internal wire conformance | Golden RTPS 2.5 subset bytes and defensive parser tests | Passed |
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
-| G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Partial: SPDP receive only (PR14) |
+| G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Partial: SPDP and SEDP receive (PR14 and PR15); user DATA pending |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Planned |
 | G4 — ROS 2 RMW | `rmw_openrtdds` passes selected ROS 2 conformance and graph tests | Planned |
 
@@ -29,8 +29,9 @@ DDS `0.10.4-1.1build3` on Ubuntu 24.04. Each run publishes the raw payload and
 JSON provenance as a CI artifact. Frozen captures under
 `tests/interop/fixtures/` also run in normal GCC/Clang CTest and their SHA-256
 digests are checked on each PR. A green vendor job proves only the inbound SPDP
-path for those exact versions and settings. G2 remains partial until the SEDP
-and user DATA corpus also passes. The corpus requirements and behavior
+path for those exact versions and settings. PR15 adds a publications SEDP
+capture and inbound parse gate against each pinned package. G2 remains partial
+until best-effort and reliable user DATA also pass. The corpus requirements and behavior
 are in [vendor packet evidence](requirements/interoperability/requirements.md)
 and [detailed design](design/interoperability/detailed-design.md).
 

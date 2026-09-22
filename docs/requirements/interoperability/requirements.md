@@ -1,7 +1,7 @@
 # Vendor packet interoperability evidence
 
-This feature verifies the received SPDP wire subset against actual vendor
-implementations. It does not establish live DDS interoperability.
+This feature verifies received SPDP and publications SEDP wire subsets against
+actual vendor implementations. It does not establish live DDS interoperability.
 
 ### ORT-INT-001 — Vendor packet generation
 
@@ -47,3 +47,21 @@ DATA, and reliable user DATA for both vendors before G2 is marked complete.
 
 **Rationale:** SPDP coverage alone does not qualify discovery, matching, or
 application communication.
+
+### ORT-INT-005 — Vendor SEDP publication receive gate
+
+**Status:** Verified  
+**Verification:** Test
+
+The CI interoperability job shall create a user writer and a second
+participant with each pinned vendor, capture a publications SEDP DATA
+datagram within a fixed timeout, and pass the unchanged UDP payload to
+`parse_sedp_message`. It shall validate the endpoint identity against an SPDP
+packet captured from the same participant and require usable participant
+default UDPv4 locators when the endpoint omits them. It shall reject invalid
+topic, type, or explicitly supplied UDPv4 locators. The job shall preserve
+both packets and a manifest of vendor version, commands, domain, byte counts,
+and SHA-256 digests.
+
+**Rationale:** Discovery announcements produced by vendors expose gaps that
+internally generated endpoint messages cannot exercise.
