@@ -21,7 +21,8 @@ class ReliableCaptureTests(unittest.TestCase):
     def test_selects_heartbeat_and_acknack_identities(self):
         heartbeat = (bytes.fromhex("00000000 00000103") +
                      b"\x01" + bytes(7) + b"\x02" + bytes(7) + bytes(4))
-        acknack = bytes.fromhex("00000204 00000103") + bytes(16)
+        acknack = (bytes.fromhex("00000204 00000103") +
+                   b"\x01" + bytes(7) + bytes(8))
         controls = reliability_controls(
             self.header + self.submessage(HEARTBEAT, heartbeat) +
             self.submessage(ACKNACK, acknack))
@@ -50,6 +51,9 @@ class ReliableCaptureTests(unittest.TestCase):
             self.header + self.submessage(HEARTBEAT, bytes(27))), [])
         self.assertEqual(reliability_controls(
             self.header + self.submessage(ACKNACK, bytes(25))), [])
+        zero_base = bytes.fromhex("00000204 00000103") + bytes(16)
+        self.assertEqual(reliability_controls(
+            self.header + self.submessage(ACKNACK, zero_base)), [])
 
 
 if __name__ == "__main__":

@@ -39,10 +39,15 @@ def reliability_controls(message: bytes):
             if first > 0 and last >= first - 1:
                 controls.append((kind, content[0:4], content[4:8], source,
                                  flags, first, last))
-        elif kind == ACKNACK and len(content) >= 24 and \
-                (len(content) - 24) % 4 == 0:
-            controls.append((kind, content[0:4], content[4:8], source,
-                             flags, None, None))
+        elif kind == ACKNACK and len(content) >= 24:
+            order = "little" if flags & 1 else "big"
+            high = int.from_bytes(content[8:12], order, signed=True)
+            base = (high << 32) | int.from_bytes(content[12:16], order)
+            bits = int.from_bytes(content[16:20], order)
+            words = (bits + 31) // 32
+            if base > 0 and bits <= 256 and len(content) == 24 + words * 4:
+                controls.append((kind, content[0:4], content[4:8], source,
+                                 flags, base, bits))
     return controls
 
 
