@@ -13,11 +13,8 @@
 #include <fastdds/dds/subscriber/DataReader.hpp>
 #include <fastdds/dds/subscriber/qos/DataReaderQos.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
-#include <fastrtps/types/DynamicData.h>
-#include <fastrtps/types/DynamicDataFactory.h>
-#include <fastrtps/types/DynamicTypeBuilderFactory.h>
-#include <fastrtps/types/DynamicTypeBuilder.h>
-#include <fastrtps/types/DynamicPubSubType.h>
+#include "VendorProbe.h"
+#include "VendorProbePubSubTypes.h"
 
 int main(int argc, char** argv) {
   using namespace eprosima::fastdds::dds;
@@ -31,13 +28,7 @@ int main(int argc, char** argv) {
   const std::string mode = argc > 1 ? argv[1] : "participant";
   if (mode == "publish" || mode == "publish-data" ||
       mode == "subscribe-data") {
-    using namespace eprosima::fastrtps::types;
-    auto* const factory_type = DynamicTypeBuilderFactory::get_instance();
-    auto builder = factory_type->create_struct_builder();
-    builder->set_name("VendorProbe");
-    builder->add_member(0, "value", factory_type->create_uint32_type());
-    auto dynamic_type = builder->build();
-    TypeSupport type(new DynamicPubSubType(dynamic_type));
+    TypeSupport type(new VendorProbePubSubType());
     if (type.register_type(participant) != ReturnCode_t::RETCODE_OK) {
       std::cerr << "Fast DDS type registration failed\n";
       return 1;
@@ -73,18 +64,9 @@ int main(int argc, char** argv) {
       }
       if (mode == "publish-data") {
         std::this_thread::sleep_for(std::chrono::seconds(3));
-        DynamicData_ptr sample(
-            DynamicDataFactory::get_instance()->create_data(dynamic_type));
-        if (!sample) {
-          std::cerr << "Fast DDS sample allocation failed\n";
-          return 1;
-        }
-        const auto set_result = sample->set_uint32_value(0x4F525444U, 0U);
-        if (set_result != ReturnCode_t::RETCODE_OK) {
-          std::cerr << "Fast DDS sample assignment failed\n";
-          return 1;
-        }
-        const auto write_result = writer->write(sample.get());
+        VendorProbe sample;
+        sample.value(0x4F525444U);
+        const auto write_result = writer->write(&sample);
         if (write_result != ReturnCode_t::RETCODE_OK) {
           std::cerr << "Fast DDS writer rejected sample\n";
           return 1;
