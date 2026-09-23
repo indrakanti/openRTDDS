@@ -1,11 +1,13 @@
 // Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
 
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
+#include <fastdds/dds/domain/qos/DomainParticipantQos.hpp>
 #include <fastdds/dds/publisher/Publisher.hpp>
 #include <fastdds/dds/publisher/DataWriter.hpp>
 #include <fastdds/dds/publisher/qos/DataWriterQos.hpp>
@@ -13,14 +15,19 @@
 #include <fastdds/dds/subscriber/DataReader.hpp>
 #include <fastdds/dds/subscriber/qos/DataReaderQos.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
+#include <fastrtps/transport/UDPv4TransportDescriptor.h>
 #include "VendorProbe.h"
 #include "VendorProbePubSubTypes.h"
 
 int main(int argc, char** argv) {
   using namespace eprosima::fastdds::dds;
   auto* const factory = DomainParticipantFactory::get_instance();
+  DomainParticipantQos participant_qos = PARTICIPANT_QOS_DEFAULT;
+  participant_qos.transport().use_builtin_transports = false;
+  participant_qos.transport().user_transports.push_back(
+      std::make_shared<eprosima::fastdds::rtps::UDPv4TransportDescriptor>());
   auto* const participant = factory->create_participant(
-      43, PARTICIPANT_QOS_DEFAULT);
+      43, participant_qos);
   if (participant == nullptr) {
     std::cerr << "Fast DDS participant creation failed\n";
     return 1;
