@@ -4,7 +4,8 @@
 
 import unittest
 
-from capture_reliable import ACKNACK, HEARTBEAT, reliability_controls
+from capture_reliable import (ACKNACK, HEARTBEAT, data_sequence,
+                              reliability_controls)
 
 
 class ReliableCaptureTests(unittest.TestCase):
@@ -18,7 +19,8 @@ class ReliableCaptureTests(unittest.TestCase):
                 content)
 
     def test_selects_heartbeat_and_acknack_identities(self):
-        heartbeat = bytes.fromhex("00000000 00000103") + bytes(20)
+        heartbeat = (bytes.fromhex("00000000 00000103") +
+                     b"\x01" + bytes(7) + b"\x02" + bytes(7) + bytes(4))
         acknack = bytes.fromhex("00000204 00000103") + bytes(16)
         controls = reliability_controls(
             self.header + self.submessage(HEARTBEAT, heartbeat) +
@@ -30,11 +32,18 @@ class ReliableCaptureTests(unittest.TestCase):
     def test_info_source_changes_control_origin(self):
         effective = bytes(range(20, 32))
         info = bytes(4) + bytes([2, 3, 1, 16]) + effective
-        heartbeat = bytes.fromhex("00000000 00000103") + bytes(20)
+        heartbeat = (bytes.fromhex("00000000 00000103") +
+                     b"\x01" + bytes(7) + b"\x02" + bytes(7) + bytes(4))
         controls = reliability_controls(
             self.header + self.submessage(0x0C, info) +
             self.submessage(HEARTBEAT, heartbeat))
         self.assertEqual(controls[0][3], effective)
+
+    def test_extracts_data_sequence(self):
+        writer = bytes.fromhex("00000103")
+        content = bytes(8) + writer + bytes(4) + b"\x05" + bytes(3) + bytes(4)
+        message = self.header + self.submessage(0x15, content, flags=0x05)
+        self.assertEqual(data_sequence(message, writer), 5)
 
     def test_rejects_malformed_control_sizes(self):
         self.assertEqual(reliability_controls(

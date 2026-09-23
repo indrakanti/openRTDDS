@@ -31,15 +31,36 @@ def reliability_controls(message: bytes):
     controls = []
     for kind, flags, content, source in routed_submessages(message):
         if kind == HEARTBEAT and len(content) == 28:
-            controls.append((kind, content[0:4], content[4:8], source, flags))
+            order = "little" if flags & 1 else "big"
+            first = ((int.from_bytes(content[8:12], order, signed=True) << 32) |
+                     int.from_bytes(content[12:16], order))
+            last = ((int.from_bytes(content[16:20], order, signed=True) << 32) |
+                    int.from_bytes(content[20:24], order))
+            if first > 0 and last >= first - 1:
+                controls.append((kind, content[0:4], content[4:8], source,
+                                 flags, first, last))
         elif kind == ACKNACK and len(content) >= 24 and \
                 (len(content) - 24) % 4 == 0:
-            controls.append((kind, content[0:4], content[4:8], source, flags))
+            controls.append((kind, content[0:4], content[4:8], source,
+                             flags, None, None))
     return controls
 
 
 def is_sedp_subscription(message: bytes) -> bool:
     return source_for_writer(message, SUBSCRIPTIONS_WRITER) is not None
+
+
+def data_sequence(message: bytes, expected_writer: bytes):
+    """Return a positive user DATA sequence number for one writer."""
+    for kind, flags, content, _ in routed_submessages(message):
+        if kind != 0x15 or len(content) < 20 or content[8:12] != expected_writer:
+            continue
+        order = "little" if flags & 1 else "big"
+        high = int.from_bytes(content[12:16], order, signed=True)
+        low = int.from_bytes(content[16:20], order)
+        sequence = (high << 32) | low
+        return sequence if sequence > 0 else None
+    return None
 
 
 def digest(path: Path, payload: bytes, manifest: dict, prefix: str) -> None:
@@ -73,6 +94,7 @@ def main() -> int:
         data_packet = None
         data_source = None
         data_writer = None
+        sequence = None
         chain = None
         debug_packets = []
         deadline = time.monotonic() + 16.0
@@ -106,17 +128,19 @@ def main() -> int:
                     data_packet = candidate
                     data_writer = user_writer
                     data_source = source_for_writer(candidate, user_writer)
+                    sequence = data_sequence(candidate, user_writer)
                 for control in controls:
                     if control[0] == HEARTBEAT:
                         heartbeats.append((candidate, control))
                     else:
                         acknacks.append((candidate, control))
-                if data_packet is not None:
+                if data_packet is not None and sequence is not None:
                     heartbeat_packet = next((packet for packet, control in heartbeats
                         if control[2] == data_writer and
-                           control[3] == data_source), None)
+                           control[3] == data_source and
+                           control[5] <= sequence <= control[6]), None)
                     for ack_packet, control in acknacks:
-                        _, reader, writer, subscriber_source, _ = control
+                        _, reader, writer, subscriber_source, _, _, _ = control
                         if writer != data_writer or \
                                 reader[3] not in USER_READER_KINDS:
                             continue
