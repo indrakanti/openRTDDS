@@ -133,8 +133,12 @@ int probe_reliable(char** argv) {
   openrtdds::rtps::AckNackView acknack{};
   const auto acknack_error = openrtdds::rtps::parse_acknack_message(
       acknack_bytes.data(), acknack_size, acknack);
-  if (acknack_error != openrtdds::rtps::ReliabilityMessageError::none ||
-      acknack.header.guid_prefix.value !=
+  if (acknack_error != openrtdds::rtps::ReliabilityMessageError::none) {
+    std::cerr << "ACKNACK parse failed: "
+              << openrtdds::rtps::to_string(acknack_error) << '\n';
+    return 1;
+  }
+  if (acknack.header.guid_prefix.value !=
           subscriber.participant.guid_prefix.value ||
       acknack.writer_id != sample.writer_id ||
       (acknack.reader_id.value[3] != 0x04U &&
