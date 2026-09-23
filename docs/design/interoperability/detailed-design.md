@@ -78,10 +78,11 @@ Fast DDS uses an explicit UDPv4-only participant transport and disables the
 DataSharing QoS policy on both endpoints, so same-host shared-memory delivery
 cannot satisfy the wire test. The CI environment also sets
 `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` as a defense-in-depth constraint. The
-capture process selects a DATA
-submessage whose writer entity kind is a keyed or unkeyed user writer, then
-retains the SEDP publication and SPDP announcement with the same source GUID
-prefix. All three UDP payloads remain unmodified.
+capture process selects a DATA submessage whose writer entity kind is a keyed
+or unkeyed user writer, resolves its effective source GUID prefix from the
+RTPS header plus any preceding `INFO_SRC`, then retains the SEDP publication
+and SPDP announcement with that same effective source. All three UDP payloads
+remain unmodified.
 
 The probe interface is:
 

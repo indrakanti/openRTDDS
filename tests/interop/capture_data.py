@@ -17,13 +17,15 @@ from capture_spdp import contains_spdp
 
 
 USER_WRITER_KINDS = (0x02, 0x03)
+INFO_SOURCE = 0x0C
 
 
-def data_writer_ids(message: bytes):
-    """Return writer IDs from bounded unfragmented DATA submessages."""
+def data_writers(message: bytes):
+    """Return (writer ID, effective source prefix) for each bounded DATA."""
     if len(message) < 24 or message[:4] != b"RTPS":
         return []
     writers = []
+    source = message[8:20]
     offset = 20
     while offset + 4 <= len(message):
         kind, flags = message[offset : offset + 2]
@@ -34,10 +36,19 @@ def data_writer_ids(message: bytes):
             start if kind in (0x01, 0x09) else len(message))
         if end > len(message) or end <= offset:
             return []
-        if kind == 0x15 and end - start >= 24 and flags & 0x04:
-            writers.append(message[start + 8 : start + 12])
+        if kind == INFO_SOURCE:
+            if end - start != 20:
+                return []
+            source = message[start + 8 : start + 20]
+        elif kind == 0x15 and end - start >= 24 and flags & 0x04:
+            writers.append((message[start + 8 : start + 12], source))
         offset = end
     return writers
+
+
+def data_writer_ids(message: bytes):
+    """Return writer IDs from bounded unfragmented DATA submessages."""
+    return [writer for writer, _ in data_writers(message)]
 
 
 def user_writer_id(message: bytes):
@@ -45,6 +56,14 @@ def user_writer_id(message: bytes):
     for writer in data_writer_ids(message):
         if writer[3] in USER_WRITER_KINDS:
             return writer
+    return None
+
+
+def source_for_writer(message: bytes, expected_writer: bytes):
+    """Return the effective source prefix of a selected DATA writer."""
+    for writer, source in data_writers(message):
+        if writer == expected_writer:
+            return source
     return None
 
 
@@ -88,17 +107,21 @@ def main() -> int:
                 writers = data_writer_ids(candidate)
                 if writers and len(debug_data) < 32:
                     debug_data.append((candidate, writers))
-                prefix = candidate[8:20] if len(candidate) >= 20 else None
-                if prefix is not None and contains_spdp(candidate):
-                    spdp_by_prefix[prefix] = candidate
-                if prefix is not None and is_sedp_publication(candidate):
-                    sedp_by_prefix[prefix] = candidate
-                if user_writer_id(candidate) is not None:
+                if contains_spdp(candidate):
+                    prefix = source_for_writer(candidate, b"\x00\x01\x00\xc2")
+                    if prefix is not None:
+                        spdp_by_prefix[prefix] = candidate
+                if is_sedp_publication(candidate):
+                    prefix = source_for_writer(candidate, b"\x00\x00\x03\xc2")
+                    if prefix is not None:
+                        sedp_by_prefix[prefix] = candidate
+                user_writer = user_writer_id(candidate)
+                if user_writer is not None:
                     data_packet = candidate
+                    data_source = source_for_writer(candidate, user_writer)
                 if data_packet is not None:
-                    source = data_packet[8:20]
-                    endpoint_packet = sedp_by_prefix.get(source)
-                    participant_packet = spdp_by_prefix.get(source)
+                    endpoint_packet = sedp_by_prefix.get(data_source)
+                    participant_packet = spdp_by_prefix.get(data_source)
                 if endpoint_packet is not None and participant_packet is not None:
                     break
             for process in (publisher, subscriber):

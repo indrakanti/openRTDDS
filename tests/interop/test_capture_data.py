@@ -4,7 +4,7 @@
 
 import unittest
 
-from capture_data import user_writer_id
+from capture_data import source_for_writer, user_writer_id
 
 
 class DataCaptureTests(unittest.TestCase):
@@ -35,6 +35,16 @@ class DataCaptureTests(unittest.TestCase):
             self.header + self.data(b"\x00\x00\x01\x03", flags=0x09)))
         self.assertIsNone(user_writer_id(self.header + b"\x15\x05\xff\x7f"))
         self.assertIsNone(user_writer_id(b"nope" + self.header[4:]))
+
+    def test_uses_info_source_for_following_data(self):
+        source = bytes(range(20, 32))
+        info_source_content = bytes(4) + bytes([2, 3, 1, 16]) + source
+        info_source = (b"\x0c\x01" +
+                       len(info_source_content).to_bytes(2, "little") +
+                       info_source_content)
+        writer = b"\x00\x00\x02\x03"
+        message = self.header + info_source + self.data(writer)
+        self.assertEqual(source_for_writer(message, writer), source)
 
 
 if __name__ == "__main__":
