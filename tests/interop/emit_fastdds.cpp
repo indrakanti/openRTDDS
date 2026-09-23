@@ -51,6 +51,8 @@ int main(int argc, char** argv) {
           SUBSCRIBER_QOS_DEFAULT);
       DataReaderQos reader_qos = DATAREADER_QOS_DEFAULT;
       reader_qos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS;
+      // ORT-INT-006: keep same-host traffic on the observable RTPS/UDP path.
+      reader_qos.data_sharing().off();
       auto* const reader = subscriber
           ? subscriber->create_datareader(topic, reader_qos) : nullptr;
       if (reader == nullptr) {
@@ -63,6 +65,8 @@ int main(int argc, char** argv) {
           PUBLISHER_QOS_DEFAULT);
       DataWriterQos writer_qos = DATAWRITER_QOS_DEFAULT;
       writer_qos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS;
+      // ORT-INT-006: keep same-host traffic on the observable RTPS/UDP path.
+      writer_qos.data_sharing().off();
       auto* const writer = publisher
           ? publisher->create_datawriter(topic, writer_qos) : nullptr;
       if (writer == nullptr) {

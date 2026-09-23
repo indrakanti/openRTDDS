@@ -19,10 +19,11 @@ from capture_spdp import contains_spdp
 USER_WRITER_KINDS = (0x02, 0x03)
 
 
-def user_writer_id(message: bytes):
-    """Return the first unfragmented user DATA writer ID, or None."""
+def data_writer_ids(message: bytes):
+    """Return writer IDs from bounded unfragmented DATA submessages."""
     if len(message) < 24 or message[:4] != b"RTPS":
-        return None
+        return []
+    writers = []
     offset = 20
     while offset + 4 <= len(message):
         kind, flags = message[offset : offset + 2]
@@ -32,12 +33,18 @@ def user_writer_id(message: bytes):
         end = start + length if length else (
             start if kind in (0x01, 0x09) else len(message))
         if end > len(message) or end <= offset:
-            return None
+            return []
         if kind == 0x15 and end - start >= 24 and flags & 0x04:
-            writer = message[start + 8 : start + 12]
-            if writer[3] in USER_WRITER_KINDS:
-                return writer
+            writers.append(message[start + 8 : start + 12])
         offset = end
+    return writers
+
+
+def user_writer_id(message: bytes):
+    """Return the first keyed or unkeyed user DATA writer ID, or None."""
+    for writer in data_writer_ids(message):
+        if writer[3] in USER_WRITER_KINDS:
+            return writer
     return None
 
 
@@ -69,6 +76,7 @@ def main() -> int:
         participant_packet = None
         sedp_by_prefix = {}
         spdp_by_prefix = {}
+        debug_data = []
         deadline = time.monotonic() + 12.0
         try:
             while time.monotonic() < deadline:
@@ -77,6 +85,9 @@ def main() -> int:
                 except socket.timeout:
                     continue
                 candidate = udp_payload(ip)
+                writers = data_writer_ids(candidate)
+                if writers and len(debug_data) < 32:
+                    debug_data.append((candidate, writers))
                 prefix = candidate[8:20] if len(candidate) >= 20 else None
                 if prefix is not None and contains_spdp(candidate):
                     spdp_by_prefix[prefix] = candidate
@@ -104,6 +115,17 @@ def main() -> int:
         return 1
     if data_packet is None or endpoint_packet is None or \
             participant_packet is None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        for index, (packet, writers) in enumerate(debug_data):
+            writer_names = "-".join(writer.hex() for writer in writers)
+            (args.output.parent /
+             f"debug-data-{index:02d}-{writer_names}.rtps").write_bytes(packet)
+        print("DATA writers seen: " + ", ".join(
+            writer.hex() for _, writers in debug_data for writer in writers),
+            file=sys.stderr)
+        print("SPDP prefixes seen: " + str(len(spdp_by_prefix)) +
+              "; SEDP prefixes seen: " + str(len(sedp_by_prefix)),
+              file=sys.stderr)
         print("no matched DATA/SEDP/SPDP chain captured", file=sys.stderr)
         return 1
 

@@ -74,8 +74,11 @@ For ORT-INT-006, each vendor creates the same `VendorProbe` topic endpoints
 with `BEST_EFFORT` reliability. The subscriber starts first, followed by the
 publisher. After a bounded three-second discovery interval, the publisher
 writes one sample whose only field is the unsigned 32-bit value `0x4F525444`.
-Fast DDS is run with `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` so shared-memory
-delivery cannot satisfy the wire test. The capture process selects a DATA
+Fast DDS uses an explicit UDPv4-only participant transport and disables the
+DataSharing QoS policy on both endpoints, so same-host shared-memory delivery
+cannot satisfy the wire test. The CI environment also sets
+`FASTDDS_BUILTIN_TRANSPORTS=UDPv4` as a defense-in-depth constraint. The
+capture process selects a DATA
 submessage whose writer entity kind is a keyed or unkeyed user writer, then
 retains the SEDP publication and SPDP announcement with the same source GUID
 prefix. All three UDP payloads remain unmodified.
