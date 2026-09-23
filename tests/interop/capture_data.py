@@ -87,9 +87,11 @@ def main() -> int:
     with socket.socket(socket.AF_PACKET, socket.SOCK_DGRAM,
                        socket.htons(0x0800)) as sniffer:
         sniffer.settimeout(0.5)
-        subscriber = subprocess.Popen(command + ["subscribe-data"])
-        time.sleep(0.3)
+        # ORT-INT-006: start the delayed publisher first so its initial SPDP
+        # announcement cannot be confused with the subscriber's participant.
         publisher = subprocess.Popen(command + ["publish-data"])
+        time.sleep(0.3)
+        subscriber = subprocess.Popen(command + ["subscribe-data"])
         data_packet = None
         endpoint_packet = None
         participant_packet = None

@@ -71,8 +71,9 @@ has the required wire length, then requires supported UDPv4 unicast locators.
 ### Best-effort application DATA behavior
 
 For ORT-INT-006, each vendor creates the same `VendorProbe` topic endpoints
-with `BEST_EFFORT` reliability. The subscriber starts first, followed by the
-publisher. After a bounded three-second discovery interval, the publisher
+with `BEST_EFFORT` reliability. The delayed publisher starts first so the
+capture retains its initial SPDP identity; the subscriber follows after 300
+milliseconds. After a bounded three-second discovery interval, the publisher
 writes one sample whose only field is the unsigned 32-bit value `0x4F525444`.
 Fast DDS uses an explicit UDPv4-only participant transport and disables the
 DataSharing QoS policy on both endpoints, so same-host shared-memory delivery
