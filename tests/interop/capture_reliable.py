@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import socket
+import struct
 import subprocess
 import sys
 import time
@@ -16,7 +17,8 @@ from pathlib import Path
 from capture_data import (data_writer_ids, routed_submessages,
                           source_for_writer, terminate, user_writer_id)
 from capture_sedp import is_sedp_publication, udp_payload
-from capture_spdp import contains_spdp
+from capture_spdp import (MULTICAST_GROUP, PORT as SPDP_PORT,
+                          contains_spdp)
 
 
 HEARTBEAT = 0x07
@@ -87,8 +89,16 @@ def main() -> int:
         parser.error("vendor command required")
 
     with socket.socket(socket.AF_PACKET, socket.SOCK_DGRAM,
-                       socket.htons(0x0800)) as sniffer:
+                       socket.htons(0x0800)) as sniffer, \
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as spdp_sniffer:
         sniffer.settimeout(0.5)
+        spdp_sniffer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        spdp_sniffer.bind(("", SPDP_PORT))
+        spdp_sniffer.setsockopt(
+            socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP,
+            struct.pack("4s4s", socket.inet_aton(MULTICAST_GROUP),
+                        socket.inet_aton("0.0.0.0")))
+        spdp_sniffer.setblocking(False)
         publisher = subprocess.Popen(command + ["publish-reliable"])
         time.sleep(0.3)
         subscriber = subprocess.Popen(command + ["subscribe-reliable"])
@@ -109,6 +119,17 @@ def main() -> int:
                 try:
                     ip, _ = sniffer.recvfrom(65_536)
                 except socket.timeout:
+                    ip = None
+                while True:
+                    try:
+                        participant, _ = spdp_sniffer.recvfrom(65_536)
+                    except BlockingIOError:
+                        break
+                    if contains_spdp(participant):
+                        prefix = source_for_writer(participant, SPDP_WRITER)
+                        if prefix is not None:
+                            spdp[prefix] = participant
+                if ip is None:
                     continue
                 candidate = udp_payload(ip)
                 if candidate[:4] != b"RTPS":

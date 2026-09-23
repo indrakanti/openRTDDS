@@ -155,10 +155,13 @@ The reliable probe interface is:
 openrtdds_vendor_packet_probe --reliable DATA PUB_SEDP PUB_SPDP HEARTBEAT ACKNACK SUB_SEDP SUB_SPDP
 ```
 
-The harness owns one packet socket, two child processes, bounded packet lists,
-and a 16-second deadline. Production parser views are non-owning and allocate
-no memory. A complete chain is required atomically; partial evidence is kept
-only as a failure diagnostic artifact.
+The harness owns one raw packet socket, one SPDP multicast socket, two child
+processes, bounded packet lists, and a 16-second deadline. The multicast socket
+is bound to the standard domain-43 SPDP port and preserves the received RTPS
+payload unchanged; the raw socket supplies DATA, SEDP, HEARTBEAT, and ACKNACK.
+Production parser views are non-owning and allocate no memory. A complete chain
+is required atomically; partial evidence is kept only as a failure diagnostic
+artifact.
 
 ## Normal sequence
 
