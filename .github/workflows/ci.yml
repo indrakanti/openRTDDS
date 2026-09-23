@@ -36,7 +36,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-  vendor-discovery-packets:
+  vendor-packets:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -47,16 +47,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libfastrtps-dev=2.11.2+ds-6.1build3 \
+            fastddsgen=2.3.0+dfsg-1 \
             cyclonedds-dev=0.10.4-1.1build3 cyclonedds-tools
       - name: Build vendor emitters and OpenRTDDS probe
         run: |
           mkdir -p /tmp/vendor-idl
           idlc -l c -o /tmp/vendor-idl tests/interop/VendorProbe.idl
+          mkdir -p /tmp/vendor-fastdds
+          (cd tests/interop && fastddsgen -d /tmp/vendor-fastdds VendorProbe.idl)
           cc -std=c11 -Wall -Wextra -Werror -I/tmp/vendor-idl \
             tests/interop/emit_cyclone.c /tmp/vendor-idl/VendorProbe.c \
             -lddsc -o /tmp/emit_cyclone
-          c++ -std=c++17 -Wall -Wextra -Werror \
-            tests/interop/emit_fastdds.cpp -lfastrtps -lfastcdr -pthread \
+          c++ -std=c++17 -Wall -Wextra -Werror -I/tmp/vendor-fastdds \
+            tests/interop/emit_fastdds.cpp \
+            /tmp/vendor-fastdds/VendorProbe.cxx \
+            /tmp/vendor-fastdds/VendorProbePubSubTypes.cxx \
+            -lfastrtps -lfastcdr -pthread \
             -o /tmp/emit_fastdds
           cmake -S . -B build -DOPENRTDDS_WARNINGS_AS_ERRORS=ON \
             -DOPENRTDDS_BUILD_EXAMPLES=OFF
@@ -101,10 +107,33 @@ jobs:
           ./build/openrtdds_vendor_packet_probe --sedp \
             artifacts/vendor-packets/cyclonedds/sedp.rtps \
             artifacts/vendor-packets/cyclonedds/sedp-participant.rtps
+      - name: Capture Fast DDS best-effort user DATA
+        run: |
+          sudo -E env FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+            python3 tests/interop/capture_data.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --output artifacts/vendor-packets/fastdds/data-best-effort.rtps \
+            -- /tmp/emit_fastdds
+          ./build/openrtdds_vendor_packet_probe --data \
+            artifacts/vendor-packets/fastdds/data-best-effort.rtps \
+            artifacts/vendor-packets/fastdds/data-best-effort-endpoint.rtps \
+            artifacts/vendor-packets/fastdds/data-best-effort-participant.rtps
+      - name: Capture Cyclone DDS best-effort user DATA
+        run: |
+          sudo python3 tests/interop/capture_data.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --output artifacts/vendor-packets/cyclonedds/data-best-effort.rtps \
+            -- /tmp/emit_cyclone
+          ./build/openrtdds_vendor_packet_probe --data \
+            artifacts/vendor-packets/cyclonedds/data-best-effort.rtps \
+            artifacts/vendor-packets/cyclonedds/data-best-effort-endpoint.rtps \
+            artifacts/vendor-packets/cyclonedds/data-best-effort-participant.rtps
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pinned-vendor-discovery-packets
+          name: pinned-vendor-packets
           path: artifacts/vendor-packets/
           if-no-files-found: warn

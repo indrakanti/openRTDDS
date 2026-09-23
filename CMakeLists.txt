@@ -166,6 +166,34 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
   )
   set_tests_properties(openrtdds_sedp_rejects_foreign_participant
     PROPERTIES WILL_FAIL TRUE)
+  add_test(NAME openrtdds_fastdds_best_effort_data_fixture
+    COMMAND openrtdds_vendor_packet_probe --data
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-best-effort.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-best-effort-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-best-effort-participant.rtps
+  )
+  add_test(NAME openrtdds_cyclonedds_best_effort_data_fixture
+    COMMAND openrtdds_vendor_packet_probe --data
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-best-effort.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-best-effort-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-best-effort-participant.rtps
+  )
+  add_test(NAME openrtdds_data_rejects_foreign_endpoint
+    COMMAND openrtdds_vendor_packet_probe --data
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-best-effort.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-best-effort-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-best-effort-participant.rtps
+  )
+  add_test(NAME openrtdds_data_rejects_foreign_participant
+    COMMAND openrtdds_vendor_packet_probe --data
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-best-effort.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-best-effort-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-best-effort-participant.rtps
+  )
+  set_tests_properties(
+    openrtdds_data_rejects_foreign_endpoint
+    openrtdds_data_rejects_foreign_participant
+    PROPERTIES WILL_FAIL TRUE)
   if(OPENRTDDS_BUILD_EXAMPLES)
     add_test(NAME openrtdds_vehicle_state_example COMMAND openrtdds_vehicle_state)
     add_test(NAME openrtdds_rtps_static_message_example

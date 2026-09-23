@@ -65,3 +65,20 @@ and SHA-256 digests.
 
 **Rationale:** Discovery announcements produced by vendors expose gaps that
 internally generated endpoint messages cannot exercise.
+
+### ORT-INT-006 — Vendor best-effort DATA receive gate
+
+**Status:** Verified  
+**Verification:** Test
+
+The CI interoperability job shall configure an explicitly best-effort writer
+and reader for `OpenRTDDSProbe`, transmit the fixed `VendorProbe` value
+`0x4F525444`, and capture the vendor's unmodified user DATA UDP payload within
+a fixed timeout. The gate shall parse the sample with `parse_data_message`,
+match its source and writer entity to same-run SPDP and SEDP announcements,
+verify the endpoint topic, type, and best-effort QoS, and decode the fixed
+32-bit value from standard CDR. Each packet in the discovery-to-data chain
+shall have versioned provenance and a SHA-256 digest.
+
+**Rationale:** A discovery-only corpus does not demonstrate that the existing
+production DATA receive path accepts vendor-produced application samples.

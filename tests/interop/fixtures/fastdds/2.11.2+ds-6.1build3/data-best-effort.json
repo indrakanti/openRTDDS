@@ -1,0 +1,19 @@
+{
+  "vendor": "fastdds",
+  "package_version": "2.11.2+ds-6.1build3",
+  "domain_id": 43,
+  "qos": "best_effort",
+  "sample_uint32": 1330795588,
+  "publisher": ["/tmp/emit_fastdds", "publish-data"],
+  "subscriber": ["/tmp/emit_fastdds", "subscribe-data"],
+  "capture_format": "raw IPv4 UDP payload (.rtps)",
+  "byte_count": 140,
+  "sha256": "3497c4b7410106da61731d2fd0fa1de94a077be7bb20a08d49e9442b713aa667",
+  "endpoint_byte_count": 476,
+  "endpoint_sha256": "96747fadd9732917201b89f18c795fe18c654bdd55dbcc4b535b0ca0c89f2839",
+  "participant_byte_count": 468,
+  "participant_sha256": "19597354f76494ed3a7ee629becb45da2b5704b8a85f39e2315bb4007f1fe0aa",
+  "generator_source": "tests/interop/emit_fastdds.cpp",
+  "capture_run": "https://github.com/indrakanti/openRTDDS/actions/runs/35809296020",
+  "capture_commit": "863465ebc36037b10a4ff74a82ae5095a1e501a1"
+}
