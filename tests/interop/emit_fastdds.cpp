@@ -75,10 +75,18 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::seconds(3));
         DynamicData_ptr sample(
             DynamicDataFactory::get_instance()->create_data(dynamic_type));
-        if (!sample || sample->set_uint32_value(0x4F525444U, 0U) !=
-                           ReturnCode_t::RETCODE_OK ||
-            writer->write(sample.get()) != ReturnCode_t::RETCODE_OK) {
-          std::cerr << "Fast DDS sample write failed\n";
+        if (!sample) {
+          std::cerr << "Fast DDS sample allocation failed\n";
+          return 1;
+        }
+        const auto set_result = sample->set_uint32_value(0x4F525444U, 0U);
+        if (set_result != ReturnCode_t::RETCODE_OK) {
+          std::cerr << "Fast DDS sample assignment failed\n";
+          return 1;
+        }
+        const auto write_result = writer->write(sample.get());
+        if (write_result != ReturnCode_t::RETCODE_OK) {
+          std::cerr << "Fast DDS writer rejected sample\n";
           return 1;
         }
         std::this_thread::sleep_for(std::chrono::seconds(2));
