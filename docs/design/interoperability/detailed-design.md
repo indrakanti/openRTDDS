@@ -125,9 +125,9 @@ ORT-INT-007 uses the same generated `VendorProbe` type and fixed value with
 `RELIABLE` writer and reader QoS. The publisher starts first and delays its
 write for three seconds; the subscriber starts 300 milliseconds later. Fast
 DDS again uses UDPv4-only transports with DataSharing disabled. The raw packet
-capture retains seven correlated payloads. Reliable subscribers remain alive
-for 12 seconds so the bounded 16-second capture includes a periodic SPDP
-announcement even when a vendor suppresses its initial multicast response:
+capture retains seven correlated payloads. The Cyclone CI invocation records
+an explicit one-second `SPDPInterval` in the manifest so both participant
+announcements occur inside the bounded seven-second peer lifetime:
 
 | Evidence | Required identity |
 |---|---|

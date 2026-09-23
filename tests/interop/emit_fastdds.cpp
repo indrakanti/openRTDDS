@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
         return 1;
       }
       std::this_thread::sleep_for(
-          std::chrono::seconds(reliable ? 12 : 5));
+          std::chrono::seconds(reliable ? 7 : 5));
     } else {
       auto* const publisher = participant->create_publisher(
           PUBLISHER_QOS_DEFAULT);

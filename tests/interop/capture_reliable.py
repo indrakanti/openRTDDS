@@ -6,6 +6,7 @@
 import argparse
 import hashlib
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -196,6 +197,8 @@ def main() -> int:
         "subscriber": command + ["subscribe-reliable"],
         "capture_format": "raw IPv4 UDP payload (.rtps)",
     }
+    if "CYCLONEDDS_URI" in os.environ:
+        manifest["cyclonedds_uri"] = os.environ["CYCLONEDDS_URI"]
     digest(args.output, data_packet, manifest, "")
     for suffix, payload, prefix in (
             ("-publisher-endpoint.rtps", publisher_endpoint,

@@ -147,8 +147,11 @@ jobs:
             artifacts/vendor-packets/fastdds/data-reliable-subscriber-endpoint.rtps \
             artifacts/vendor-packets/fastdds/data-reliable-subscriber-participant.rtps
       - name: Capture Cyclone DDS reliable DATA control chain
+        env:
+          CYCLONEDDS_URI: '<CycloneDDS><Domain id="any"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery></Domain></CycloneDDS>'
         run: |
-          sudo python3 tests/interop/capture_reliable.py \
+          sudo --preserve-env=CYCLONEDDS_URI \
+            python3 tests/interop/capture_reliable.py \
             --vendor cyclonedds \
             --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
             --output artifacts/vendor-packets/cyclonedds/data-reliable.rtps \
