@@ -66,8 +66,7 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::seconds(3));
         VendorProbe sample;
         sample.value(0x4F525444U);
-        const auto write_result = writer->write(&sample);
-        if (write_result != ReturnCode_t::RETCODE_OK) {
+        if (!writer->write(&sample)) {
           std::cerr << "Fast DDS writer rejected sample\n";
           return 1;
         }
