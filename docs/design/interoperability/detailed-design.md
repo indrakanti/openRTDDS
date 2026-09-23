@@ -1,8 +1,8 @@
 # Vendor packet evidence detailed design
 
-**Design status:** Current for SPDP and SEDP publications; Planned for user DATA  
+**Design status:** Current for SPDP, SEDP publications, and best-effort user DATA; reliable user DATA planned  
 **Requirements:** ORT-INT-001, ORT-INT-002, ORT-INT-003  
-**Requirements:** ORT-INT-004, ORT-INT-005
+**Requirements:** ORT-INT-004, ORT-INT-005, ORT-INT-006
 
 ## Behavior and interfaces
 
@@ -68,6 +68,52 @@ Fast DDS also advertises a shared-memory locator in the same packet as UDPv4
 locators. The SPDP parser skips unsupported locator kinds only when the value
 has the required wire length, then requires supported UDPv4 unicast locators.
 
+### Best-effort application DATA behavior
+
+For ORT-INT-006, each vendor creates the same `VendorProbe` topic endpoints
+with `BEST_EFFORT` reliability. The subscriber starts first, followed by the
+publisher. After a bounded three-second discovery interval, the publisher
+writes one sample whose only field is the unsigned 32-bit value `0x4F525444`.
+Fast DDS is run with `FASTDDS_BUILTIN_TRANSPORTS=UDPv4` so shared-memory
+delivery cannot satisfy the wire test. The capture process selects a DATA
+submessage whose writer entity kind is a keyed or unkeyed user writer, then
+retains the SEDP publication and SPDP announcement with the same source GUID
+prefix. All three UDP payloads remain unmodified.
+
+The probe interface is:
+
+```text
+openrtdds_vendor_packet_probe --data DATA SEDP SPDP
+```
+
+It invokes the existing production APIs in this order:
+
+1. `parse_spdp_message(SPDP, domain=43)` validates the participant and its
+   usable default UDPv4 unicast locator.
+2. `parse_data_message(DATA)` validates the compound RTPS message, user DATA
+   flags, sequence number, and serialized-payload representation.
+3. `parse_sedp_message(SEDP, DATA.source_guid_prefix)` validates the writer
+   announcement.
+4. The probe requires equal participant prefixes and equal DATA/SEDP writer
+   entity IDs, writer endpoint kind, `OpenRTDDSProbe`, `VendorProbe`, and
+   best-effort reliability.
+5. A bounded CDR decoder requires an eight-byte CDR payload and compares the
+   decoded value with `0x4F525444`.
+
+The capture script owns one raw packet socket and two child processes. Its
+maps are keyed by the fixed 12-byte GUID prefix and live only until the
+12-second deadline. The probe owns three fixed 65,508-byte input buffers and
+non-owning parser views. No heap allocation or file I/O is added to the
+production RTPS receive implementation.
+
+| Boundary | Success result | Failure result |
+|---|---|---|
+| Capture CLI | three `.rtps` files plus JSON manifest | exit `1` on timeout, peer failure, or incomplete chain |
+| Probe input | readable bounded files | exit `2` on invocation or file error |
+| RTPS DATA parser | `RtpsError::none` | exit `1` with exact `RtpsError` text |
+| Discovery correlation | same participant and writer entity | exit `1` on identity/QoS/topic/type mismatch |
+| CDR value check | exactly `0x4F525444` | exit `1` on representation, size, or value mismatch |
+
 ## Normal sequence
 
 ```mermaid
@@ -90,6 +136,20 @@ peer participant. The publisher announces its participant and endpoint; capture
 selects both unmodified packets sharing the source prefix; the probe checks
 participant locators, endpoint fields, and identity correspondence.
 
+```mermaid
+sequenceDiagram
+    participant Capture
+    participant Reader
+    participant Writer
+    participant Probe
+    Capture->>Reader: create best-effort endpoint
+    Capture->>Writer: create best-effort endpoint
+    Writer-->>Capture: SPDP + SEDP
+    Writer-->>Capture: DATA(value)
+    Capture->>Probe: DATA + SEDP + SPDP
+    Probe-->>Capture: correlated sample accepted
+```
+
 ## Failure behavior
 
 | Failure | Detection | Recovery owner |
@@ -103,6 +163,9 @@ participant locators, endpoint fields, and identity correspondence.
 | Committed fixture bytes or metadata changed | SHA/manifest checker fails | evidence owner |
 | No outbound SEDP within ten seconds | packet socket deadline | CI/network owner |
 | SEDP identity, parameter or locator invalid | `SedpError` or `RtpsError` from probe | receive parser owner |
+| Shared-memory path hides Fast DDS DATA | forced UDPv4 transport and capture timeout | CI configuration owner |
+| DATA has foreign writer or participant | three-packet correlation fails | evidence owner |
+| DATA payload or QoS differs | probe comparison fails | vendor-emitter owner |
 
 No failure is silently skipped. The C++ probe never transmits, retries,
 allocates in the RTPS parser, or changes the production receive API. File I/O,
@@ -118,7 +181,7 @@ buffer and does not retain the parsed view after its call.
 
 ## Planned extension
 
-ORT-INT-004 extends this same provenance and parse pattern to user
+ORT-INT-004 extends this same provenance and parse pattern to reliable user
 DATA from both vendors. G2 stays partial until those packets are captured and
 accepted in CI. G3 additionally requires both directions of live discovery
 and application data exchange. No ROS 2 RMW evidence is claimed here.

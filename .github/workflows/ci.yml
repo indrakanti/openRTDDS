@@ -36,7 +36,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-  vendor-discovery-packets:
+  vendor-packets:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -101,10 +101,33 @@ jobs:
           ./build/openrtdds_vendor_packet_probe --sedp \
             artifacts/vendor-packets/cyclonedds/sedp.rtps \
             artifacts/vendor-packets/cyclonedds/sedp-participant.rtps
+      - name: Capture Fast DDS best-effort user DATA
+        run: |
+          sudo -E env FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+            python3 tests/interop/capture_data.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --output artifacts/vendor-packets/fastdds/data-best-effort.rtps \
+            -- /tmp/emit_fastdds
+          ./build/openrtdds_vendor_packet_probe --data \
+            artifacts/vendor-packets/fastdds/data-best-effort.rtps \
+            artifacts/vendor-packets/fastdds/data-best-effort-endpoint.rtps \
+            artifacts/vendor-packets/fastdds/data-best-effort-participant.rtps
+      - name: Capture Cyclone DDS best-effort user DATA
+        run: |
+          sudo python3 tests/interop/capture_data.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --output artifacts/vendor-packets/cyclonedds/data-best-effort.rtps \
+            -- /tmp/emit_cyclone
+          ./build/openrtdds_vendor_packet_probe --data \
+            artifacts/vendor-packets/cyclonedds/data-best-effort.rtps \
+            artifacts/vendor-packets/cyclonedds/data-best-effort-endpoint.rtps \
+            artifacts/vendor-packets/cyclonedds/data-best-effort-participant.rtps
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pinned-vendor-discovery-packets
+          name: pinned-vendor-packets
           path: artifacts/vendor-packets/
           if-no-files-found: warn

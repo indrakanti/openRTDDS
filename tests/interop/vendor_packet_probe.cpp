@@ -1,5 +1,5 @@
-// Requirements: ORT-INT-003, ORT-INT-005
-// Verifies: ORT-INT-002, ORT-INT-003, ORT-INT-005
+// Requirements: ORT-INT-003, ORT-INT-005, ORT-INT-006
+// Verifies: ORT-INT-002, ORT-INT-003, ORT-INT-005, ORT-INT-006
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -9,6 +9,7 @@
 
 #include "openrtdds/rtps/spdp.hpp"
 #include "openrtdds/rtps/sedp.hpp"
+#include "openrtdds/rtps/data_message.hpp"
 #include "openrtdds/rtps/message_router.hpp"
 
 namespace {
@@ -24,26 +25,43 @@ bool read_packet(const char* path,
   size = static_cast<std::size_t>(input.gcount());
   return size != 0U && size <= max_datagram_size && !input.bad();
 }
+
+std::uint32_t read_sample(const std::uint8_t* const payload,
+                          const std::size_t size) {
+  if (payload == nullptr || size != 8U || payload[0] != 0U ||
+      payload[1] > 1U) {
+    return 0U;
+  }
+  const bool little = payload[1] == 1U;
+  std::uint32_t value = 0U;
+  for (std::size_t index = 0U; index < 4U; ++index) {
+    const std::size_t shift = little ? index : 3U - index;
+    value |= static_cast<std::uint32_t>(payload[4U + index]) << (shift * 8U);
+  }
+  return value;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
   const bool sedp = argc == 4 && std::string(argv[1]) == "--sedp";
-  if (argc != 2 && !sedp) {
+  const bool data = argc == 5 && std::string(argv[1]) == "--data";
+  if (argc != 2 && !sedp && !data) {
     std::cerr << "usage: vendor_packet_probe <spdp.rtps> | --sedp "
-                 "<sedp.rtps> <matched-participant.rtps>\n";
+                 "<sedp.rtps> <matched-participant.rtps> | --data "
+                 "<data.rtps> <endpoint.rtps> <participant.rtps>\n";
     return 2;
   }
   std::array<std::uint8_t, max_datagram_size + 1U> bytes{};
   std::size_t size = 0U;
-  if (!read_packet(argv[sedp ? 2 : 1], bytes, size)) {
+  if (!read_packet(argv[(sedp || data) ? 2 : 1], bytes, size)) {
     std::cerr << "empty, oversized, or unreadable UDP packet\n";
     return 2;
   }
 
-  if (sedp) {
+  if (sedp || data) {
     std::array<std::uint8_t, max_datagram_size + 1U> participant_bytes{};
     std::size_t participant_size = 0U;
-    if (!read_packet(argv[3], participant_bytes, participant_size)) {
+    if (!read_packet(argv[data ? 4 : 3], participant_bytes, participant_size)) {
       std::cerr << "missing or invalid participant packet\n";
       return 2;
     }
@@ -53,6 +71,53 @@ int main(int argc, char** argv) {
     if (!spdp.ok() || participant.participant.default_unicast.size == 0U) {
       std::cerr << "matched participant SPDP invalid\n";
       return 1;
+    }
+    if (data) {
+      openrtdds::rtps::DataMessageView sample{};
+      const auto data_error = openrtdds::rtps::parse_data_message(
+          bytes.data(), size, sample);
+      if (data_error != openrtdds::rtps::RtpsError::none) {
+        std::cerr << "user DATA parse failed: "
+                  << openrtdds::rtps::to_string(data_error) << '\n';
+        return 1;
+      }
+      if (sample.guid_prefix.value != participant.participant.guid_prefix.value ||
+          (sample.writer_id.value[3] != 0x02U &&
+           sample.writer_id.value[3] != 0x03U)) {
+        std::cerr << "user DATA source or writer identity invalid\n";
+        return 1;
+      }
+      std::array<std::uint8_t, max_datagram_size + 1U> endpoint_bytes{};
+      std::size_t endpoint_size = 0U;
+      if (!read_packet(argv[3], endpoint_bytes, endpoint_size)) {
+        std::cerr << "missing or invalid endpoint packet\n";
+        return 2;
+      }
+      openrtdds::rtps::SedpMessageView endpoint{};
+      const auto endpoint_result = openrtdds::rtps::parse_sedp_message(
+          endpoint_bytes.data(), endpoint_size, sample.guid_prefix, endpoint);
+      if (!endpoint_result.ok() ||
+          endpoint.endpoint.kind != openrtdds::rtps::EndpointKind::writer ||
+          endpoint.endpoint.endpoint_id != sample.writer_id ||
+          endpoint.endpoint.reliability !=
+              openrtdds::rtps::ReliabilityKind::best_effort ||
+          std::string(endpoint.endpoint.topic_name.data(),
+                      endpoint.endpoint.topic_name_size) != "OpenRTDDSProbe" ||
+          std::string(endpoint.endpoint.type_name.data(),
+                      endpoint.endpoint.type_name_size) != "VendorProbe") {
+        std::cerr << "user DATA does not match its best-effort SEDP writer\n";
+        return 1;
+      }
+      constexpr std::uint32_t expected_sample = 0x4F525444U;
+      if (read_sample(sample.serialized_payload, sample.payload_size) !=
+          expected_sample) {
+        std::cerr << "user DATA payload differs from the known sample\n";
+        return 1;
+      }
+      std::cout << "best-effort DATA accepted: bytes=" << size
+                << " sequence=" << sample.sequence_number
+                << " value=" << expected_sample << '\n';
+      return 0;
     }
     openrtdds::rtps::RoutedSubmessageView routed{};
     const auto routed_error = openrtdds::rtps::find_submessage(
