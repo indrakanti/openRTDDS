@@ -69,6 +69,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-INT-004 | Approved | Planned vendor SEDP/DATA corpus | Planned | — |
 | ORT-INT-005 | Verified | `rtps/sedp.cpp`, `tests/interop/emit_*.{c,cpp}`, `capture_sedp.py`, `vendor_packet_probe.cpp` | `test_sedp.cpp`, pinned SEDP fixtures, `vendor-packets` CI job | — |
 | ORT-INT-006 | Verified | `rtps/data_message.hpp`, `tests/interop/emit_*.{c,cpp}`, `capture_data.py`, `vendor_packet_probe.cpp` | `test_capture_data.py`, pinned best-effort DATA fixtures, `vendor-packets` CI job | — |
+| ORT-INT-007 | Implemented | `rtps/data_message.hpp`, `rtps/reliability_messages.hpp`, `tests/interop/emit_*.{c,cpp}`, `capture_reliable.py`, `vendor_packet_probe.cpp` | `test_capture_reliable.py`, `vendor-packets` CI job | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

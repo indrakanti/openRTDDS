@@ -1,4 +1,4 @@
-// Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006
+// Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -33,8 +33,14 @@ int main(int argc, char** argv) {
     return 1;
   }
   const std::string mode = argc > 1 ? argv[1] : "participant";
+  const bool reliable = mode == "publish-reliable" ||
+                        mode == "subscribe-reliable";
+  const bool subscribe = mode == "subscribe-data" ||
+                         mode == "subscribe-reliable";
+  const bool write_sample = mode == "publish-data" ||
+                            mode == "publish-reliable";
   if (mode == "publish" || mode == "publish-data" ||
-      mode == "subscribe-data") {
+      mode == "subscribe-data" || reliable) {
     TypeSupport type(new VendorProbePubSubType());
     if (type.register_type(participant) != ReturnCode_t::RETCODE_OK) {
       std::cerr << "Fast DDS type registration failed\n";
@@ -46,12 +52,13 @@ int main(int argc, char** argv) {
       std::cerr << "Fast DDS topic creation failed\n";
       return 1;
     }
-    if (mode == "subscribe-data") {
+    if (subscribe) {
       auto* const subscriber = participant->create_subscriber(
           SUBSCRIBER_QOS_DEFAULT);
       DataReaderQos reader_qos = DATAREADER_QOS_DEFAULT;
-      reader_qos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS;
-      // ORT-INT-006: keep same-host traffic on the observable RTPS/UDP path.
+      reader_qos.reliability().kind = reliable
+          ? RELIABLE_RELIABILITY_QOS : BEST_EFFORT_RELIABILITY_QOS;
+      // ORT-INT-006, ORT-INT-007: keep traffic on observable RTPS/UDP.
       reader_qos.data_sharing().off();
       auto* const reader = subscriber
           ? subscriber->create_datareader(topic, reader_qos) : nullptr;
@@ -59,13 +66,15 @@ int main(int argc, char** argv) {
         std::cerr << "Fast DDS reader creation failed\n";
         return 1;
       }
-      std::this_thread::sleep_for(std::chrono::seconds(5));
+      std::this_thread::sleep_for(
+          std::chrono::seconds(reliable ? 7 : 5));
     } else {
       auto* const publisher = participant->create_publisher(
           PUBLISHER_QOS_DEFAULT);
       DataWriterQos writer_qos = DATAWRITER_QOS_DEFAULT;
-      writer_qos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS;
-      // ORT-INT-006: keep same-host traffic on the observable RTPS/UDP path.
+      writer_qos.reliability().kind = reliable
+          ? RELIABLE_RELIABILITY_QOS : BEST_EFFORT_RELIABILITY_QOS;
+      // ORT-INT-006, ORT-INT-007: keep traffic on observable RTPS/UDP.
       writer_qos.data_sharing().off();
       auto* const writer = publisher
           ? publisher->create_datawriter(topic, writer_qos) : nullptr;
@@ -73,7 +82,7 @@ int main(int argc, char** argv) {
         std::cerr << "Fast DDS writer creation failed\n";
         return 1;
       }
-      if (mode == "publish-data") {
+      if (write_sample) {
         std::this_thread::sleep_for(std::chrono::seconds(3));
         VendorProbe sample;
         sample.value(0x4F525444U);
@@ -81,7 +90,8 @@ int main(int argc, char** argv) {
           std::cerr << "Fast DDS writer rejected sample\n";
           return 1;
         }
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(
+            std::chrono::seconds(reliable ? 4 : 2));
       } else {
         std::this_thread::sleep_for(std::chrono::seconds(5));
       }

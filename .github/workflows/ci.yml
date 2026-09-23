@@ -130,6 +130,37 @@ jobs:
             artifacts/vendor-packets/cyclonedds/data-best-effort.rtps \
             artifacts/vendor-packets/cyclonedds/data-best-effort-endpoint.rtps \
             artifacts/vendor-packets/cyclonedds/data-best-effort-participant.rtps
+      - name: Capture Fast DDS reliable DATA control chain
+        run: |
+          sudo -E env FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+            python3 tests/interop/capture_reliable.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --output artifacts/vendor-packets/fastdds/data-reliable.rtps \
+            -- /tmp/emit_fastdds
+          ./build/openrtdds_vendor_packet_probe --reliable \
+            artifacts/vendor-packets/fastdds/data-reliable.rtps \
+            artifacts/vendor-packets/fastdds/data-reliable-publisher-endpoint.rtps \
+            artifacts/vendor-packets/fastdds/data-reliable-publisher-participant.rtps \
+            artifacts/vendor-packets/fastdds/data-reliable-heartbeat.rtps \
+            artifacts/vendor-packets/fastdds/data-reliable-acknack.rtps \
+            artifacts/vendor-packets/fastdds/data-reliable-subscriber-endpoint.rtps \
+            artifacts/vendor-packets/fastdds/data-reliable-subscriber-participant.rtps
+      - name: Capture Cyclone DDS reliable DATA control chain
+        run: |
+          sudo python3 tests/interop/capture_reliable.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --output artifacts/vendor-packets/cyclonedds/data-reliable.rtps \
+            -- /tmp/emit_cyclone
+          ./build/openrtdds_vendor_packet_probe --reliable \
+            artifacts/vendor-packets/cyclonedds/data-reliable.rtps \
+            artifacts/vendor-packets/cyclonedds/data-reliable-publisher-endpoint.rtps \
+            artifacts/vendor-packets/cyclonedds/data-reliable-publisher-participant.rtps \
+            artifacts/vendor-packets/cyclonedds/data-reliable-heartbeat.rtps \
+            artifacts/vendor-packets/cyclonedds/data-reliable-acknack.rtps \
+            artifacts/vendor-packets/cyclonedds/data-reliable-subscriber-endpoint.rtps \
+            artifacts/vendor-packets/cyclonedds/data-reliable-subscriber-participant.rtps
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4

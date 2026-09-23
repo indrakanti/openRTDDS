@@ -70,3 +70,4 @@ machine checker independently validates requirement references in feature
 | ORT-INT-004 | Planned | `interoperability/detailed-design.md` |
 | ORT-INT-005 | Current | `interoperability/detailed-design.md` |
 | ORT-INT-006 | Current | `interoperability/detailed-design.md` |
+| ORT-INT-007 | Current | `interoperability/detailed-design.md` |

@@ -9,7 +9,7 @@ green.
 |---|---|---|
 | G0 — Internal wire conformance | Golden RTPS 2.5 subset bytes and defensive parser tests | Passed |
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
-| G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Partial: SPDP, SEDP, and best-effort DATA; reliable DATA pending |
+| G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Partial: reliable DATA/control evidence under PR17 verification |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Planned |
 | G4 — ROS 2 RMW | `rmw_openrtdds` passes selected ROS 2 conformance and graph tests | Planned |
 
@@ -37,6 +37,10 @@ chains replay in normal GCC and Clang CTest without vendor packages, while the
 live job regenerates the evidence from both pinned implementations. The corpus
 requirements and behavior are in [vendor packet evidence](requirements/interoperability/requirements.md)
 and [detailed design](design/interoperability/detailed-design.md).
+
+PR17 adds the reliable DATA, HEARTBEAT, and ACKNACK chain for both vendors.
+G2 becomes passed only after the live captures and frozen replay fixtures are
+green and ORT-INT-007 is promoted to Verified.
 
 ## ROS 2 boundary
 

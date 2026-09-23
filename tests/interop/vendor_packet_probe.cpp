@@ -1,5 +1,5 @@
-// Requirements: ORT-INT-003, ORT-INT-005, ORT-INT-006
-// Verifies: ORT-INT-002, ORT-INT-003, ORT-INT-005, ORT-INT-006
+// Requirements: ORT-INT-003, ORT-INT-005, ORT-INT-006, ORT-INT-007
+// Verifies: ORT-INT-002, ORT-INT-003, ORT-INT-005, ORT-INT-006, ORT-INT-007
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +11,7 @@
 #include "openrtdds/rtps/sedp.hpp"
 #include "openrtdds/rtps/data_message.hpp"
 #include "openrtdds/rtps/message_router.hpp"
+#include "openrtdds/rtps/reliability_messages.hpp"
 
 namespace {
 constexpr std::size_t max_datagram_size = 65'507U;
@@ -40,16 +41,144 @@ std::uint32_t read_sample(const std::uint8_t* const payload,
   }
   return value;
 }
+
+bool expected_endpoint(const openrtdds::rtps::SedpMessageView& endpoint,
+                       const openrtdds::rtps::EndpointKind kind,
+                       const openrtdds::rtps::EntityId& entity) {
+  return endpoint.endpoint.kind == kind &&
+      endpoint.endpoint.endpoint_id == entity &&
+      endpoint.endpoint.reliability ==
+          openrtdds::rtps::ReliabilityKind::reliable &&
+      std::string(endpoint.endpoint.topic_name.data(),
+                  endpoint.endpoint.topic_name_size) == "OpenRTDDSProbe" &&
+      std::string(endpoint.endpoint.type_name.data(),
+                  endpoint.endpoint.type_name_size) == "VendorProbe";
+}
+
+int probe_reliable(char** argv) {
+  using Packet = std::array<std::uint8_t, max_datagram_size + 1U>;
+  Packet data_bytes{}, publisher_endpoint_bytes{}, publisher_spdp_bytes{};
+  Packet heartbeat_bytes{}, acknack_bytes{}, subscriber_endpoint_bytes{};
+  Packet subscriber_spdp_bytes{};
+  std::size_t data_size = 0U, publisher_endpoint_size = 0U;
+  std::size_t publisher_spdp_size = 0U, heartbeat_size = 0U;
+  std::size_t acknack_size = 0U, subscriber_endpoint_size = 0U;
+  std::size_t subscriber_spdp_size = 0U;
+  if (!read_packet(argv[2], data_bytes, data_size) ||
+      !read_packet(argv[3], publisher_endpoint_bytes,
+                   publisher_endpoint_size) ||
+      !read_packet(argv[4], publisher_spdp_bytes, publisher_spdp_size) ||
+      !read_packet(argv[5], heartbeat_bytes, heartbeat_size) ||
+      !read_packet(argv[6], acknack_bytes, acknack_size) ||
+      !read_packet(argv[7], subscriber_endpoint_bytes,
+                   subscriber_endpoint_size) ||
+      !read_packet(argv[8], subscriber_spdp_bytes, subscriber_spdp_size)) {
+    std::cerr << "missing or invalid reliable evidence packet\n";
+    return 2;
+  }
+
+  openrtdds::rtps::SpdpMessageView publisher{};
+  openrtdds::rtps::SpdpMessageView subscriber{};
+  const auto publisher_result = openrtdds::rtps::parse_spdp_message(
+      publisher_spdp_bytes.data(), publisher_spdp_size, 43U, publisher);
+  const auto subscriber_result = openrtdds::rtps::parse_spdp_message(
+      subscriber_spdp_bytes.data(), subscriber_spdp_size, 43U, subscriber);
+  if (!publisher_result.ok() || !subscriber_result.ok() ||
+      publisher.participant.default_unicast.size == 0U ||
+      subscriber.participant.default_unicast.size == 0U ||
+      publisher.participant.guid_prefix.value ==
+          subscriber.participant.guid_prefix.value) {
+    std::cerr << "reliable participant evidence invalid\n";
+    return 1;
+  }
+
+  openrtdds::rtps::DataMessageView sample{};
+  const auto data_error = openrtdds::rtps::parse_data_message(
+      data_bytes.data(), data_size, sample);
+  if (data_error != openrtdds::rtps::RtpsError::none ||
+      sample.guid_prefix.value != publisher.participant.guid_prefix.value ||
+      (sample.writer_id.value[3] != 0x02U &&
+       sample.writer_id.value[3] != 0x03U) ||
+      read_sample(sample.serialized_payload, sample.payload_size) !=
+          0x4F525444U) {
+    std::cerr << "reliable user DATA invalid\n";
+    return 1;
+  }
+
+  openrtdds::rtps::SedpMessageView publisher_endpoint{};
+  const auto publisher_endpoint_result =
+      openrtdds::rtps::parse_sedp_message(
+          publisher_endpoint_bytes.data(), publisher_endpoint_size,
+          publisher.participant.guid_prefix, publisher_endpoint);
+  if (!publisher_endpoint_result.ok() ||
+      !expected_endpoint(publisher_endpoint,
+                         openrtdds::rtps::EndpointKind::writer,
+                         sample.writer_id)) {
+    std::cerr << "reliable DATA does not match publisher SEDP\n";
+    return 1;
+  }
+
+  openrtdds::rtps::HeartbeatView heartbeat{};
+  const auto heartbeat_error = openrtdds::rtps::parse_heartbeat_message(
+      heartbeat_bytes.data(), heartbeat_size, heartbeat);
+  if (heartbeat_error != openrtdds::rtps::ReliabilityMessageError::none ||
+      heartbeat.header.guid_prefix.value != sample.guid_prefix.value ||
+      heartbeat.writer_id != sample.writer_id ||
+      sample.sequence_number < heartbeat.first_sequence_number ||
+      sample.sequence_number > heartbeat.last_sequence_number) {
+    std::cerr << "HEARTBEAT does not cover reliable DATA\n";
+    return 1;
+  }
+
+  openrtdds::rtps::AckNackView acknack{};
+  const auto acknack_error = openrtdds::rtps::parse_acknack_message(
+      acknack_bytes.data(), acknack_size, acknack);
+  if (acknack_error != openrtdds::rtps::ReliabilityMessageError::none ||
+      acknack.header.guid_prefix.value !=
+          subscriber.participant.guid_prefix.value ||
+      acknack.writer_id != sample.writer_id ||
+      (acknack.reader_id.value[3] != 0x04U &&
+       acknack.reader_id.value[3] != 0x07U)) {
+    std::cerr << "ACKNACK identity invalid\n";
+    return 1;
+  }
+
+  openrtdds::rtps::SedpMessageView subscriber_endpoint{};
+  const auto subscriber_endpoint_result =
+      openrtdds::rtps::parse_sedp_message(
+          subscriber_endpoint_bytes.data(), subscriber_endpoint_size,
+          subscriber.participant.guid_prefix, subscriber_endpoint);
+  if (!subscriber_endpoint_result.ok() ||
+      !expected_endpoint(subscriber_endpoint,
+                         openrtdds::rtps::EndpointKind::reader,
+                         acknack.reader_id)) {
+    std::cerr << "ACKNACK does not match subscriber SEDP\n";
+    return 1;
+  }
+
+  std::cout << "reliable DATA chain accepted: bytes=" << data_size
+            << " sequence=" << sample.sequence_number
+            << " heartbeat=" << heartbeat.count
+            << " acknack=" << acknack.count << '\n';
+  return 0;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
   const bool sedp = argc == 4 && std::string(argv[1]) == "--sedp";
   const bool data = argc == 5 && std::string(argv[1]) == "--data";
-  if (argc != 2 && !sedp && !data) {
+  const bool reliable = argc == 9 && std::string(argv[1]) == "--reliable";
+  if (argc != 2 && !sedp && !data && !reliable) {
     std::cerr << "usage: vendor_packet_probe <spdp.rtps> | --sedp "
                  "<sedp.rtps> <matched-participant.rtps> | --data "
-                 "<data.rtps> <endpoint.rtps> <participant.rtps>\n";
+                 "<data.rtps> <endpoint.rtps> <participant.rtps> | "
+                 "--reliable <data> <publisher-endpoint> <publisher-spdp> "
+                 "<heartbeat> <acknack> <subscriber-endpoint> "
+                 "<subscriber-spdp>\n";
     return 2;
+  }
+  if (reliable) {
+    return probe_reliable(argv);
   }
   std::array<std::uint8_t, max_datagram_size + 1U> bytes{};
   std::size_t size = 0U;
