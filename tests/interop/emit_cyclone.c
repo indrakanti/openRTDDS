@@ -40,7 +40,9 @@ int main(int argc, char **argv) {
       }
       dds_sleepfor(reliable ? DDS_SECS(4) : DDS_SECS(2));
     } else {
-      dds_sleepfor(reliable ? DDS_SECS(7) : DDS_SECS(5));
+      /* ORT-INT-007: remain alive through Cyclone's periodic SPDP cycle so
+       * the evidence set contains the reliable reader's participant. */
+      dds_sleepfor(reliable ? DDS_SECS(12) : DDS_SECS(5));
     }
   } else {
     dds_sleepfor(DDS_SECS(5));
