@@ -149,6 +149,13 @@ def main() -> int:
         print("SPDP prefixes seen: " + str(len(spdp_by_prefix)) +
               "; SEDP prefixes seen: " + str(len(sedp_by_prefix)),
               file=sys.stderr)
+        print("user DATA source: " +
+              (data_source.hex() if data_packet is not None else "none") +
+              "; SPDP sources: " +
+              ", ".join(prefix.hex() for prefix in spdp_by_prefix) +
+              "; SEDP sources: " +
+              ", ".join(prefix.hex() for prefix in sedp_by_prefix),
+              file=sys.stderr)
         print("no matched DATA/SEDP/SPDP chain captured", file=sys.stderr)
         return 1
 
