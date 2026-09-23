@@ -130,15 +130,6 @@ jobs:
             artifacts/vendor-packets/cyclonedds/data-best-effort.rtps \
             artifacts/vendor-packets/cyclonedds/data-best-effort-endpoint.rtps \
             artifacts/vendor-packets/cyclonedds/data-best-effort-participant.rtps
-      - name: Export best-effort fixture bytes
-        run: |
-          find artifacts/vendor-packets -type f \
-            -name 'data-best-effort*' -print0 | sort -z | \
-            while IFS= read -r -d '' packet; do
-              printf 'FIXTURE %s ' "$packet"
-              base64 -w0 "$packet"
-              printf '\n'
-            done
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4

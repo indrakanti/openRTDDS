@@ -31,9 +31,11 @@ JSON provenance as a CI artifact. Frozen captures under
 digests are checked on each PR. A green vendor job proves only the inbound SPDP
 path for those exact versions and settings. PR15 adds a publications SEDP
 capture and inbound parse gate against each pinned package. G2 remains partial
-until reliable user DATA also passes. PR16 adds a best-effort user DATA gate,
-correlated to same-run SEDP and SPDP evidence. The corpus requirements and behavior
-are in [vendor packet evidence](requirements/interoperability/requirements.md)
+until reliable user DATA also passes. PR16 adds live and frozen best-effort
+user DATA gates, correlated to same-run SEDP and SPDP evidence. The frozen
+chains replay in normal GCC and Clang CTest without vendor packages, while the
+live job regenerates the evidence from both pinned implementations. The corpus
+requirements and behavior are in [vendor packet evidence](requirements/interoperability/requirements.md)
 and [detailed design](design/interoperability/detailed-design.md).
 
 ## ROS 2 boundary

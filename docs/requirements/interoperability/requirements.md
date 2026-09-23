@@ -68,7 +68,7 @@ internally generated endpoint messages cannot exercise.
 
 ### ORT-INT-006 — Vendor best-effort DATA receive gate
 
-**Status:** Implemented  
+**Status:** Verified  
 **Verification:** Test
 
 The CI interoperability job shall configure an explicitly best-effort writer

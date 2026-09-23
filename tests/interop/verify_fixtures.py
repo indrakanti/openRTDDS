@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Fail CI if a committed vendor packet or its provenance has changed."""
 
-# Requirements: ORT-INT-002, ORT-INT-005
-# Verifies: ORT-INT-002, ORT-INT-005
+# Requirements: ORT-INT-002, ORT-INT-005, ORT-INT-006
+# Verifies: ORT-INT-002, ORT-INT-005, ORT-INT-006
 
 import hashlib
 import json
 import sys
 from pathlib import Path
+
+from capture_data import source_for_writer, user_writer_id
 
 
 def verify(root: Path) -> None:
@@ -65,6 +67,46 @@ def verify(root: Path) -> None:
                 not sedp_meta.get("capture_commit"):
             raise ValueError(f"missing SEDP provenance: {sedp_manifest}")
         print(f"verified {meta['vendor']} SEDP participant pair")
+
+        data_manifest = manifest_path.parent / "data-best-effort.json"
+        data_meta = json.loads(data_manifest.read_text(encoding="utf-8"))
+        data_packet = data_manifest.with_suffix(".rtps").read_bytes()
+        data_endpoint = (manifest_path.parent /
+                         "data-best-effort-endpoint.rtps").read_bytes()
+        data_participant = (manifest_path.parent /
+                            "data-best-effort-participant.rtps").read_bytes()
+        if (data_meta["vendor"] != meta["vendor"] or
+                data_meta["package_version"] != meta["package_version"] or
+                data_meta["domain_id"] != 43 or
+                data_meta["qos"] != "best_effort" or
+                data_meta["sample_uint32"] != 0x4F525444 or
+                data_meta["capture_format"] != meta["capture_format"]):
+            raise ValueError(f"DATA provenance mismatch: {data_manifest}")
+        for label, payload, size_key, hash_key in (
+                ("DATA", data_packet, "byte_count", "sha256"),
+                ("DATA endpoint", data_endpoint, "endpoint_byte_count",
+                 "endpoint_sha256"),
+                ("DATA participant", data_participant,
+                 "participant_byte_count", "participant_sha256")):
+            if not 20 <= len(payload) <= 65_507 or \
+                    payload[:4] != b"RTPS" or \
+                    data_meta[size_key] != len(payload) or \
+                    data_meta[hash_key] != hashlib.sha256(payload).hexdigest():
+                raise ValueError(f"invalid {label} fixture: {data_manifest}")
+        writer = user_writer_id(data_packet)
+        data_source = source_for_writer(data_packet, writer) if writer else None
+        endpoint_source = source_for_writer(
+            data_endpoint, b"\x00\x00\x03\xc2")
+        participant_source = source_for_writer(
+            data_participant, b"\x00\x01\x00\xc2")
+        if data_source is None or data_source != endpoint_source or \
+                data_source != participant_source:
+            raise ValueError(f"DATA discovery chain mismatch: {data_manifest}")
+        if not data_meta.get("generator_source") or \
+                not data_meta.get("capture_run") or \
+                not data_meta.get("capture_commit"):
+            raise ValueError(f"missing DATA provenance: {data_manifest}")
+        print(f"verified {meta['vendor']} best-effort DATA chain")
 
 
 if __name__ == "__main__":
