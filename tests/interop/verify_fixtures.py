@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fail CI if a committed vendor packet or its provenance has changed."""
 
-# Requirements: ORT-INT-002, ORT-INT-005, ORT-INT-006
-# Verifies: ORT-INT-002, ORT-INT-005, ORT-INT-006
+# Requirements: ORT-INT-002, ORT-INT-004, ORT-INT-005, ORT-INT-006, ORT-INT-007
+# Verifies: ORT-INT-002, ORT-INT-004, ORT-INT-005, ORT-INT-006, ORT-INT-007
 
 import hashlib
 import json
@@ -107,6 +107,52 @@ def verify(root: Path) -> None:
                 not data_meta.get("capture_commit"):
             raise ValueError(f"missing DATA provenance: {data_manifest}")
         print(f"verified {meta['vendor']} best-effort DATA chain")
+
+        reliable_manifest = manifest_path.parent / "data-reliable.json"
+        reliable_meta = json.loads(
+            reliable_manifest.read_text(encoding="utf-8"))
+        if (reliable_meta["vendor"] != meta["vendor"] or
+                reliable_meta["package_version"] != meta["package_version"] or
+                reliable_meta["domain_id"] != 43 or
+                reliable_meta["qos"] != "reliable" or
+                reliable_meta["sample_uint32"] != 0x4F525444 or
+                reliable_meta["capture_format"] != meta["capture_format"]):
+            raise ValueError(
+                f"reliable DATA provenance mismatch: {reliable_manifest}")
+        reliable_files = (
+            ("DATA", "data-reliable.rtps", "byte_count", "sha256"),
+            ("publisher endpoint", "data-reliable-publisher-endpoint.rtps",
+             "publisher_endpoint_byte_count", "publisher_endpoint_sha256"),
+            ("publisher participant",
+             "data-reliable-publisher-participant.rtps",
+             "publisher_participant_byte_count",
+             "publisher_participant_sha256"),
+            ("HEARTBEAT", "data-reliable-heartbeat.rtps",
+             "heartbeat_byte_count", "heartbeat_sha256"),
+            ("ACKNACK", "data-reliable-acknack.rtps",
+             "acknack_byte_count", "acknack_sha256"),
+            ("subscriber endpoint", "data-reliable-subscriber-endpoint.rtps",
+             "subscriber_endpoint_byte_count",
+             "subscriber_endpoint_sha256"),
+            ("subscriber participant",
+             "data-reliable-subscriber-participant.rtps",
+             "subscriber_participant_byte_count",
+             "subscriber_participant_sha256"),
+        )
+        for label, filename, size_key, hash_key in reliable_files:
+            payload = (manifest_path.parent / filename).read_bytes()
+            if not 20 <= len(payload) <= 65_507 or \
+                    payload[:4] != b"RTPS" or \
+                    reliable_meta[size_key] != len(payload) or \
+                    reliable_meta[hash_key] != hashlib.sha256(payload).hexdigest():
+                raise ValueError(
+                    f"invalid reliable {label} fixture: {reliable_manifest}")
+        if not reliable_meta.get("generator_source") or \
+                not reliable_meta.get("capture_run") or \
+                not reliable_meta.get("capture_commit"):
+            raise ValueError(
+                f"missing reliable DATA provenance: {reliable_manifest}")
+        print(f"verified {meta['vendor']} reliable DATA control chain")
 
 
 if __name__ == "__main__":

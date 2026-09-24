@@ -9,7 +9,7 @@ green.
 |---|---|---|
 | G0 — Internal wire conformance | Golden RTPS 2.5 subset bytes and defensive parser tests | Passed |
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
-| G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Partial: SPDP, SEDP, and best-effort DATA; reliable DATA pending |
+| G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Planned |
 | G4 — ROS 2 RMW | `rmw_openrtdds` passes selected ROS 2 conformance and graph tests | Planned |
 
@@ -30,13 +30,18 @@ JSON provenance as a CI artifact. Frozen captures under
 `tests/interop/fixtures/` also run in normal GCC/Clang CTest and their SHA-256
 digests are checked on each PR. A green vendor job proves only the inbound SPDP
 path for those exact versions and settings. PR15 adds a publications SEDP
-capture and inbound parse gate against each pinned package. G2 remains partial
-until reliable user DATA also passes. PR16 adds live and frozen best-effort
+capture and inbound parse gate against each pinned package. PR16 adds live and frozen best-effort
 user DATA gates, correlated to same-run SEDP and SPDP evidence. The frozen
 chains replay in normal GCC and Clang CTest without vendor packages, while the
 live job regenerates the evidence from both pinned implementations. The corpus
 requirements and behavior are in [vendor packet evidence](requirements/interoperability/requirements.md)
 and [detailed design](design/interoperability/detailed-design.md).
+
+PR17 adds live and frozen reliable DATA, HEARTBEAT, and ACKNACK chains for both
+vendors. The production parsers correlate publisher and subscriber discovery,
+control identities, the DATA sequence range, reliable QoS, and the fixed CDR
+sample. This completes ORT-INT-004, promotes ORT-INT-007 to Verified, and
+passes G2 for the pinned package versions and settings.
 
 ## ROS 2 boundary
 

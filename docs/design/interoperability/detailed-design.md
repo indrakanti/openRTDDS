@@ -1,8 +1,8 @@
 # Vendor packet evidence detailed design
 
-**Design status:** Current for SPDP, SEDP publications, and best-effort user DATA; reliable user DATA planned  
+**Design status:** Current for SPDP, SEDP, best-effort DATA, and reliable DATA/control evidence
 **Requirements:** ORT-INT-001, ORT-INT-002, ORT-INT-003  
-**Requirements:** ORT-INT-004, ORT-INT-005, ORT-INT-006
+**Requirements:** ORT-INT-004, ORT-INT-005, ORT-INT-006, ORT-INT-007
 
 ## Behavior and interfaces
 
@@ -119,6 +119,50 @@ production RTPS receive implementation.
 | Discovery correlation | same participant and writer entity | exit `1` on identity/QoS/topic/type mismatch |
 | CDR value check | exactly `0x4F525444` | exit `1` on representation, size, or value mismatch |
 
+### Reliable DATA and control behavior
+
+ORT-INT-007 uses the same generated `VendorProbe` type and fixed value with
+`RELIABLE` writer and reader QoS. The publisher starts first and delays its
+write for three seconds; the subscriber starts 300 milliseconds later. Fast
+DDS again uses UDPv4-only transports with DataSharing disabled. The raw packet
+capture retains seven correlated payloads. The Cyclone CI invocation records
+an explicit one-second `SPDPInterval` in the manifest so both participant
+announcements occur inside the bounded seven-second peer lifetime:
+
+| Evidence | Required identity |
+|---|---|
+| user DATA | publisher prefix and user writer entity |
+| publications SEDP | publisher prefix and the same writer entity |
+| publisher SPDP | publisher prefix and default UDPv4 locator |
+| HEARTBEAT | publisher prefix, same writer, range covering DATA sequence |
+| ACKNACK | subscriber prefix, same writer, user reader entity |
+| subscriptions SEDP | subscriber prefix and the same reader entity |
+| subscriber SPDP | subscriber prefix and default UDPv4 locator |
+
+The Python selector performs only bounded framing and identity correlation.
+It walks RTPS submessages, applies preceding `INFO_SRC`, and accepts fixed-size
+HEARTBEAT plus bounded ACKNACK content. The C++ probe is the acceptance
+authority and calls `parse_data_message`, `parse_sedp_message`,
+`parse_heartbeat_message`, `parse_acknack_message`, and `parse_spdp_message`.
+The ACKNACK parser enforces the 256-bit `SequenceNumberSet` ceiling. The probe
+does not require a missing-sample bit because a no-loss exchange may produce a
+final ACKNACK; loss/repair policy remains covered by deterministic reliability
+state tests.
+
+The reliable probe interface is:
+
+```text
+openrtdds_vendor_packet_probe --reliable DATA PUB_SEDP PUB_SPDP HEARTBEAT ACKNACK SUB_SEDP SUB_SPDP
+```
+
+The harness owns one raw packet socket, one SPDP multicast socket, two child
+processes, bounded packet lists, and a 16-second deadline. The multicast socket
+is bound to the standard domain-43 SPDP port and preserves the received RTPS
+payload unchanged; the raw socket supplies DATA, SEDP, HEARTBEAT, and ACKNACK.
+Production parser views are non-owning and allocate no memory. A complete chain
+is required atomically; partial evidence is kept only as a failure diagnostic
+artifact.
+
 ## Normal sequence
 
 ```mermaid
@@ -155,6 +199,22 @@ sequenceDiagram
     Probe-->>Capture: correlated sample accepted
 ```
 
+```mermaid
+sequenceDiagram
+    participant Capture
+    participant Writer
+    participant Reader
+    participant Probe
+    Capture->>Writer: create reliable writer
+    Capture->>Reader: create reliable reader
+    Writer-->>Capture: SPDP + publications SEDP
+    Reader-->>Capture: SPDP + subscriptions SEDP
+    Writer-->>Capture: DATA + HEARTBEAT
+    Reader-->>Capture: ACKNACK
+    Capture->>Probe: seven-packet evidence chain
+    Probe-->>Capture: identities and sequence range accepted
+```
+
 ## Failure behavior
 
 | Failure | Detection | Recovery owner |
@@ -171,6 +231,10 @@ sequenceDiagram
 | Shared-memory path hides Fast DDS DATA | forced UDPv4 transport and capture timeout | CI configuration owner |
 | DATA has foreign writer or participant | three-packet correlation fails | evidence owner |
 | DATA payload or QoS differs | probe comparison fails | vendor-emitter owner |
+| HEARTBEAT excludes DATA sequence | reliability probe fails | control-parser owner |
+| ACKNACK targets foreign writer | reliability probe fails | evidence owner |
+| ACKNACK reader differs from subscriptions SEDP | correlation fails | evidence owner |
+| ACKNACK bitmap exceeds 256 bits | `bitmap_bound_exceeded` | control-parser owner |
 
 No failure is silently skipped. The C++ probe never transmits, retries,
 allocates in the RTPS parser, or changes the production receive API. File I/O,
@@ -184,9 +248,8 @@ OpenRTDDS C++ parser decides acceptance. Each vendor process waits five
 seconds; the capture deadline is ten seconds. The probe owns a fixed input
 buffer and does not retain the parsed view after its call.
 
-## Planned extension
+## Next extension
 
-ORT-INT-004 extends this same provenance and parse pattern to reliable user
-DATA from both vendors. G2 stays partial until those packets are captured and
-accepted in CI. G3 additionally requires both directions of live discovery
-and application data exchange. No ROS 2 RMW evidence is claimed here.
+ORT-INT-004, ORT-INT-007, and G2 are complete for the scoped pinned packet
+corpus. G3 still requires both directions of live OpenRTDDS discovery and
+application data exchange. No ROS 2 RMW evidence is claimed here.

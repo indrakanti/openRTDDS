@@ -20,11 +20,11 @@ USER_WRITER_KINDS = (0x02, 0x03)
 INFO_SOURCE = 0x0C
 
 
-def data_writers(message: bytes):
-    """Return (writer ID, effective source prefix) for each bounded DATA."""
+def routed_submessages(message: bytes):
+    """Return bounded submessages with their effective RTPS source prefix."""
     if len(message) < 24 or message[:4] != b"RTPS":
         return []
-    writers = []
+    routed = []
     source = message[8:20]
     offset = 20
     while offset + 4 <= len(message):
@@ -40,9 +40,18 @@ def data_writers(message: bytes):
             if end - start != 20:
                 return []
             source = message[start + 8 : start + 20]
-        elif kind == 0x15 and end - start >= 24 and flags & 0x04:
-            writers.append((message[start + 8 : start + 12], source))
+        else:
+            routed.append((kind, flags, message[start:end], source))
         offset = end
+    return routed
+
+
+def data_writers(message: bytes):
+    """Return (writer ID, effective source prefix) for each bounded DATA."""
+    writers = []
+    for kind, flags, content, source in routed_submessages(message):
+        if kind == 0x15 and len(content) >= 24 and flags & 0x04:
+            writers.append((content[8:12], source))
     return writers
 
 

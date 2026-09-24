@@ -5,7 +5,7 @@ actual vendor implementations. It does not establish live DDS interoperability.
 
 ### ORT-INT-001 — Vendor packet generation
 
-**Status:** Verified  
+**Status:** Verified
 **Verification:** Test
 
 The CI interoperability job shall create participants using pinned Fast DDS
@@ -39,7 +39,7 @@ by two independent vendor implementations.
 
 ### ORT-INT-004 — Full vendor packet corpus
 
-**Status:** Approved  
+**Status:** Verified
 **Verification:** Test
 
 The vendor corpus shall include SEDP endpoint announcements, best-effort user
@@ -82,3 +82,24 @@ shall have versioned provenance and a SHA-256 digest.
 
 **Rationale:** A discovery-only corpus does not demonstrate that the existing
 production DATA receive path accepts vendor-produced application samples.
+
+### ORT-INT-007 — Vendor reliable DATA control-chain gate
+
+**Status:** Verified
+**Verification:** Test
+
+The CI interoperability job shall configure reliable `OpenRTDDSProbe`
+endpoints for each pinned vendor and capture one fixed `VendorProbe` DATA
+sample together with its publisher HEARTBEAT and subscriber ACKNACK. The gate
+shall correlate publisher DATA, publications SEDP, SPDP, and HEARTBEAT by
+effective source GUID prefix and writer entity. It shall correlate subscriber
+ACKNACK, subscriptions SEDP, and SPDP by source GUID prefix and reader entity.
+Production parsers shall validate both control messages, the DATA sequence
+shall fall within the HEARTBEAT range, both endpoints shall advertise reliable
+QoS, and all control bitmaps shall remain within the 256-bit bound. The
+capture shall preserve every packet, exact vendor version, commands, byte
+counts, and SHA-256 digests.
+
+**Rationale:** Reliable DATA acceptance is incomplete without evidence that
+the associated writer and reader control identities and bounded sequence state
+are understood by the production RTPS receive path.

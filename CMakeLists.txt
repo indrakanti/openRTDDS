@@ -194,6 +194,50 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     openrtdds_data_rejects_foreign_endpoint
     openrtdds_data_rejects_foreign_participant
     PROPERTIES WILL_FAIL TRUE)
+  add_test(NAME openrtdds_fastdds_reliable_data_fixture
+    COMMAND openrtdds_vendor_packet_probe --reliable
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-publisher-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-publisher-participant.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-heartbeat.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-acknack.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-subscriber-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-subscriber-participant.rtps
+  )
+  add_test(NAME openrtdds_cyclonedds_reliable_data_fixture
+    COMMAND openrtdds_vendor_packet_probe --reliable
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-publisher-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-publisher-participant.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-heartbeat.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-acknack.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-subscriber-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-subscriber-participant.rtps
+  )
+  add_test(NAME openrtdds_reliable_rejects_foreign_publisher
+    COMMAND openrtdds_vendor_packet_probe --reliable
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-publisher-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-publisher-participant.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-heartbeat.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-acknack.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-subscriber-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-subscriber-participant.rtps
+  )
+  add_test(NAME openrtdds_reliable_rejects_foreign_subscriber
+    COMMAND openrtdds_vendor_packet_probe --reliable
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-publisher-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-publisher-participant.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/fastdds/2.11.2+ds-6.1build3/data-reliable-heartbeat.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-acknack.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-subscriber-endpoint.rtps
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/interop/fixtures/cyclonedds/0.10.4-1.1build3/data-reliable-subscriber-participant.rtps
+  )
+  set_tests_properties(
+    openrtdds_reliable_rejects_foreign_publisher
+    openrtdds_reliable_rejects_foreign_subscriber
+    PROPERTIES WILL_FAIL TRUE)
   if(OPENRTDDS_BUILD_EXAMPLES)
     add_test(NAME openrtdds_vehicle_state_example COMMAND openrtdds_vehicle_state)
     add_test(NAME openrtdds_rtps_static_message_example

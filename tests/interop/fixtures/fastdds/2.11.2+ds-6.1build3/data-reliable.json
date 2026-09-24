@@ -1,0 +1,33 @@
+{
+  "vendor": "fastdds",
+  "package_version": "2.11.2+ds-6.1build3",
+  "domain_id": 43,
+  "qos": "reliable",
+  "sample_uint32": 1330795588,
+  "publisher": [
+    "/tmp/emit_fastdds",
+    "publish-reliable"
+  ],
+  "subscriber": [
+    "/tmp/emit_fastdds",
+    "subscribe-reliable"
+  ],
+  "capture_format": "raw IPv4 UDP payload (.rtps)",
+  "byte_count": 172,
+  "sha256": "9cda6f3814860fe1c849bb36a6fe699a6bbde0c28038f762c206ea31b55d5501",
+  "publisher_endpoint_byte_count": 476,
+  "publisher_endpoint_sha256": "9e3c1abce045c4175272a8104c04d73bda18eab8b8fbbad7c78b2b0ad17a1a32",
+  "publisher_participant_byte_count": 468,
+  "publisher_participant_sha256": "c7126d09f14633ffdcc1aeae6a13debc1ad3287e0a9775bbb86ffb192c67c0fd",
+  "heartbeat_byte_count": 172,
+  "heartbeat_sha256": "9cda6f3814860fe1c849bb36a6fe699a6bbde0c28038f762c206ea31b55d5501",
+  "acknack_byte_count": 124,
+  "acknack_sha256": "0407a20a929ac29476da8246136f4f59a20d35df302b7106ea78bed995c72c4e",
+  "subscriber_endpoint_byte_count": 476,
+  "subscriber_endpoint_sha256": "d026ef236275151b9ba054a8284f9b5ddbb7cd4ec5206937a08acff9e97be3eb",
+  "subscriber_participant_byte_count": 468,
+  "subscriber_participant_sha256": "a7768c7ae75b643ced199c631e47285a27e615496522925a48e97f257a9ad337",
+  "generator_source": "tests/interop/emit_fastdds.cpp",
+  "capture_run": "https://github.com/indrakanti/openRTDDS/actions/runs/35877794833",
+  "capture_commit": "2af6f653cb503e5002001a093f15a0ceb69108a7"
+}
