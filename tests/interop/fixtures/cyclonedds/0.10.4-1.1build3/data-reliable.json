@@ -1,0 +1,34 @@
+{
+  "vendor": "cyclonedds",
+  "package_version": "0.10.4-1.1build3",
+  "domain_id": 43,
+  "qos": "reliable",
+  "sample_uint32": 1330795588,
+  "publisher": [
+    "/tmp/emit_cyclone",
+    "publish-reliable"
+  ],
+  "subscriber": [
+    "/tmp/emit_cyclone",
+    "subscribe-reliable"
+  ],
+  "capture_format": "raw IPv4 UDP payload (.rtps)",
+  "cyclonedds_uri": "<CycloneDDS><Domain id=\"any\"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery></Domain></CycloneDDS>",
+  "byte_count": 96,
+  "sha256": "f0ee7671335f0a07d1426d63032dc9ee922ab036787ddacc7b68a78519889b17",
+  "publisher_endpoint_byte_count": 428,
+  "publisher_endpoint_sha256": "5c45f2cb9e31e3599627c1d3f1b5a991c28601f0a44055f1ea04fb918611d43c",
+  "publisher_participant_byte_count": 440,
+  "publisher_participant_sha256": "3cd421a8e904f9e2c109e575c5bce2085cbef76f8b9de54be75c2018e5a9fda3",
+  "heartbeat_byte_count": 96,
+  "heartbeat_sha256": "f0ee7671335f0a07d1426d63032dc9ee922ab036787ddacc7b68a78519889b17",
+  "acknack_byte_count": 64,
+  "acknack_sha256": "3fe7294cd0589eda6249312b7c4c50009c43f5a0b0e256fd04578f389445b0e7",
+  "subscriber_endpoint_byte_count": 300,
+  "subscriber_endpoint_sha256": "bcdf1cb0f0ef81e184dce2be0929e7adf1f3426b29c3ae56638213c420e0b9c2",
+  "subscriber_participant_byte_count": 424,
+  "subscriber_participant_sha256": "4486914a906195ecdca77af07e9a216ec8990129b57e447149730377200d8b66",
+  "generator_source": "tests/interop/emit_cyclone.c",
+  "capture_run": "https://github.com/indrakanti/openRTDDS/actions/runs/35877794833",
+  "capture_commit": "2af6f653cb503e5002001a093f15a0ceb69108a7"
+}

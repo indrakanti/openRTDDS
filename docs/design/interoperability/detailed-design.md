@@ -248,8 +248,8 @@ OpenRTDDS C++ parser decides acceptance. Each vendor process waits five
 seconds; the capture deadline is ten seconds. The probe owns a fixed input
 buffer and does not retain the parsed view after its call.
 
-## Planned extension
+## Next extension
 
-After ORT-INT-007 is verified, ORT-INT-004 and G2 are complete for the scoped
-packet corpus. G3 still requires both directions of live OpenRTDDS discovery
-and application data exchange. No ROS 2 RMW evidence is claimed here.
+ORT-INT-004, ORT-INT-007, and G2 are complete for the scoped pinned packet
+corpus. G3 still requires both directions of live OpenRTDDS discovery and
+application data exchange. No ROS 2 RMW evidence is claimed here.

@@ -5,7 +5,7 @@ actual vendor implementations. It does not establish live DDS interoperability.
 
 ### ORT-INT-001 — Vendor packet generation
 
-**Status:** Verified  
+**Status:** Verified
 **Verification:** Test
 
 The CI interoperability job shall create participants using pinned Fast DDS
@@ -39,7 +39,7 @@ by two independent vendor implementations.
 
 ### ORT-INT-004 — Full vendor packet corpus
 
-**Status:** Approved  
+**Status:** Verified
 **Verification:** Test
 
 The vendor corpus shall include SEDP endpoint announcements, best-effort user
@@ -85,7 +85,7 @@ production DATA receive path accepts vendor-produced application samples.
 
 ### ORT-INT-007 — Vendor reliable DATA control-chain gate
 
-**Status:** Implemented
+**Status:** Verified
 **Verification:** Test
 
 The CI interoperability job shall configure reliable `OpenRTDDSProbe`
