@@ -188,13 +188,18 @@ and subscription SEDP messages are accepted only through
 `parse_spdp_message` and
 `parse_sedp_message`. Because SEDP is reliable, a subscription-writer
 HEARTBEAT is parsed with the production reliability parser and answered with a
-bounded ACKNACK requesting its advertised sequence range; ranges above the
-256-bit production bound are ignored. `evaluate_endpoint_match` must accept the
-vendor reader's topic, type, best-effort reliability, and volatile durability
-before user DATA is constructed. The discovery phase remains active until the
-vendor publications reader sends an ACKNACK for the local SEDP writer; the
-writer immediately repairs the SEDP DATA and allows a bounded 100-millisecond
-settling interval before user DATA is sent.
+bounded ACKNACK requesting its advertised sequence range. The ACKNACK is
+preceded by `INFO_DST` containing the discovered vendor participant GUID
+prefix; this prevents a vendor from resolving the writer EntityId against an
+unknown destination participant. Ranges above the 256-bit production bound
+are ignored. Incoming SEDP DATA is dispatched before a HEARTBEAT found in the
+same datagram because vendors may compound the repair DATA and its reliability
+control. `evaluate_endpoint_match` must accept the vendor reader's topic, type,
+best-effort reliability, and volatile durability before user DATA is
+constructed. The discovery phase remains active until the vendor publications
+reader sends an ACKNACK for the local SEDP writer; the writer immediately
+repairs the SEDP DATA and allows a bounded 100-millisecond settling interval
+before user DATA is sent.
 
 The application sample is eight CDR bytes: a little-endian XCDR1
 encapsulation followed by unsigned `0x4F525444`. The DATA writer entity is
@@ -215,7 +220,7 @@ pinned version, commands, exits, timeout flags, stdout, and stderr.
 |---|---|---|
 | multicast setup | `UdpError::none` | `socket_option_error`, `bind_error`, or `multicast_membership_error` |
 | participant parse | `SpdpResult::ok()` | ignored until deadline; timeout exits `7` |
-| subscription HEARTBEAT | bounded ACKNACK sent | send/build failure exits `6`; oversize range ignored |
+| subscription HEARTBEAT | bounded, `INFO_DST`-directed ACKNACK sent | send/build failure exits `6`; oversize range ignored |
 | reader parse/match | `SedpResult::ok()` and `MatchStatus::matched` | ignored until deadline; timeout exits `8` |
 | publication ACKNACK | SEDP DATA repair sent | timeout exits `12`; send failure exits `6` |
 | discovery sends | complete UDP datagram | writer exits `5` or `6` |
@@ -289,8 +294,8 @@ sequenceDiagram
     H->>O: start bounded writer
     O->>V: SPDP participant
     V-->>O: SPDP participant + subscription HEARTBEAT
-    O->>V: ACKNACK missing subscription SEDP
-    V-->>O: subscription SEDP DATA
+    O->>V: INFO_DST + ACKNACK missing subscription SEDP
+    V-->>O: subscription SEDP DATA + HEARTBEAT
     O->>O: parse and match reader
     O->>V: publication SEDP + HEARTBEAT
     V-->>O: publications ACKNACK
@@ -320,6 +325,8 @@ sequenceDiagram
 | ACKNACK targets foreign writer | reliability probe fails | evidence owner |
 | ACKNACK reader differs from subscriptions SEDP | correlation fails | evidence owner |
 | ACKNACK bitmap exceeds 256 bits | `bitmap_bound_exceeded` | control-parser owner |
+| SEDP ACKNACK lacks the vendor destination prefix | vendor rejects it as an unknown connection | discovery reliability owner |
+| Compounded subscription DATA is skipped for its HEARTBEAT | writer exit `8` at ten seconds | submessage dispatch owner |
 | SPDP multicast membership fails | `multicast_membership_error` plus errno | platform/network owner |
 | Vendor participant is not discovered | writer exit `7` at ten seconds | discovery owner |
 | Vendor reader is absent or incompatible | writer exit `8` at ten seconds | endpoint/QoS owner |
