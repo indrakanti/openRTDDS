@@ -190,9 +190,7 @@ int main() {
   heartbeat_config.writer_id = publications_writer;
   heartbeat_config.first_sequence_number = 1U;
   heartbeat_config.last_sequence_number = 1U;
-  heartbeat_config.count = 1;
-  if (!spdp.build(participant) || !sedp.build(publication) ||
-      !heartbeat.build_heartbeat(heartbeat_config)) {
+  if (!spdp.build(participant) || !sedp.build(publication)) {
     std::cerr << "OpenRTDDS discovery message construction failed\n";
     return 4;
   }
@@ -211,14 +209,17 @@ int main() {
   SedpMessageView remote_reader{};
   bool participant_found = false;
   bool reader_found = false;
+  bool publication_requested = false;
   UdpEndpoint remote_metadata{};
   UdpEndpoint remote_user{};
   std::int32_t acknack_count = 1;
+  std::int32_t heartbeat_count = 1;
   auto next_announcement = std::chrono::steady_clock::time_point::min();
   const auto deadline = std::chrono::steady_clock::now() +
                         std::chrono::seconds(10);
   std::array<std::uint8_t, 2048U> incoming{};
-  while (std::chrono::steady_clock::now() < deadline && !reader_found) {
+  while (std::chrono::steady_clock::now() < deadline &&
+         (!reader_found || !publication_requested)) {
     const auto now = std::chrono::steady_clock::now();
     if (now >= next_announcement) {
       if (!metadata_socket.send_to(spdp_destination, spdp.data(), spdp.size())
@@ -227,7 +228,9 @@ int main() {
         return 5;
       }
       if (participant_found) {
-        if (!metadata_socket.send_to(remote_metadata, sedp.data(), sedp.size())
+        heartbeat_config.count = heartbeat_count++;
+        if (!heartbeat.build_heartbeat(heartbeat_config) ||
+            !metadata_socket.send_to(remote_metadata, sedp.data(), sedp.size())
                  .ok() ||
             !metadata_socket.send_to(remote_metadata, heartbeat.data(),
                                      heartbeat.size()).ok()) {
@@ -258,6 +261,20 @@ int main() {
                       remote_participant.participant.guid_prefix.value.data(),
                       remote_participant.participant.guid_prefix.value.size()) !=
               0) {
+        continue;
+      }
+      AckNackView remote_acknack{};
+      if (parse_acknack_message(incoming.data(), incoming_size,
+                                remote_acknack) ==
+              ReliabilityMessageError::none &&
+          remote_acknack.reader_id == publications_reader &&
+          remote_acknack.writer_id == publications_writer) {
+        if (!metadata_socket.send_to(remote_metadata, sedp.data(), sedp.size())
+                 .ok()) {
+          std::cerr << "SEDP repair send failed\n";
+          return 6;
+        }
+        publication_requested = true;
         continue;
       }
       HeartbeatView remote_heartbeat{};
@@ -323,6 +340,12 @@ int main() {
     std::cerr << "vendor reader discovery timed out\n";
     return 8;
   }
+  if (!publication_requested) {
+    std::cerr << "vendor publications reader handshake timed out\n";
+    return 12;
+  }
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   std::array<std::uint8_t, 16U> payload{};
   openrtdds::serialization::CdrWriter cdr(payload.data(), payload.size());

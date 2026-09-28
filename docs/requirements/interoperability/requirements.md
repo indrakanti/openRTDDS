@@ -114,7 +114,8 @@ readers created by each pinned vendor in domain 43. OpenRTDDS shall announce
 its participant and publication, receive and parse the vendor's participant
 and subscription announcements, request missing bounded subscription SEDP
 samples with ACKNACK, require topic, type, reliability, durability, and
-endpoint identity compatibility, and transmit `VendorProbe.value =
+endpoint identity compatibility, observe the vendor publications reader's
+ACKNACK and repair its SEDP sample, and transmit `VendorProbe.value =
 0x4F525444` to the discovered reader locator. The vendor API shall take and
 validate the sample within a 16-second process deadline. The job shall preserve
 the vendor version, commands, exit results, timeout results, and both process
