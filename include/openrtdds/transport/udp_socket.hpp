@@ -7,7 +7,7 @@
 namespace openrtdds::transport {
 
 // Requirements: ORT-UDP-001, ORT-UDP-002, ORT-UDP-003, ORT-UDP-004,
-// Requirements: ORT-UDP-005
+// Requirements: ORT-UDP-005, ORT-UDP-006
 
 struct Ipv4Address final {
   std::array<std::uint8_t, 4U> octets{};
@@ -40,6 +40,8 @@ enum class UdpError : std::uint8_t {
   not_open,
   socket_error,
   bind_error,
+  socket_option_error,
+  multicast_membership_error,
   endpoint_error,
   send_error,
   receive_error,
@@ -72,7 +74,11 @@ class UdpSocket final {
   ~UdpSocket() noexcept;
 
   [[nodiscard]] UdpResult open() noexcept;
+  [[nodiscard]] UdpResult enable_address_reuse() noexcept;
   [[nodiscard]] UdpResult bind(const UdpEndpoint& local) noexcept;
+  [[nodiscard]] UdpResult join_multicast(
+      const Ipv4Address& group,
+      const Ipv4Address& interface = Ipv4Address::any()) noexcept;
   [[nodiscard]] UdpResult local_endpoint(UdpEndpoint& local) const noexcept;
   [[nodiscard]] UdpResult send_to(const UdpEndpoint& remote,
                                   const std::uint8_t* data,

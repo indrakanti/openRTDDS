@@ -57,6 +57,10 @@ const char* to_string(const UdpError error) noexcept {
       return "socket creation failed";
     case UdpError::bind_error:
       return "socket bind failed";
+    case UdpError::socket_option_error:
+      return "socket option failed";
+    case UdpError::multicast_membership_error:
+      return "multicast membership failed";
     case UdpError::endpoint_error:
       return "socket endpoint query failed";
     case UdpError::send_error:
@@ -111,6 +115,36 @@ UdpResult UdpSocket::bind(const UdpEndpoint& local) noexcept {
   if (::bind(descriptor_, reinterpret_cast<const sockaddr*>(&native),
              sizeof(native)) != 0) {
     return {UdpError::bind_error, errno, 0U};
+  }
+  return {};
+}
+
+UdpResult UdpSocket::enable_address_reuse() noexcept {
+  if (!is_open()) {
+    return {UdpError::not_open, 0, 0U};
+  }
+  constexpr int enabled = 1;
+  if (::setsockopt(descriptor_, SOL_SOCKET, SO_REUSEADDR, &enabled,
+                   sizeof(enabled)) != 0) {
+    return {UdpError::socket_option_error, errno, 0U};
+  }
+  return {};
+}
+
+UdpResult UdpSocket::join_multicast(
+    const Ipv4Address& group, const Ipv4Address& interface) noexcept {
+  if (!is_open()) {
+    return {UdpError::not_open, 0, 0U};
+  }
+  if ((group.octets[0] < 224U) || (group.octets[0] > 239U)) {
+    return {UdpError::invalid_argument, 0, 0U};
+  }
+  ip_mreq membership{};
+  std::memcpy(&membership.imr_multiaddr.s_addr, group.octets.data(), 4U);
+  std::memcpy(&membership.imr_interface.s_addr, interface.octets.data(), 4U);
+  if (::setsockopt(descriptor_, IPPROTO_IP, IP_ADD_MEMBERSHIP, &membership,
+                   sizeof(membership)) != 0) {
+    return {UdpError::multicast_membership_error, errno, 0U};
   }
   return {};
 }

@@ -2,7 +2,7 @@
 
 **Design status:** Current  
 **Requirements:** ORT-UDP-001, ORT-UDP-002, ORT-UDP-003, ORT-UDP-004  
-**Requirements:** ORT-UDP-005  
+**Requirements:** ORT-UDP-005, ORT-UDP-006
 **Source:** `include/openrtdds/transport/udp_socket.hpp`,
 `src/transport/udp_socket.cpp`
 
@@ -10,7 +10,9 @@
 
 `UdpSocket` is a Linux-only, allocation-free RAII wrapper around one IPv4 UDP
 descriptor. All I/O is nonblocking. The wrapper performs no DNS, multicast
-management, polling, retry, deadline, fragmentation, or queueing.
+route selection, polling, retry, deadline, fragmentation, or queueing. It
+exposes only the socket options required to bind a shared DDS discovery port
+and join a configured IPv4 multicast group.
 
 ## Class and data definitions
 
@@ -34,7 +36,9 @@ classDiagram
     class UdpSocket {
       -int descriptor
       +open() UdpResult
+      +enable_address_reuse() UdpResult
       +bind(endpoint) UdpResult
+      +join_multicast(group, interface) UdpResult
       +local_endpoint(out) UdpResult
       +send_to(endpoint, data, size) UdpResult
       +receive_from(buffer, capacity, out) UdpResult
@@ -79,6 +83,29 @@ sequenceDiagram
 Binding port zero is supported for operating-system-selected ephemeral ports;
 `local_endpoint()` retrieves the selected address/port.
 
+## Multicast discovery behavior
+
+`enable_address_reuse()` performs one `SO_REUSEADDR` operation and must be
+called before a shared-port bind. `join_multicast()` accepts only class-D IPv4
+group addresses (`224.0.0.0/4`) and performs one `IP_ADD_MEMBERSHIP` operation.
+The interface defaults to `0.0.0.0`, which delegates interface selection to
+Linux; a caller can instead supply an explicit local IPv4 address. Neither API
+binds the socket, chooses a DDS domain port, polls, retries, or waits.
+
+```mermaid
+sequenceDiagram
+    participant D as Discovery owner
+    participant U as UdpSocket
+    participant K as Linux kernel
+    D->>U: open()
+    D->>U: enable_address_reuse()
+    U->>K: setsockopt(SO_REUSEADDR)
+    D->>U: bind(any, SPDP port)
+    D->>U: join_multicast(group, interface)
+    U->>K: setsockopt(IP_ADD_MEMBERSHIP)
+    U-->>D: success or errno
+```
+
 ## Send behavior
 
 `send_to()` requires an open socket, nonzero destination port, and a non-null
@@ -122,6 +149,8 @@ sequenceDiagram
 | `not_open` | operation requires descriptor | zero | startup/lifecycle |
 | `socket_error` | socket creation failed | errno | `ORT-FLT-UDP-001` |
 | `bind_error` | bind failed | errno | `ORT-FLT-UDP-001` |
+| `socket_option_error` | address-reuse option failed | errno | `ORT-FLT-UDP-001` |
+| `multicast_membership_error` | group membership failed | errno | `ORT-FLT-UDP-001` |
 | `endpoint_error` | local/remote endpoint invalid | errno if available | `ORT-FLT-UDP-001` |
 | `send_error` | send failed/partial | errno or partial bytes | `ORT-FLT-UDP-002` |
 | `receive_error` | receive/native address failed | errno | `ORT-FLT-UDP-003` |
@@ -138,12 +167,11 @@ if send/receive calls share an instance across threads.
 
 ## Deployment interface
 
-The application supplies static local and remote endpoints. Network routing,
-firewall, socket buffer sizing, DSCP, multicast, NIC queues, IRQ affinity, and
-TSN configuration are outside this component and must be handled by platform
-configuration.
+The application supplies static local and remote endpoints plus any multicast
+group/interface. Network routing, firewall, socket buffer sizing, DSCP,
+multicast route policy, NIC queues, IRQ affinity, and TSN configuration are
+outside this component and must be handled by platform configuration.
 
 ## Verification
 
 - `tests/test_udp_socket.cpp`
-

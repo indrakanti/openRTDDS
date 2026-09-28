@@ -51,3 +51,17 @@ be non-copyable, support ownership transfer by move, and close exactly once.
 
 **Rationale:** Descriptor lifetime and runtime allocation behavior must be
 unambiguous.
+
+### ORT-UDP-006 — Explicit IPv4 multicast membership
+
+**Status:** Implemented
+**Verification:** Test, Inspection
+
+The transport shall expose allocation-free operations to enable address reuse
+and join a caller-selected IPv4 multicast group on a caller-selected interface.
+It shall reject non-multicast group addresses, preserve native `errno` on
+option failure, and shall not hide binding, polling, retry, or interface
+selection policy.
+
+**Rationale:** DDS participant discovery requires an explicit and auditable
+SPDP multicast receive path without bypassing the production UDP abstraction.

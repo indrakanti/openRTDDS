@@ -65,8 +65,9 @@ jobs:
             -lfastrtps -lfastcdr -pthread \
             -o /tmp/emit_fastdds
           cmake -S . -B build -DOPENRTDDS_WARNINGS_AS_ERRORS=ON \
-            -DOPENRTDDS_BUILD_EXAMPLES=OFF
-          cmake --build build --target openrtdds_vendor_packet_probe --parallel
+            -DOPENRTDDS_BUILD_EXAMPLES=ON
+          cmake --build build --target openrtdds_vendor_packet_probe \
+            openrtdds_vendor_best_effort_writer --parallel
       - name: Validate capture filter
         run: python3 -m unittest discover -s tests/interop -p 'test_*.py'
       - name: Capture Fast DDS SPDP packet
@@ -164,6 +165,25 @@ jobs:
             artifacts/vendor-packets/cyclonedds/data-reliable-acknack.rtps \
             artifacts/vendor-packets/cyclonedds/data-reliable-subscriber-endpoint.rtps \
             artifacts/vendor-packets/cyclonedds/data-reliable-subscriber-participant.rtps
+      - name: Exchange OpenRTDDS writer to Fast DDS reader
+        run: |
+          FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+            python3 tests/interop/run_live_writer.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --evidence artifacts/vendor-packets/fastdds/live-openrtdds-writer.json \
+            --reader /tmp/emit_fastdds \
+            --writer ./build/openrtdds_vendor_best_effort_writer
+      - name: Exchange OpenRTDDS writer to Cyclone DDS reader
+        env:
+          CYCLONEDDS_URI: '<CycloneDDS><Domain id="any"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery></Domain></CycloneDDS>'
+        run: |
+          python3 tests/interop/run_live_writer.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --evidence artifacts/vendor-packets/cyclonedds/live-openrtdds-writer.json \
+            --reader /tmp/emit_cyclone \
+            --writer ./build/openrtdds_vendor_best_effort_writer
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4

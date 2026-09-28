@@ -10,7 +10,7 @@
 #include "test_support.hpp"
 
 // Verifies: ORT-UDP-001, ORT-UDP-002, ORT-UDP-003, ORT-UDP-004,
-// Verifies: ORT-UDP-005
+// Verifies: ORT-UDP-005, ORT-UDP-006
 
 void test_udp_socket() {
   using openrtdds::transport::Ipv4Address;
@@ -28,6 +28,17 @@ void test_udp_socket() {
   UdpEndpoint scratch_endpoint{};
   CHECK(unopened.receive_from(scratch.data(), scratch.size(), scratch_endpoint)
             .error == UdpError::not_open);
+  CHECK(unopened.enable_address_reuse().error == UdpError::not_open);
+  CHECK(unopened.join_multicast({{{239U, 255U, 0U, 1U}}}).error ==
+        UdpError::not_open);
+
+  UdpSocket multicast;
+  CHECK(multicast.open().ok());
+  CHECK(multicast.enable_address_reuse().ok());
+  CHECK(multicast.join_multicast(Ipv4Address::loopback()).error ==
+        UdpError::invalid_argument);
+  CHECK(multicast.join_multicast({{{239U, 255U, 0U, 1U}}},
+                                 Ipv4Address::loopback()).ok());
 
   UdpSocket receiver;
   CHECK(receiver.open().ok());

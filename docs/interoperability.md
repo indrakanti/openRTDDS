@@ -10,7 +10,7 @@ green.
 | G0 — Internal wire conformance | Golden RTPS 2.5 subset bytes and defensive parser tests | Passed |
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
-| G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Planned |
+| G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | In progress: OpenRTDDS writer direction in PR18 |
 | G4 — ROS 2 RMW | `rmw_openrtdds` passes selected ROS 2 conformance and graph tests | Planned |
 
 ## Vendor matrix planned for G2 and G3
@@ -42,6 +42,13 @@ vendors. The production parsers correlate publisher and subscriber discovery,
 control identities, the DATA sequence range, reliable QoS, and the fixed CDR
 sample. This completes ORT-INT-004, promotes ORT-INT-007 to Verified, and
 passes G2 for the pinned package versions and settings.
+
+PR18 starts G3 with a live best-effort writer path from OpenRTDDS to both vendor
+readers. OpenRTDDS joins the standard discovery multicast group, parses live
+SPDP and subscription SEDP traffic, applies endpoint matching, and sends the
+bounded probe sample to the discovered reader locator. The reverse vendor
+writer to OpenRTDDS reader direction remains a separate follow-up before G3 can
+pass.
 
 ## ROS 2 boundary
 
