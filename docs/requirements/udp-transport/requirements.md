@@ -54,7 +54,7 @@ unambiguous.
 
 ### ORT-UDP-006 — Explicit IPv4 multicast membership
 
-**Status:** Implemented
+**Status:** Verified
 **Verification:** Test, Inspection
 
 The transport shall expose allocation-free operations to enable address reuse
