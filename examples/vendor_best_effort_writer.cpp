@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 
 #include "openrtdds/rtps/data_message.hpp"
+#include "openrtdds/rtps/message_router.hpp"
 #include "openrtdds/rtps/reliability_messages.hpp"
 #include "openrtdds/rtps/sedp.hpp"
 #include "openrtdds/rtps/spdp.hpp"
@@ -61,6 +62,40 @@ constexpr char type_name[] = "VendorProbe";
   std::memcpy(address.octets.data(), &native.s_addr,
               address.octets.size());
   return !(address == Ipv4Address::any());
+}
+
+void write_u16_le(std::uint8_t* const output,
+                  const std::uint16_t value) noexcept {
+  output[0] = static_cast<std::uint8_t>(value & 0xFFU);
+  output[1] = static_cast<std::uint8_t>((value >> 8U) & 0xFFU);
+}
+
+// ORT-INT-008: reliable built-in control traffic is explicitly directed to
+// the discovered participant. Some vendors intentionally reject an ACKNACK
+// with an unknown destination prefix even when its writer EntityId matches.
+template <std::size_t Capacity>
+[[nodiscard]] bool direct_message(
+    const std::uint8_t* const message, const std::size_t message_size,
+    const GuidPrefix& destination, std::array<std::uint8_t, Capacity>& output,
+    std::size_t& output_size) noexcept {
+  constexpr std::size_t rtps_header_size = 20U;
+  constexpr std::size_t info_destination_size = 16U;
+  if (message == nullptr || message_size < rtps_header_size ||
+      message_size > Capacity - info_destination_size) {
+    output_size = 0U;
+    return false;
+  }
+
+  std::memcpy(output.data(), message, rtps_header_size);
+  output[20] = openrtdds::rtps::submessage_id_info_destination;
+  output[21] = 0x01U;
+  write_u16_le(&output[22], 12U);
+  std::memcpy(&output[24], destination.value.data(),
+              destination.value.size());
+  std::memcpy(&output[36], &message[rtps_header_size],
+              message_size - rtps_header_size);
+  output_size = message_size + info_destination_size;
+  return true;
 }
 
 [[nodiscard]] bool to_endpoint(const Locator& locator,
@@ -326,11 +361,18 @@ int main(const int argc, char** const argv) {
             complete = acknack_config.reader_state.set(bit);
           }
           std::array<std::uint8_t, 128U> acknack_bytes{};
+          std::array<std::uint8_t, 144U> directed_acknack{};
+          std::size_t directed_acknack_size = 0U;
           ReliabilityMessageBuilder acknack(
               acknack_bytes.data(), acknack_bytes.size());
           if (!complete || !acknack.build_acknack(acknack_config) ||
-              !metadata_socket.send_to(remote_metadata, acknack.data(),
-                                       acknack.size()).ok()) {
+              !direct_message(
+                  acknack.data(), acknack.size(),
+                  remote_participant.participant.guid_prefix,
+                  directed_acknack, directed_acknack_size) ||
+              !metadata_socket.send_to(remote_metadata,
+                                       directed_acknack.data(),
+                                       directed_acknack_size).ok()) {
             std::cerr << "SEDP ACKNACK send failed\n";
             return 6;
           }
