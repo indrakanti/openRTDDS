@@ -177,7 +177,7 @@ jobs:
             --writer-address "$(hostname -I | cut -d' ' -f1)"
       - name: Exchange OpenRTDDS writer to Cyclone DDS reader
         env:
-          CYCLONEDDS_URI: '<CycloneDDS><Domain id="any"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery></Domain></CycloneDDS>'
+          CYCLONEDDS_URI: '<CycloneDDS><Domain id="any"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery><Tracing><Verbosity>finest</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>'
         run: |
           python3 tests/interop/run_live_writer.py \
             --vendor cyclonedds \
