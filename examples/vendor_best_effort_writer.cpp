@@ -334,6 +334,20 @@ int main(const int argc, char** const argv) {
         publication_requested = true;
         continue;
       }
+      SedpMessageView endpoint{};
+      const auto parsed = parse_sedp_message(
+          incoming.data(), incoming_size,
+          remote_participant.participant.guid_prefix, endpoint);
+      if (parsed.ok() && endpoint.endpoint.kind == EndpointKind::reader &&
+          evaluate_endpoint_match(local_writer, endpoint.endpoint) ==
+              MatchStatus::matched) {
+        remote_reader = endpoint;
+        reader_found = first_endpoint(endpoint.endpoint.unicast_locators,
+                                      remote_user) ||
+            first_endpoint(remote_participant.participant.default_unicast,
+                           remote_user);
+        continue;
+      }
       HeartbeatView remote_heartbeat{};
       if (parse_heartbeat_message(incoming.data(), incoming_size,
                                   remote_heartbeat) ==
@@ -379,20 +393,6 @@ int main(const int argc, char** const argv) {
         }
         continue;
       }
-      SedpMessageView endpoint{};
-      const auto parsed = parse_sedp_message(
-          incoming.data(), incoming_size,
-          remote_participant.participant.guid_prefix, endpoint);
-      if (!parsed.ok() || endpoint.endpoint.kind != EndpointKind::reader ||
-          evaluate_endpoint_match(local_writer, endpoint.endpoint) !=
-              MatchStatus::matched) {
-        continue;
-      }
-      remote_reader = endpoint;
-      reader_found = first_endpoint(endpoint.endpoint.unicast_locators,
-                                    remote_user) ||
-          first_endpoint(remote_participant.participant.default_unicast,
-                         remote_user);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
