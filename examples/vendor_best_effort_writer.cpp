@@ -32,8 +32,11 @@ constexpr std::uint32_t sample_value = 0x4F525444U;
 constexpr Ipv4Address loopback{{{127U, 0U, 0U, 1U}}};
 constexpr Ipv4Address spdp_group{{{239U, 255U, 0U, 1U}}};
 constexpr EntityId user_writer{{0U, 0U, 1U, 0x03U}};
+constexpr EntityId unknown_reader{{0U, 0U, 0U, 0x00U}};
 constexpr EntityId publications_reader{{0U, 0U, 3U, 0xC7U}};
 constexpr EntityId publications_writer{{0U, 0U, 3U, 0xC2U}};
+constexpr EntityId subscriptions_reader{{0U, 0U, 4U, 0xC7U}};
+constexpr EntityId subscriptions_writer{{0U, 0U, 4U, 0xC2U}};
 constexpr char topic_name[] = "OpenRTDDSProbe";
 constexpr char type_name[] = "VendorProbe";
 
@@ -209,6 +212,7 @@ int main() {
   bool reader_found = false;
   UdpEndpoint remote_metadata{};
   UdpEndpoint remote_user{};
+  std::int32_t acknack_count = 1;
   auto next_announcement = std::chrono::steady_clock::time_point::min();
   const auto deadline = std::chrono::steady_clock::now() +
                         std::chrono::seconds(10);
@@ -253,6 +257,44 @@ int main() {
                       remote_participant.participant.guid_prefix.value.data(),
                       remote_participant.participant.guid_prefix.value.size()) !=
               0) {
+        continue;
+      }
+      HeartbeatView remote_heartbeat{};
+      if (parse_heartbeat_message(incoming.data(), incoming_size,
+                                  remote_heartbeat) ==
+              ReliabilityMessageError::none &&
+          remote_heartbeat.writer_id == subscriptions_writer &&
+          (remote_heartbeat.reader_id == unknown_reader ||
+           remote_heartbeat.reader_id == subscriptions_reader) &&
+          remote_heartbeat.last_sequence_number >=
+              remote_heartbeat.first_sequence_number) {
+        const std::uint64_t range =
+            remote_heartbeat.last_sequence_number -
+            remote_heartbeat.first_sequence_number + 1U;
+        if (range <= SequenceNumberSet::maximum_bits) {
+          AckNackConfig acknack_config{};
+          acknack_config.header.version = {2U, 3U};
+          acknack_config.header.vendor_id = vendor;
+          acknack_config.header.guid_prefix = prefix;
+          acknack_config.reader_id = subscriptions_reader;
+          acknack_config.writer_id = subscriptions_writer;
+          acknack_config.count = acknack_count++;
+          const auto bit_count = static_cast<std::uint32_t>(range);
+          bool complete = acknack_config.reader_state.reset(
+              remote_heartbeat.first_sequence_number, bit_count);
+          for (std::uint32_t bit = 0U; complete && bit < bit_count; ++bit) {
+            complete = acknack_config.reader_state.set(bit);
+          }
+          std::array<std::uint8_t, 128U> acknack_bytes{};
+          ReliabilityMessageBuilder acknack(
+              acknack_bytes.data(), acknack_bytes.size());
+          if (!complete || !acknack.build_acknack(acknack_config) ||
+              !metadata_socket.send_to(remote_metadata, acknack.data(),
+                                       acknack.size()).ok()) {
+            std::cerr << "SEDP ACKNACK send failed\n";
+            return 6;
+          }
+        }
         continue;
       }
       SedpMessageView endpoint{};

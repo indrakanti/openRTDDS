@@ -179,9 +179,12 @@ publications announcer, and subscriptions detector built-in endpoints. Every
 a vendor participant, sends its publications SEDP DATA plus a HEARTBEAT to the
 vendor's discovered metatraffic unicast locator. Incoming SPDP and subscription
 SEDP messages are accepted only through `parse_spdp_message` and
-`parse_sedp_message`. `evaluate_endpoint_match` must accept the vendor reader's
-topic, type, best-effort reliability, and volatile durability before user DATA
-is constructed.
+`parse_sedp_message`. Because SEDP is reliable, a subscription-writer
+HEARTBEAT is parsed with the production reliability parser and answered with a
+bounded ACKNACK requesting its advertised sequence range; ranges above the
+256-bit production bound are ignored. `evaluate_endpoint_match` must accept the
+vendor reader's topic, type, best-effort reliability, and volatile durability
+before user DATA is constructed.
 
 The application sample is eight CDR bytes: a little-endian XCDR1
 encapsulation followed by unsigned `0x4F525444`. The DATA writer entity is
@@ -202,6 +205,7 @@ pinned version, commands, exits, timeout flags, stdout, and stderr.
 |---|---|---|
 | multicast setup | `UdpError::none` | `socket_option_error`, `bind_error`, or `multicast_membership_error` |
 | participant parse | `SpdpResult::ok()` | ignored until deadline; timeout exits `7` |
+| subscription HEARTBEAT | bounded ACKNACK sent | send/build failure exits `6`; oversize range ignored |
 | reader parse/match | `SedpResult::ok()` and `MatchStatus::matched` | ignored until deadline; timeout exits `8` |
 | discovery sends | complete UDP datagram | writer exits `5` or `6` |
 | user DATA build/send | four complete UDP datagrams | writer exits `9`–`11` |
@@ -273,7 +277,9 @@ sequenceDiagram
     H->>V: create best-effort reader
     H->>O: start bounded writer
     O->>V: SPDP participant
-    V-->>O: SPDP participant + subscription SEDP
+    V-->>O: SPDP participant + subscription HEARTBEAT
+    O->>V: ACKNACK missing subscription SEDP
+    V-->>O: subscription SEDP DATA
     O->>O: parse and match reader
     O->>V: publication SEDP + HEARTBEAT
     O->>V: DATA(0x4F525444)
