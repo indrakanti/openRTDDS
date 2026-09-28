@@ -173,7 +173,8 @@ jobs:
             --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
             --evidence artifacts/vendor-packets/fastdds/live-openrtdds-writer.json \
             --reader /tmp/emit_fastdds \
-            --writer ./build/openrtdds_vendor_best_effort_writer
+            --writer ./build/openrtdds_vendor_best_effort_writer \
+            --writer-address "$(hostname -I | cut -d' ' -f1)"
       - name: Exchange OpenRTDDS writer to Cyclone DDS reader
         env:
           CYCLONEDDS_URI: '<CycloneDDS><Domain id="any"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery></Domain></CycloneDDS>'
@@ -183,7 +184,8 @@ jobs:
             --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
             --evidence artifacts/vendor-packets/cyclonedds/live-openrtdds-writer.json \
             --reader /tmp/emit_cyclone \
-            --writer ./build/openrtdds_vendor_best_effort_writer
+            --writer ./build/openrtdds_vendor_best_effort_writer \
+            --writer-address "$(hostname -I | cut -d' ' -f1)"
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4

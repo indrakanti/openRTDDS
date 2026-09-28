@@ -36,10 +36,13 @@ def main() -> int:
     parser.add_argument("--evidence", required=True, type=Path)
     parser.add_argument("--reader", required=True)
     parser.add_argument("--writer", required=True)
+    parser.add_argument("--writer-address")
     args = parser.parse_args()
 
     reader_command = [args.reader, "receive-openrtdds"]
     writer_command = [args.writer]
+    if args.writer_address:
+        writer_command.append(args.writer_address)
     deadline = time.monotonic() + 16.0
     reader = None
     writer = None

@@ -111,7 +111,8 @@ are understood by the production RTPS receive path.
 
 The CI interoperability job shall run one OpenRTDDS best-effort writer against
 readers created by each pinned vendor in domain 43. OpenRTDDS shall announce
-its participant and publication, receive and parse the vendor's participant
+the CI-selected local IPv4 address in its participant and publication, receive
+and parse the vendor's participant
 and subscription announcements, request missing bounded subscription SEDP
 samples with ACKNACK, require topic, type, reliability, durability, and
 endpoint identity compatibility, observe the vendor publications reader's

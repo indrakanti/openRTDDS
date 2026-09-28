@@ -171,7 +171,11 @@ ORT-INT-008 is the first G3 direction. The
 parsers, matching, CDR, and `UdpSocket` APIs. It creates a static participant
 in domain 43 at participant index 5, which maps to metatraffic port 18170 and
 user-data port 18171. It binds a separate reusable socket to the standard SPDP
-multicast port 18150 and joins `239.255.0.1`.
+multicast port 18150 and joins `239.255.0.1` on the caller-selected local IPv4
+interface. The same address is encoded in its metatraffic and user-data
+locators. The command defaults to loopback for local use; CI passes the
+runner's primary IPv4 address so both vendor implementations use a reachable
+locator.
 
 The local participant advertises the participant announcer/detector,
 publications announcer, and subscriptions detector built-in endpoints. Every
@@ -180,8 +184,8 @@ a vendor participant, sends its publications SEDP DATA plus a HEARTBEAT to the
 vendor's discovered metatraffic unicast locator. The SEDP DATA targets the
 standard publications built-in reader rather than using an unknown reader
 identity. Its HEARTBEAT count increases for every announcement. Incoming SPDP
-and subscription
-SEDP messages are accepted only through `parse_spdp_message` and
+and subscription SEDP messages are accepted only through
+`parse_spdp_message` and
 `parse_sedp_message`. Because SEDP is reliable, a subscription-writer
 HEARTBEAT is parsed with the production reliability parser and answered with a
 bounded ACKNACK requesting its advertised sequence range; ranges above the

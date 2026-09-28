@@ -6,6 +6,8 @@
 #include <iostream>
 #include <thread>
 
+#include <arpa/inet.h>
+
 #include "openrtdds/rtps/data_message.hpp"
 #include "openrtdds/rtps/reliability_messages.hpp"
 #include "openrtdds/rtps/sedp.hpp"
@@ -45,6 +47,20 @@ constexpr char type_name[] = "VendorProbe";
   prefix.value = {{0x4FU, 0x52U, 0x54U, 0x44U, 0x44U, 0x53U,
                    0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x12U}};
   return prefix;
+}
+
+[[nodiscard]] bool parse_address(const char* const text,
+                                 Ipv4Address& address) noexcept {
+  if (text == nullptr) {
+    return false;
+  }
+  in_addr native{};
+  if (::inet_pton(AF_INET, text, &native) != 1) {
+    return false;
+  }
+  std::memcpy(address.octets.data(), &native.s_addr,
+              address.octets.size());
+  return !(address == Ipv4Address::any());
 }
 
 [[nodiscard]] bool to_endpoint(const Locator& locator,
@@ -90,9 +106,15 @@ template <std::size_t Capacity>
 
 }  // namespace
 
-int main() {
+int main(const int argc, char** const argv) {
   using namespace openrtdds::rtps;
   using openrtdds::serialization::ByteOrder;
+
+  Ipv4Address local_address = loopback;
+  if ((argc > 2) || ((argc == 2) && !parse_address(argv[1], local_address))) {
+    std::cerr << "usage: openrtdds_vendor_best_effort_writer [local-ipv4]\n";
+    return 1;
+  }
 
   std::uint16_t multicast_port = 0U;
   std::uint16_t metadata_port = 0U;
@@ -112,7 +134,7 @@ int main() {
   if (!multicast_socket.open().ok() ||
       !multicast_socket.enable_address_reuse().ok() ||
       !multicast_socket.bind({Ipv4Address::any(), multicast_port}).ok() ||
-      !multicast_socket.join_multicast(spdp_group).ok() ||
+      !multicast_socket.join_multicast(spdp_group, local_address).ok() ||
       !metadata_socket.open().ok() ||
       !metadata_socket.bind({Ipv4Address::any(), metadata_port}).ok() ||
       !user_socket.open().ok() ||
@@ -127,9 +149,9 @@ int main() {
   Locator metadata_locator{};
   Locator user_locator{};
   Locator multicast_locator{};
-  if (!make_udp_v4_locator(loopback.octets, metadata_port,
+  if (!make_udp_v4_locator(local_address.octets, metadata_port,
                            metadata_locator) ||
-      !make_udp_v4_locator(loopback.octets, user_port, user_locator) ||
+      !make_udp_v4_locator(local_address.octets, user_port, user_locator) ||
       !make_udp_v4_locator(spdp_group.octets, multicast_port,
                            multicast_locator)) {
     return 3;
