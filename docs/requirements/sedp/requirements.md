@@ -12,8 +12,9 @@ provided by the existing caller-driven reliability layer.
 
 The SEDP component shall encode publication and subscription endpoint
 announcements as DDSI-RTPS PL_CDR DATA using the standard built-in entity
-identities, endpoint and participant GUIDs, bounded topic/type names, UDPv4
-locators, and supported reliability and durability policies.
+identities, optional matching built-in reader target, endpoint and participant
+GUIDs, bounded topic/type names, UDPv4 locators, and supported reliability and
+durability policies.
 
 **Rationale:** Standards-based endpoint records are required for dynamic DDS
 interoperability and later ROS 2 middleware integration.

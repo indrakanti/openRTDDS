@@ -171,6 +171,7 @@ int main() {
               publication.endpoint.type_name_size);
   publication.endpoint.reliability = ReliabilityKind::best_effort;
   publication.endpoint.durability = DurabilityKind::volatile_durability;
+  publication.reader_id = publications_reader;
   static_cast<void>(publication.endpoint.unicast_locators.push_back(
       user_locator));
 

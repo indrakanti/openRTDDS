@@ -177,7 +177,9 @@ The local participant advertises the participant announcer/detector,
 publications announcer, and subscriptions detector built-in endpoints. Every
 250 milliseconds until the bounded deadline, it sends SPDP and, after finding
 a vendor participant, sends its publications SEDP DATA plus a HEARTBEAT to the
-vendor's discovered metatraffic unicast locator. Incoming SPDP and subscription
+vendor's discovered metatraffic unicast locator. The SEDP DATA targets the
+standard publications built-in reader rather than using an unknown reader
+identity. Incoming SPDP and subscription
 SEDP messages are accepted only through `parse_spdp_message` and
 `parse_sedp_message`. Because SEDP is reliable, a subscription-writer
 HEARTBEAT is parsed with the production reliability parser and answered with a

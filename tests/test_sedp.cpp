@@ -81,11 +81,16 @@ namespace {
 
 void test_roundtrip(const openrtdds::rtps::EndpointKind kind,
                     const openrtdds::serialization::ByteOrder order) {
-  const auto config = announcement(kind, 0x10U, order);
+  auto config = announcement(kind, 0x10U, order);
+  config.reader_id = kind == openrtdds::rtps::EndpointKind::writer
+      ? openrtdds::rtps::EntityId{{0U, 0U, 3U, 0xC7U}}
+      : openrtdds::rtps::EntityId{{0U, 0U, 4U, 0xC7U}};
   std::array<std::uint8_t, 1600U> message{};
   openrtdds::rtps::SedpMessageBuilder builder(message.data(), message.size());
   CHECK(builder.build(config));
   CHECK(builder.size() > 120U);
+  CHECK(std::memcmp(&message[28U], config.reader_id.value.data(),
+                    config.reader_id.value.size()) == 0);
 
   openrtdds::rtps::SedpMessageView view{};
   const auto result = openrtdds::rtps::parse_sedp_message(
@@ -139,6 +144,11 @@ void test_defensive_parsing() {
             .error == SedpError::unknown_required_parameter);
 
   config.endpoint.endpoint_id.value[3] = 0x07U;
+  CHECK(!builder.build(config));
+  CHECK(builder.error() == SedpError::invalid_configuration);
+
+  config = announcement(openrtdds::rtps::EndpointKind::writer, 0x30U);
+  config.reader_id = {{0U, 0U, 4U, 0xC7U}};
   CHECK(!builder.build(config));
   CHECK(builder.error() == SedpError::invalid_configuration);
 }
