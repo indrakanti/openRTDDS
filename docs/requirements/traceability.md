@@ -33,6 +33,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-UDP-003 | Verified | `udp_socket.hpp` | `test_udp_socket.cpp` | — |
 | ORT-UDP-004 | Verified | `udp_socket.hpp` | `test_udp_socket.cpp` | — |
 | ORT-UDP-005 | Verified | `udp_socket.hpp` | `test_udp_socket.cpp` | — |
+| ORT-UDP-006 | Verified | `udp_socket.hpp`, `udp_socket.cpp` | `test_udp_socket.cpp`, live vendor CI | `vendor_best_effort_writer.cpp` |
 | ORT-REL-001 | Verified | `rtps/reliability_state.hpp` | `test_reliability_state.cpp` | `reliable_pair.cpp` |
 | ORT-REL-002 | Verified | `rtps/reliability_messages.hpp` | `test_reliability_messages.cpp` | `rtps_reliability_message.cpp` |
 | ORT-REL-003 | Verified | `rtps/reliability_messages.hpp` | `test_reliability_messages.cpp` | `rtps_reliability_message.cpp` |
@@ -70,6 +71,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-INT-005 | Verified | `rtps/sedp.cpp`, `tests/interop/emit_*.{c,cpp}`, `capture_sedp.py`, `vendor_packet_probe.cpp` | `test_sedp.cpp`, pinned SEDP fixtures, `vendor-packets` CI job | — |
 | ORT-INT-006 | Verified | `rtps/data_message.hpp`, `tests/interop/emit_*.{c,cpp}`, `capture_data.py`, `vendor_packet_probe.cpp` | `test_capture_data.py`, pinned best-effort DATA fixtures, `vendor-packets` CI job | — |
 | ORT-INT-007 | Verified | `rtps/data_message.hpp`, `rtps/reliability_messages.hpp`, `tests/interop/emit_*.{c,cpp}`, `capture_reliable.py`, `vendor_packet_probe.cpp` | `test_capture_reliable.py`, pinned reliable fixtures, `vendor-packets` CI job | — |
+| ORT-INT-008 | Verified | `udp_socket.cpp`, `examples/vendor_best_effort_writer.cpp`, `tests/interop/emit_*.{c,cpp}` | `run_live_writer.py`, `vendor-packets` CI job | `vendor_best_effort_writer.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

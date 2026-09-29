@@ -1,4 +1,5 @@
-/* Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007 */
+/* Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
+ * Requirements: ORT-INT-008 */
 #include <dds/dds.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,7 +13,7 @@ int main(int argc, char **argv) {
   }
   const char *mode = argc > 1 ? argv[1] : "participant";
   const int reliable = strstr(mode, "reliable") != NULL;
-  if (mode[0] == 'p' || mode[0] == 's') {
+  if (mode[0] == 'p' || mode[0] == 's' || mode[0] == 'r') {
     const dds_entity_t topic = dds_create_topic(
         participant, &VendorProbe_desc, "OpenRTDDSProbe", NULL, NULL);
     dds_qos_t *qos = dds_create_qos();
@@ -39,6 +40,31 @@ int main(int argc, char **argv) {
         return 1;
       }
       dds_sleepfor(reliable ? DDS_SECS(4) : DDS_SECS(2));
+    } else if (strcmp(mode, "receive-openrtdds") == 0) {
+      VendorProbe sample = {0};
+      void *samples[1] = {&sample};
+      dds_sample_info_t information[1] = {{0}};
+      int accepted = 0;
+      for (unsigned attempt = 0; attempt < 120U; ++attempt) {
+        const dds_return_t received = dds_take(
+            endpoint, samples, information, 1U, 1U);
+        if (received < 0) {
+          fprintf(stderr, "Cyclone take failed: %s\n",
+                  dds_strretcode(-received));
+          return 1;
+        }
+        if (received == 1 && information[0].valid_data &&
+            sample.value == 0x4F525444U) {
+          printf("Cyclone DDS received OpenRTDDS value=%u\n", sample.value);
+          accepted = 1;
+          break;
+        }
+        dds_sleepfor(DDS_MSECS(100));
+      }
+      if (!accepted) {
+        fprintf(stderr, "Cyclone DDS did not receive OpenRTDDS sample\n");
+        return 1;
+      }
     } else {
       dds_sleepfor(reliable ? DDS_SECS(7) : DDS_SECS(5));
     }

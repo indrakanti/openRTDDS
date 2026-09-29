@@ -82,6 +82,7 @@ struct SedpEndpointData final {
 
 struct SedpAnnouncementConfig final {
   SedpEndpointData endpoint{};
+  EntityId reader_id{};
   std::uint64_t sequence_number{1U};
   serialization::ByteOrder submessage_byte_order{
       serialization::ByteOrder::little_endian};

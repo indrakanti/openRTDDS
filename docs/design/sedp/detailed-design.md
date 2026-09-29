@@ -69,7 +69,7 @@ duration of `evaluate_endpoint_match()`.
 
 | API | Preconditions | Success | Failure guarantee |
 |---|---|---|---|
-| `SedpMessageBuilder::build` | valid participant/endpoint identity, nonempty bounded names, at least one valid locator, supported QoS | one complete DATA datagram | size becomes zero; explicit `SedpError` and optional `RtpsError` |
+| `SedpMessageBuilder::build` | valid participant/endpoint identity, unknown or matching built-in reader, nonempty bounded names, at least one valid locator, supported QoS | one complete DATA datagram | size becomes zero; explicit `SedpError` and optional `RtpsError` |
 | `parse_sedp_message` | immutable datagram and SPDP-validated expected participant | owned parsed endpoint view | caller's previous view is unchanged |
 | `DiscoveredEndpointTable::upsert` | validated parsed view | add or strictly newer update | no table mutation for stale/capacity failure |
 | `remove_participant` | participant GUID and adequate output array | all owned endpoint IDs copied and records cleared | two-pass operation leaves table unchanged on insufficient output |
@@ -98,8 +98,10 @@ sequenceDiagram
 An announced writer uses
 `ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER` (`00 00 03 c2`); an announced
 reader uses `ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER`
-(`00 00 04 c2`). The DATA reader identity is unknown, allowing directed or
-undirected transport orchestration above this codec.
+(`00 00 04 c2`). The DATA reader identity may remain unknown for undirected
+transport, or the caller may target the matching publications reader
+(`00 00 03 c7`) or subscriptions reader (`00 00 04 c7`). A target from the
+wrong built-in channel is rejected during construction.
 
 The PL_CDR payload emits:
 

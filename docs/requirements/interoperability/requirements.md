@@ -103,3 +103,27 @@ counts, and SHA-256 digests.
 **Rationale:** Reliable DATA acceptance is incomplete without evidence that
 the associated writer and reader control identities and bounded sequence state
 are understood by the production RTPS receive path.
+
+### ORT-INT-008 — Live OpenRTDDS writer to vendor reader gate
+
+**Status:** Verified
+**Verification:** Test
+
+The CI interoperability job shall run one OpenRTDDS best-effort writer against
+readers created by each pinned vendor in domain 43. OpenRTDDS shall announce
+the CI-selected local IPv4 address in its participant and publication, receive
+and parse the vendor's participant
+and subscription announcements, request missing bounded subscription SEDP
+samples with ACKNACK, require topic, type, reliability, durability, and
+endpoint identity compatibility, observe the vendor publications reader's
+ACKNACK and repair its SEDP sample, and transmit `VendorProbe.value =
+0x4F525444` to the discovered reader locator. The subscription ACKNACK shall
+carry `INFO_DST` for the discovered participant, and a subscription DATA
+submessage shall be processed when compounded with its HEARTBEAT. The vendor
+API shall take and validate the sample within a 16-second process deadline. The
+job shall preserve the vendor version, commands, exit results, timeout results,
+and both process
+outputs as JSON evidence.
+
+**Rationale:** Inbound packet parsing alone does not demonstrate that a vendor
+can discover an OpenRTDDS writer and consume an OpenRTDDS application sample.

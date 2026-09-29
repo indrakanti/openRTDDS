@@ -34,6 +34,7 @@ machine checker independently validates requirement references in feature
 | ORT-UDP-003 | Current | `udp-transport/detailed-design.md` |
 | ORT-UDP-004 | Current | `udp-transport/detailed-design.md` |
 | ORT-UDP-005 | Current | `udp-transport/detailed-design.md` |
+| ORT-UDP-006 | Current | `udp-transport/detailed-design.md` |
 | ORT-REL-001 | Current | `reliability/detailed-design.md` |
 | ORT-REL-002 | Current | `reliability/detailed-design.md` |
 | ORT-REL-003 | Current | `reliability/detailed-design.md` |
@@ -67,7 +68,8 @@ machine checker independently validates requirement references in feature
 | ORT-INT-001 | Current | `interoperability/detailed-design.md` |
 | ORT-INT-002 | Current | `interoperability/detailed-design.md` |
 | ORT-INT-003 | Current | `interoperability/detailed-design.md` |
-| ORT-INT-004 | Planned | `interoperability/detailed-design.md` |
+| ORT-INT-004 | Current | `interoperability/detailed-design.md` |
 | ORT-INT-005 | Current | `interoperability/detailed-design.md` |
 | ORT-INT-006 | Current | `interoperability/detailed-design.md` |
 | ORT-INT-007 | Current | `interoperability/detailed-design.md` |
+| ORT-INT-008 | Current | `interoperability/detailed-design.md` |

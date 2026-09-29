@@ -1,4 +1,5 @@
-// Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007
+// Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
+// Requirements: ORT-INT-008
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <fastdds/dds/publisher/qos/DataWriterQos.hpp>
 #include <fastdds/dds/subscriber/Subscriber.hpp>
 #include <fastdds/dds/subscriber/DataReader.hpp>
+#include <fastdds/dds/subscriber/SampleInfo.hpp>
 #include <fastdds/dds/subscriber/qos/DataReaderQos.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
 #include <fastrtps/transport/UDPv4TransportDescriptor.h>
@@ -36,11 +38,12 @@ int main(int argc, char** argv) {
   const bool reliable = mode == "publish-reliable" ||
                         mode == "subscribe-reliable";
   const bool subscribe = mode == "subscribe-data" ||
-                         mode == "subscribe-reliable";
+                         mode == "subscribe-reliable" ||
+                         mode == "receive-openrtdds";
   const bool write_sample = mode == "publish-data" ||
                             mode == "publish-reliable";
   if (mode == "publish" || mode == "publish-data" ||
-      mode == "subscribe-data" || reliable) {
+      mode == "subscribe-data" || mode == "receive-openrtdds" || reliable) {
     TypeSupport type(new VendorProbePubSubType());
     if (type.register_type(participant) != ReturnCode_t::RETCODE_OK) {
       std::cerr << "Fast DDS type registration failed\n";
@@ -66,8 +69,36 @@ int main(int argc, char** argv) {
         std::cerr << "Fast DDS reader creation failed\n";
         return 1;
       }
-      std::this_thread::sleep_for(
-          std::chrono::seconds(reliable ? 7 : 5));
+      if (mode == "receive-openrtdds") {
+        VendorProbe sample;
+        SampleInfo info;
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::seconds(12);
+        bool accepted = false;
+        while (std::chrono::steady_clock::now() < deadline) {
+          const auto result = reader->take_next_sample(&sample, &info);
+          if (result == ReturnCode_t::RETCODE_OK && info.valid_data &&
+              sample.value() == 0x4F525444U) {
+            std::cout << "Fast DDS received OpenRTDDS value="
+                      << sample.value() << '\n';
+            accepted = true;
+            break;
+          }
+          if (result != ReturnCode_t::RETCODE_OK &&
+              result != ReturnCode_t::RETCODE_NO_DATA) {
+            std::cerr << "Fast DDS take failed\n";
+            return 1;
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        if (!accepted) {
+          std::cerr << "Fast DDS did not receive OpenRTDDS sample\n";
+          return 1;
+        }
+      } else {
+        std::this_thread::sleep_for(
+            std::chrono::seconds(reliable ? 7 : 5));
+      }
     } else {
       auto* const publisher = participant->create_publisher(
           PUBLISHER_QOS_DEFAULT);

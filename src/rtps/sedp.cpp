@@ -363,6 +363,9 @@ bool SedpMessageBuilder::build(const SedpAnnouncementConfig& config) noexcept {
   error_ = SedpError::none;
   rtps_error_ = RtpsError::none;
   const auto& endpoint = config.endpoint;
+  const EntityId expected_reader = endpoint.kind == EndpointKind::writer
+      ? entity_id_publications_reader
+      : entity_id_subscriptions_reader;
   if (((buffer_ == nullptr) && (capacity_ != 0U)) ||
       !supported_byte_order(config.submessage_byte_order) ||
       !supported_byte_order(config.parameter_byte_order)) {
@@ -378,6 +381,8 @@ bool SedpMessageBuilder::build(const SedpAnnouncementConfig& config) noexcept {
       !valid_text(endpoint.type_name, endpoint.type_name_size) ||
       !valid_reliability(endpoint.reliability) ||
       !valid_durability(endpoint.durability) ||
+      ((config.reader_id != entity_id_unknown) &&
+       (config.reader_id != expected_reader)) ||
       ((endpoint.unicast_locators.size + endpoint.multicast_locators.size) ==
        0U)) {
     error_ = SedpError::invalid_configuration;
@@ -452,7 +457,7 @@ bool SedpMessageBuilder::build(const SedpAnnouncementConfig& config) noexcept {
   data.version = endpoint.protocol_version;
   data.vendor_id = endpoint.vendor_id;
   data.guid_prefix = endpoint.participant_guid_prefix;
-  data.reader_id = entity_id_unknown;
+  data.reader_id = config.reader_id;
   data.writer_id = endpoint.kind == EndpointKind::writer
                        ? entity_id_publications_writer
                        : entity_id_subscriptions_writer;

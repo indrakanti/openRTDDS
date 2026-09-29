@@ -49,7 +49,7 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-RTPS-001` | Warning/Error | malformed or truncated RTPS input | receiver/application |
 | `ORT-FLT-RTPS-002` | Warning | unsupported version, submessage, or feature | compatibility owner |
 | `ORT-FLT-RTPS-003` | Error | invalid writer sequence number | reliability owner |
-| `ORT-FLT-UDP-001` | Fatal at startup | socket, bind, or endpoint-query failure | startup controller |
+| `ORT-FLT-UDP-001` | Fatal at startup | socket, bind, option, multicast-membership, or endpoint-query failure | startup controller |
 | `ORT-FLT-UDP-002` | Error | send failure or oversize datagram | publisher/application |
 | `ORT-FLT-UDP-003` | Error | receive failure or truncation | subscriber/application |
 | `ORT-FLT-REL-001` | Error | repair/retry bound exceeded or gap no longer repairable | reliability/application |

@@ -1,8 +1,9 @@
-# Vendor packet evidence detailed design
+# Vendor interoperability detailed design
 
-**Design status:** Current for SPDP, SEDP, best-effort DATA, and reliable DATA/control evidence
+**Design status:** Current for G2 evidence and OpenRTDDS-to-vendor best-effort exchange
 **Requirements:** ORT-INT-001, ORT-INT-002, ORT-INT-003  
 **Requirements:** ORT-INT-004, ORT-INT-005, ORT-INT-006, ORT-INT-007
+**Requirements:** ORT-INT-008
 
 ## Behavior and interfaces
 
@@ -163,6 +164,75 @@ Production parser views are non-owning and allocate no memory. A complete chain
 is required atomically; partial evidence is kept only as a failure diagnostic
 artifact.
 
+### Live OpenRTDDS writer behavior
+
+ORT-INT-008 is the first G3 direction. The
+`openrtdds_vendor_best_effort_writer` example uses only production builders,
+parsers, matching, CDR, and `UdpSocket` APIs. It creates a static participant
+in domain 43 at participant index 5, which maps to metatraffic port 18170 and
+user-data port 18171. It binds a separate reusable socket to the standard SPDP
+multicast port 18150 and joins `239.255.0.1` on the caller-selected local IPv4
+interface. The same address is encoded in its metatraffic and user-data
+locators. The command defaults to loopback for local use; CI passes the
+runner's primary IPv4 address so both vendor implementations use a reachable
+locator.
+
+The local participant advertises the participant announcer/detector,
+publications announcer, and subscriptions detector built-in endpoints. Every
+250 milliseconds until the bounded deadline, it sends SPDP and, after finding
+a vendor participant, sends its publications SEDP DATA plus a HEARTBEAT to the
+vendor's discovered metatraffic unicast locator. The SEDP DATA targets the
+standard publications built-in reader rather than using an unknown reader
+identity. Its HEARTBEAT count increases for every announcement. Incoming SPDP
+and subscription SEDP messages are accepted only through
+`parse_spdp_message` and
+`parse_sedp_message`. Because SEDP is reliable, a subscription-writer
+HEARTBEAT is parsed with the production reliability parser and answered with a
+bounded ACKNACK requesting its advertised sequence range. The ACKNACK is
+preceded by `INFO_DST` containing the discovered vendor participant GUID
+prefix; this prevents a vendor from resolving the writer EntityId against an
+unknown destination participant. Ranges above the 256-bit production bound
+are ignored. Incoming SEDP DATA is dispatched before a HEARTBEAT found in the
+same datagram because vendors may compound the repair DATA and its reliability
+control. `evaluate_endpoint_match` must accept the vendor reader's topic, type,
+best-effort reliability, and volatile durability before user DATA is
+constructed. The discovery phase remains active until the vendor publications
+reader sends an ACKNACK for the local SEDP writer; the writer immediately
+repairs the SEDP DATA and allows a bounded 100-millisecond settling interval
+before user DATA is sent.
+
+The application sample is eight CDR bytes: a little-endian XCDR1
+encapsulation followed by unsigned `0x4F525444`. The DATA writer entity is
+`00 00 01 03`; the DATA reader entity and destination UDP locator come from
+the matched vendor subscription, falling back to the participant's SPDP
+default unicast locator only when SEDP omits endpoint locators. Four identical
+best-effort sends are permitted inside a fixed 200-millisecond transmit window;
+this is bounded test stimulus, not a middleware retry policy.
+
+The vendor programs expose `receive-openrtdds`. They configure a best-effort
+`VendorProbe` reader, use their public take API, and return success only for a
+valid sample containing the exact fixed value. Fast DDS disables DataSharing
+and uses UDPv4-only transport. `run_live_writer.py` owns both child processes,
+enforces one 16-second deadline, and always writes JSON evidence containing the
+pinned version, commands, exits, timeout flags, stdout, and stderr.
+
+| Interface | Success | Failure |
+|---|---|---|
+| multicast setup | `UdpError::none` | `socket_option_error`, `bind_error`, or `multicast_membership_error` |
+| participant parse | `SpdpResult::ok()` | ignored until deadline; timeout exits `7` |
+| subscription HEARTBEAT | bounded, `INFO_DST`-directed ACKNACK sent | send/build failure exits `6`; oversize range ignored |
+| reader parse/match | `SedpResult::ok()` and `MatchStatus::matched` | ignored until deadline; timeout exits `8` |
+| publication ACKNACK | SEDP DATA repair sent | timeout exits `12`; send failure exits `6` |
+| discovery sends | complete UDP datagram | writer exits `5` or `6` |
+| user DATA build/send | four complete UDP datagrams | writer exits `9`–`11` |
+| vendor take | valid fixed value | vendor exits nonzero |
+| process harness | both exit zero before 16 seconds | evidence retained and harness exits `1` |
+
+The example has no background thread, heap-backed discovery table, hidden
+retry, or blocking socket call. Its only waits are explicit ten-millisecond
+scheduling intervals controlled by the example. Vendor libraries and the
+Python evidence harness are test-only and are not linked into OpenRTDDS.
+
 ## Normal sequence
 
 ```mermaid
@@ -215,6 +285,26 @@ sequenceDiagram
     Probe-->>Capture: identities and sequence range accepted
 ```
 
+```mermaid
+sequenceDiagram
+    participant O as OpenRTDDS writer
+    participant V as Vendor reader
+    participant H as CI harness
+    H->>V: create best-effort reader
+    H->>O: start bounded writer
+    O->>V: SPDP participant
+    V-->>O: SPDP participant + subscription HEARTBEAT
+    O->>V: INFO_DST + ACKNACK missing subscription SEDP
+    V-->>O: subscription SEDP DATA + HEARTBEAT
+    O->>O: parse and match reader
+    O->>V: publication SEDP + HEARTBEAT
+    V-->>O: publications ACKNACK
+    O->>V: repaired publication SEDP DATA
+    O->>V: DATA(0x4F525444)
+    V-->>H: take validates sample
+    O-->>H: discovery and send success
+```
+
 ## Failure behavior
 
 | Failure | Detection | Recovery owner |
@@ -235,6 +325,14 @@ sequenceDiagram
 | ACKNACK targets foreign writer | reliability probe fails | evidence owner |
 | ACKNACK reader differs from subscriptions SEDP | correlation fails | evidence owner |
 | ACKNACK bitmap exceeds 256 bits | `bitmap_bound_exceeded` | control-parser owner |
+| SEDP ACKNACK lacks the vendor destination prefix | vendor rejects it as an unknown connection | discovery reliability owner |
+| Compounded subscription DATA is skipped for its HEARTBEAT | writer exit `8` at ten seconds | submessage dispatch owner |
+| SPDP multicast membership fails | `multicast_membership_error` plus errno | platform/network owner |
+| Vendor participant is not discovered | writer exit `7` at ten seconds | discovery owner |
+| Vendor reader is absent or incompatible | writer exit `8` at ten seconds | endpoint/QoS owner |
+| Vendor publications reader does not request SEDP | writer exit `12` at ten seconds | discovery reliability owner |
+| Vendor rejects or does not take DATA | vendor nonzero exit before 16 seconds | wire-compatibility owner |
+| Either live child exceeds the deadline | harness timeout flag and exit `1` | CI/integration owner |
 
 No failure is silently skipped. The C++ probe never transmits, retries,
 allocates in the RTPS parser, or changes the production receive API. File I/O,
@@ -248,8 +346,15 @@ OpenRTDDS C++ parser decides acceptance. Each vendor process waits five
 seconds; the capture deadline is ten seconds. The probe owns a fixed input
 buffer and does not retain the parsed view after its call.
 
+For the live writer gate, the C++ example owns three descriptors: SPDP
+multicast receive, metatraffic unicast, and user-data unicast. All close by
+RAII. The Python harness owns exactly two child processes and kills an
+unfinished child at the shared 16-second deadline. The vendor reader owns the
+vendor entities and deletes them on normal completion.
+
 ## Next extension
 
 ORT-INT-004, ORT-INT-007, and G2 are complete for the scoped pinned packet
-corpus. G3 still requires both directions of live OpenRTDDS discovery and
-application data exchange. No ROS 2 RMW evidence is claimed here.
+corpus. ORT-INT-008 establishes the OpenRTDDS-writer direction of G3. G3 still
+requires the vendor-writer to OpenRTDDS-reader direction, planned for PR19.
+No ROS 2 RMW evidence is claimed here.

@@ -16,6 +16,10 @@ constexpr std::size_t spdp_max_locators = 4U;
 constexpr std::size_t spdp_max_entity_name = 63U;
 constexpr std::uint32_t spdp_endpoint_participant_announcer = 1U << 0U;
 constexpr std::uint32_t spdp_endpoint_participant_detector = 1U << 1U;
+constexpr std::uint32_t spdp_endpoint_publications_announcer = 1U << 2U;
+constexpr std::uint32_t spdp_endpoint_publications_detector = 1U << 3U;
+constexpr std::uint32_t spdp_endpoint_subscriptions_announcer = 1U << 4U;
+constexpr std::uint32_t spdp_endpoint_subscriptions_detector = 1U << 5U;
 
 enum class SpdpError : std::uint8_t {
   none = 0,
