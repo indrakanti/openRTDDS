@@ -1,5 +1,5 @@
 // Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
-// Requirements: ORT-INT-008
+// Requirements: ORT-INT-008, ORT-INT-009
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -41,9 +41,11 @@ int main(int argc, char** argv) {
                          mode == "subscribe-reliable" ||
                          mode == "receive-openrtdds";
   const bool write_sample = mode == "publish-data" ||
-                            mode == "publish-reliable";
+                            mode == "publish-reliable" ||
+                            mode == "publish-openrtdds";
   if (mode == "publish" || mode == "publish-data" ||
-      mode == "subscribe-data" || mode == "receive-openrtdds" || reliable) {
+      mode == "publish-openrtdds" || mode == "subscribe-data" ||
+      mode == "receive-openrtdds" || reliable) {
     TypeSupport type(new VendorProbePubSubType());
     if (type.register_type(participant) != ReturnCode_t::RETCODE_OK) {
       std::cerr << "Fast DDS type registration failed\n";
@@ -117,9 +119,15 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::seconds(3));
         VendorProbe sample;
         sample.value(0x4F525444U);
-        if (!writer->write(&sample)) {
-          std::cerr << "Fast DDS writer rejected sample\n";
-          return 1;
+        const unsigned attempts = mode == "publish-openrtdds" ? 4U : 1U;
+        for (unsigned attempt = 0U; attempt < attempts; ++attempt) {
+          if (!writer->write(&sample)) {
+            std::cerr << "Fast DDS writer rejected sample\n";
+            return 1;
+          }
+          if (attempt + 1U < attempts) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          }
         }
         std::this_thread::sleep_for(
             std::chrono::seconds(reliable ? 4 : 2));

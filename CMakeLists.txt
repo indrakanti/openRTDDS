@@ -94,6 +94,13 @@ if(OPENRTDDS_BUILD_EXAMPLES)
     PRIVATE OpenRTDDS::openrtdds
   )
 
+  add_executable(openrtdds_vendor_best_effort_reader
+    examples/vendor_best_effort_reader.cpp
+  )
+  target_link_libraries(openrtdds_vendor_best_effort_reader
+    PRIVATE OpenRTDDS::openrtdds
+  )
+
   foreach(example_target IN ITEMS
       openrtdds_runtime_probe
       openrtdds_vehicle_state
@@ -104,7 +111,8 @@ if(OPENRTDDS_BUILD_EXAMPLES)
       openrtdds_spdp_participants
       openrtdds_sedp_matching
       openrtdds_compound_rtps_message
-      openrtdds_vendor_best_effort_writer)
+      openrtdds_vendor_best_effort_writer
+      openrtdds_vendor_best_effort_reader)
     target_compile_options(${example_target} PRIVATE -Wall -Wextra -Wpedantic)
     if(OPENRTDDS_WARNINGS_AS_ERRORS)
       target_compile_options(${example_target} PRIVATE -Werror)

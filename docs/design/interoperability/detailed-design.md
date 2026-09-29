@@ -1,9 +1,9 @@
 # Vendor interoperability detailed design
 
-**Design status:** Current for G2 evidence and OpenRTDDS-to-vendor best-effort exchange
+**Design status:** Current for G2 evidence and both G3 best-effort directions
 **Requirements:** ORT-INT-001, ORT-INT-002, ORT-INT-003  
 **Requirements:** ORT-INT-004, ORT-INT-005, ORT-INT-006, ORT-INT-007
-**Requirements:** ORT-INT-008
+**Requirements:** ORT-INT-008, ORT-INT-009
 
 ## Behavior and interfaces
 
@@ -233,6 +233,55 @@ retry, or blocking socket call. Its only waits are explicit ten-millisecond
 scheduling intervals controlled by the example. Vendor libraries and the
 Python evidence harness are test-only and are not linked into OpenRTDDS.
 
+### Live OpenRTDDS reader behavior
+
+ORT-INT-009 completes the reverse G3 direction. The
+`openrtdds_vendor_best_effort_reader` example has the same domain, participant
+index, ports, caller-selected IPv4 interface, fixed buffers, and three-socket
+ownership model as the live writer. Its SPDP endpoint mask advertises the
+participant announcer/detector, publications detector, and subscriptions
+announcer. Its SEDP sample announces best-effort reader `00 00 01 04` with the
+exact `OpenRTDDSProbe` topic, `VendorProbe` type, volatile durability, and
+user-data unicast locator.
+
+Every 250 milliseconds the reader sends SPDP and, after participant discovery,
+its subscriptions SEDP DATA plus an increasing HEARTBEAT to the vendor's
+metatraffic unicast locator. A vendor subscriptions-reader ACKNACK causes an
+immediate SEDP repair and proves the vendor consumed the local subscription.
+A publications-writer HEARTBEAT is accepted only from the discovered vendor
+prefix and only for a non-empty sequence range no larger than 256 bits. The
+reader answers with an ACKNACK preceded by `INFO_DST` for that vendor prefix.
+SEDP DATA is dispatched before a HEARTBEAT in the same datagram, then
+`evaluate_endpoint_match` requires writer kind, topic, type, best-effort
+reliability, and volatile durability.
+
+The user-data socket accepts a sample only after a compatible publication is
+known. `parse_data_message` must report a valid unfragmented DATA submessage;
+its effective source prefix and writer EntityId must equal the matched SPDP and
+SEDP identities. Its destination, when present, must be the local participant,
+and its reader EntityId must be either `00 00 01 04` or the unknown reader.
+`CdrReader` then requires a valid XCDR1 encapsulation, exactly one unsigned
+32-bit value equal to `0x4F525444`, and zero trailing bytes. Samples failing any
+check are ignored until the fixed 12-second reader deadline.
+
+The vendor programs expose `publish-openrtdds`. They create an explicitly
+best-effort UDP writer, wait three seconds for discovery, and write the same
+fixed sample four times at 100-millisecond intervals as bounded test stimulus.
+Fast DDS disables DataSharing. `run_live_reader.py` starts the OpenRTDDS reader
+first, starts the vendor writer 300 milliseconds later, enforces one 16-second
+deadline, terminates unfinished children, and preserves commands, versions,
+exit codes, timeout flags, and both output streams as JSON evidence.
+
+| Reader interface | Success | Failure |
+|---|---|---|
+| participant discovery | valid SPDP and metatraffic UDPv4 locator | timeout exits `7` |
+| publication HEARTBEAT | bounded, `INFO_DST`-directed ACKNACK sent | send/build failure exits `6`; oversize range ignored |
+| writer parse/match | correlated SEDP writer and `MatchStatus::matched` | timeout exits `8` |
+| subscription ACKNACK | SEDP repair sent | timeout exits `9`; send failure exits `6` |
+| DATA identity | source participant, writer, destination, and reader all match | datagram ignored |
+| CDR sample | exact unsigned value and no trailing bytes | datagram ignored; timeout exits `10` |
+| process harness | both children exit zero before 16 seconds | evidence retained and harness exits `1` |
+
 ## Normal sequence
 
 ```mermaid
@@ -305,6 +354,25 @@ sequenceDiagram
     O-->>H: discovery and send success
 ```
 
+```mermaid
+sequenceDiagram
+    participant H as CI harness
+    participant O as OpenRTDDS reader
+    participant V as Vendor writer
+    H->>O: start bounded reader
+    H->>V: create best-effort writer
+    O->>V: SPDP participant
+    V-->>O: SPDP participant + publication HEARTBEAT
+    O->>V: INFO_DST + ACKNACK missing publication SEDP
+    V-->>O: publication SEDP DATA + HEARTBEAT
+    O->>O: parse and match writer
+    O->>V: subscription SEDP + HEARTBEAT
+    V-->>O: subscriptions ACKNACK
+    O->>V: repaired subscription SEDP DATA
+    V-->>O: DATA(0x4F525444)
+    O-->>H: identity and CDR sample valid
+```
+
 ## Failure behavior
 
 | Failure | Detection | Recovery owner |
@@ -332,6 +400,10 @@ sequenceDiagram
 | Vendor reader is absent or incompatible | writer exit `8` at ten seconds | endpoint/QoS owner |
 | Vendor publications reader does not request SEDP | writer exit `12` at ten seconds | discovery reliability owner |
 | Vendor rejects or does not take DATA | vendor nonzero exit before 16 seconds | wire-compatibility owner |
+| Vendor writer is absent or incompatible | reader exit `8` at 12 seconds | endpoint/QoS owner |
+| Vendor subscriptions reader does not request SEDP | reader exit `9` at 12 seconds | discovery reliability owner |
+| DATA destination or source identity differs | DATA ignored; reader exit `10` if no valid sample arrives | wire-compatibility owner |
+| CDR is malformed, differs, or has trailing bytes | DATA ignored; reader exit `10` if no valid sample arrives | serialization owner |
 | Either live child exceeds the deadline | harness timeout flag and exit `1` | CI/integration owner |
 
 No failure is silently skipped. The C++ probe never transmits, retries,
@@ -352,9 +424,14 @@ RAII. The Python harness owns exactly two child processes and kills an
 unfinished child at the shared 16-second deadline. The vendor reader owns the
 vendor entities and deletes them on normal completion.
 
+The live reader owns the same three descriptor roles and no vendor object.
+The vendor writer owns its DDS entities and deletes them on normal completion.
+The reverse harness has the same two-child, one-deadline ownership rule.
+
 ## Next extension
 
 ORT-INT-004, ORT-INT-007, and G2 are complete for the scoped pinned packet
-corpus. ORT-INT-008 establishes the OpenRTDDS-writer direction of G3. G3 still
-requires the vendor-writer to OpenRTDDS-reader direction, planned for PR19.
-No ROS 2 RMW evidence is claimed here.
+corpus. ORT-INT-008 and ORT-INT-009 implement both best-effort G3 directions
+for Fast DDS and Cyclone DDS. G3 is promoted to passed only after the live
+ORT-INT-009 CI evidence is green. Reliable live exchange and a ROS 2 RMW remain
+separate extensions; no ROS 2 RMW evidence is claimed here.
