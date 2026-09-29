@@ -1,5 +1,5 @@
 /* Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
- * Requirements: ORT-INT-008, ORT-INT-009, ORT-INT-010 */
+ * Requirements: ORT-INT-008, ORT-INT-009, ORT-INT-010, ORT-INT-011 */
 #include <dds/dds.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,7 +31,8 @@ int main(int argc, char **argv) {
     }
     if (strcmp(mode, "publish-data") == 0 ||
         strcmp(mode, "publish-reliable") == 0 ||
-        strcmp(mode, "publish-openrtdds") == 0) {
+        strcmp(mode, "publish-openrtdds") == 0 ||
+        strcmp(mode, "publish-openrtdds-reliable") == 0) {
       dds_sleepfor(DDS_SECS(3));
       const VendorProbe sample = {.value = 0x4F525444U};
       const unsigned attempts = strcmp(mode, "publish-openrtdds") == 0

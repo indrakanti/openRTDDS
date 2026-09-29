@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests for the bounded live-reader process harness."""
 
-# Verifies: ORT-INT-009
+# Verifies: ORT-INT-009, ORT-INT-011
 
 import json
 import subprocess
@@ -22,7 +22,9 @@ class LiveReaderHarnessTests(unittest.TestCase):
         path.chmod(path.stat().st_mode | 0o111)
         return path
 
-    def run_harness(self, root: Path, writer: Path, reader: Path):
+    def run_harness(
+            self, root: Path, writer: Path, reader: Path,
+            qos: str = "best_effort"):
         evidence = root / "evidence.json"
         command = [
             sys.executable, str(HARNESS),
@@ -32,6 +34,7 @@ class LiveReaderHarnessTests(unittest.TestCase):
             "--writer", str(writer),
             "--reader", str(reader),
             "--reader-address", "127.0.0.1",
+            "--qos", qos,
         ]
         result = subprocess.run(
             command, text=True, capture_output=True, check=False)
@@ -59,6 +62,32 @@ class LiveReaderHarnessTests(unittest.TestCase):
             self.assertEqual(
                 evidence["writer_command"][-1], "publish-openrtdds")
             self.assertEqual(evidence["reader_command"][-1], "127.0.0.1")
+
+    def test_reliable_mode_records_bounded_commands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            writer = self.make_program(
+                root, "writer",
+                '[ "$1" = "publish-openrtdds-reliable" ]\n'
+                'echo "vendor wrote reliable sample"\n')
+            reader = self.make_program(
+                root, "reader",
+                '[ "$1" = "--reliable" ]\n'
+                '[ "$2" = "127.0.0.1" ]\n'
+                'echo "OpenRTDDS acknowledged reliable sample"\n')
+            result, evidence = self.run_harness(
+                root, writer, reader, "reliable")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(evidence["qos"], "reliable")
+            self.assertEqual(evidence["timeout_seconds"], 20)
+            self.assertEqual(
+                evidence["writer_command"][-1],
+                "publish-openrtdds-reliable")
+            self.assertEqual(evidence["reader_command"][-2], "--reliable")
+            self.assertEqual(evidence["writer_exit"], 0)
+            self.assertEqual(evidence["reader_exit"], 0)
+            self.assertFalse(evidence["writer_timeout"])
+            self.assertFalse(evidence["reader_timeout"])
 
     def test_reader_failure_is_preserved(self):
         with tempfile.TemporaryDirectory() as directory:

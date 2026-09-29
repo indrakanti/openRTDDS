@@ -231,6 +231,29 @@ jobs:
             --writer /tmp/emit_cyclone \
             --reader ./build/openrtdds_vendor_best_effort_reader \
             --reader-address "$(hostname -I | cut -d' ' -f1)"
+      - name: Exchange reliable Fast DDS writer to OpenRTDDS reader
+        run: |
+          FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+            python3 tests/interop/run_live_reader.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --evidence artifacts/vendor-packets/fastdds/live-openrtdds-reliable-reader.json \
+            --writer /tmp/emit_fastdds \
+            --reader ./build/openrtdds_vendor_best_effort_reader \
+            --reader-address "$(hostname -I | cut -d' ' -f1)" \
+            --qos reliable
+      - name: Exchange reliable Cyclone DDS writer to OpenRTDDS reader
+        env:
+          CYCLONEDDS_URI: '<CycloneDDS><Domain id="any"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery></Domain></CycloneDDS>'
+        run: |
+          python3 tests/interop/run_live_reader.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --evidence artifacts/vendor-packets/cyclonedds/live-openrtdds-reliable-reader.json \
+            --writer /tmp/emit_cyclone \
+            --reader ./build/openrtdds_vendor_best_effort_reader \
+            --reader-address "$(hostname -I | cut -d' ' -f1)" \
+            --qos reliable
       - name: Preserve captured packet evidence
         if: always()
         uses: actions/upload-artifact@v4

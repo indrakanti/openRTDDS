@@ -1,10 +1,10 @@
 # Vendor interoperability detailed design
 
-**Design status:** Current for G2, both G3 best-effort directions, and the
-OpenRTDDS reliable-writer direction
+**Design status:** Current for G2 and both best-effort and reliable live
+directions
 **Requirements:** ORT-INT-001, ORT-INT-002, ORT-INT-003  
 **Requirements:** ORT-INT-004, ORT-INT-005, ORT-INT-006, ORT-INT-007
-**Requirements:** ORT-INT-008, ORT-INT-009, ORT-INT-010
+**Requirements:** ORT-INT-008, ORT-INT-009, ORT-INT-010, ORT-INT-011
 
 ## Behavior and interfaces
 
@@ -350,6 +350,68 @@ exit codes, timeout flags, and both output streams as JSON evidence.
 | CDR sample | exact unsigned value and no trailing bytes | datagram ignored; timeout exits `10` |
 | process harness | both children exit zero before 16 seconds | evidence retained and harness exits `1` |
 
+### Live reliable OpenRTDDS reader behavior
+
+ORT-INT-011 extends `openrtdds_vendor_best_effort_reader` with `--reliable`;
+omitting the option preserves ORT-INT-009. The subscription and local reader
+descriptors request `ReliabilityKind::reliable`, so SEDP matching rejects a
+best-effort vendor writer. The matched publication supplies both the exact user
+writer EntityId and its UDPv4 unicast locator, with the participant default
+unicast locator as the DDSI fallback. The vendor modes
+`publish-openrtdds-reliable` create one reliable writer, publish the fixed
+sample once after discovery, and remain alive for the vendor reliability
+protocol to complete.
+
+The reader constructs its fixed state only after a compatible publication is
+correlated to the SPDP participant:
+
+```cpp
+ReliableReaderConfig config{
+    .reader_id = user_reader,
+    .writer_id = discovered_writer,
+    .initial_sequence_number = 1,
+};
+ReliableReader<8> reader(config);
+ReliabilityActionBuffer<4> actions;
+```
+
+`ReliableReader<8>` contains an inline eight-sequence receive window; it does
+not retain application payload bytes. A user datagram is interpreted in DATA
+then HEARTBEAT order even when both submessages are compounded. DATA must pass
+the ORT-INT-009 participant, writer, destination, reader, CDR representation,
+exact value, and trailing-byte checks before `on_data()` is called. A valid
+sample advances the receive base and emits `sample_received`. Duplicate and
+stale repairs are ignored without delivering the sample twice; all other
+state errors terminate the example.
+
+A user HEARTBEAT must have the discovered source prefix and writer EntityId,
+and target either `00 00 01 04` or the unknown reader. Unknown-reader
+HEARTBEAT is normalized to the matched local reader only after those checks so
+the state machine emits a correctly addressed ACKNACK. If the HEARTBEAT covers
+an absent sequence, `on_heartbeat()` sets the missing bit in a bounded
+`SequenceNumberSet`; if DATA has advanced the base beyond the writer's last
+sequence and the HEARTBEAT is non-final, it emits an empty final ACKNACK. The
+ACKNACK is built through `ReliabilityMessageBuilder`, preceded by `INFO_DST`
+for the vendor participant, and sent to the discovered user-data locator.
+
+| Reader interface | Preconditions | Success | Failure/error |
+|---|---|---|---|
+| publication match | correlated SPDP/SEDP writer with reliable QoS | user locator and fixed reader state initialized | discovery timeout; exit `8` |
+| `parse_data_message` + CDR | matched source/writer/destination/reader and exact value | candidate sequence accepted | invalid datagram ignored until deadline |
+| `ReliableReader::on_data` | sequence inside eight-entry window | `sample_received`, base advances | non-duplicate/stale `ReliabilityError`; exit `11` |
+| `parse_heartbeat_message` | matched source/writer and local/unknown reader | bounded `HeartbeatView` | unrelated or malformed control ignored |
+| `ReliableReader::on_heartbeat` | valid non-stale count/range | one `send_acknack` action when required | non-stale state error; exit `11` |
+| ACKNACK build/send | bounded action and discovered user locator | directed repair request or delivery acknowledgment | build/direction/send failure; exit `12` |
+| reliable completion | exact sample plus empty ACKNACK base above its sequence | example exits `0` | no delivery ACKNACK by 12 seconds; exit `13` |
+| process harness | both children finish before 20 seconds | JSON with `qos: reliable` | evidence retained; harness exits `1` |
+
+The reader maps malformed control to `ORT-FLT-RTPS-001` or
+`ORT-FLT-RTPS-002`, invalid sequence to `ORT-FLT-RTPS-003`, an unrepairable
+gap to `ORT-FLT-REL-001`, state capacity to the configured resource policy,
+ACKNACK send failure to `ORT-FLT-UDP-002`, and missing completion to the
+application deadline/availability policy. It returns immediate errors only;
+fault publication and safe-state selection remain outside this example.
+
 ## Normal sequence
 
 ```mermaid
@@ -449,6 +511,25 @@ sequenceDiagram
 sequenceDiagram
     participant H as CI harness
     participant O as OpenRTDDS reader
+    participant V as Reliable vendor writer
+    H->>O: start reader --reliable
+    H->>V: create reliable writer
+    O->>V: SPDP + reliable subscription SEDP
+    V-->>O: SPDP + reliable publication SEDP
+    O->>O: match participant, writer, and QoS
+    V-->>O: HEARTBEAT before DATA
+    O->>V: INFO_DST + ACKNACK missing sequence
+    V-->>O: DATA + HEARTBEAT
+    O->>O: validate CDR and advance receive base
+    O->>V: INFO_DST + final ACKNACK
+    O-->>H: sample accepted and delivery acknowledged
+    V-->>H: reliable writer completes
+```
+
+```mermaid
+sequenceDiagram
+    participant H as CI harness
+    participant O as OpenRTDDS reader
     participant V as Vendor writer
     H->>O: start bounded reader
     H->>V: create best-effort writer
@@ -499,6 +580,11 @@ sequenceDiagram
 | Vendor subscriptions reader does not request SEDP | reader exit `9` at 12 seconds | discovery reliability owner |
 | DATA destination or source identity differs | DATA ignored; reader exit `10` if no valid sample arrives | wire-compatibility owner |
 | CDR is malformed, differs, or has trailing bytes | DATA ignored; reader exit `10` if no valid sample arrives | serialization owner |
+| Reliable DATA lies outside the eight-sequence receive window | state error and reader exit `11` | writer/reliability owner |
+| Reliable HEARTBEAT identifies another participant, writer, or reader | control ignored without state change | routing/discovery owner |
+| Reliable HEARTBEAT exposes an unrepairable gap | `gap_not_repairable`, reader exit `11` | writer/reliability owner |
+| Reliable ACKNACK construction or send fails | reader exit `12` | transport/control owner |
+| Sample arrives but delivery ACKNACK is not emitted | reader exit `13` at deadline | reliability/application owner |
 | Either live child exceeds the deadline | harness timeout flag and exit `1` | CI/integration owner |
 
 No failure is silently skipped. The C++ probe never transmits, retries,
@@ -529,6 +615,11 @@ seconds and its retained record expires at three seconds.
 The live reader owns the same three descriptor roles and no vendor object.
 The vendor writer owns its DDS entities and deletes them on normal completion.
 The reverse harness has the same two-child, one-deadline ownership rule.
+Reliable reader mode adds one inline eight-entry sequence window, a four-entry
+action buffer, and fixed ACKNACK/directed-message buffers. It adds no payload
+history, descriptor, thread, heap-backed collection, or blocking operation.
+The reliable harness deadline is 20 seconds while the reader's own discovery,
+sample, and control deadline remains 12 seconds.
 
 ## Next extension
 
@@ -537,5 +628,7 @@ corpus. ORT-INT-008 and ORT-INT-009 implement both best-effort G3 directions
 for Fast DDS and Cyclone DDS. The pinned ORT-INT-009 live CI evidence is green,
 so G3 is passed for that bounded scope. ORT-INT-010 is Verified by both pinned
 vendor CI exchanges and establishes the OpenRTDDS reliable-writer direction.
-The reverse reliable direction and a ROS 2 RMW remain separate extensions; no
-bidirectional reliable or ROS 2 RMW evidence is claimed here.
+ORT-INT-011 is Verified by both pinned vendor CI exchanges and establishes the
+reverse reliable direction. Together they provide bounded bidirectional
+reliable evidence for the documented versions and settings. A ROS 2 RMW
+remains a separate extension; no ROS 2 readiness is claimed here.
