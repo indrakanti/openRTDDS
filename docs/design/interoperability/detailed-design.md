@@ -432,6 +432,6 @@ The reverse harness has the same two-child, one-deadline ownership rule.
 
 ORT-INT-004, ORT-INT-007, and G2 are complete for the scoped pinned packet
 corpus. ORT-INT-008 and ORT-INT-009 implement both best-effort G3 directions
-for Fast DDS and Cyclone DDS. G3 is promoted to passed only after the live
-ORT-INT-009 CI evidence is green. Reliable live exchange and a ROS 2 RMW remain
-separate extensions; no ROS 2 RMW evidence is claimed here.
+for Fast DDS and Cyclone DDS. The pinned ORT-INT-009 live CI evidence is green,
+so G3 is passed for that bounded scope. Reliable live exchange and a ROS 2 RMW
+remain separate extensions; no ROS 2 RMW evidence is claimed here.

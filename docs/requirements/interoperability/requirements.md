@@ -1,7 +1,8 @@
 # Vendor packet interoperability evidence
 
-This feature verifies received SPDP and publications SEDP wire subsets against
-actual vendor implementations. It does not establish live DDS interoperability.
+This feature verifies received RTPS wire subsets and bounded live best-effort
+exchanges against pinned vendor implementations. It does not establish
+drop-in DDS compatibility outside the documented feature and version scope.
 
 ### ORT-INT-001 — Vendor packet generation
 
@@ -130,7 +131,7 @@ can discover an OpenRTDDS writer and consume an OpenRTDDS application sample.
 
 ### ORT-INT-009 — Live vendor writer to OpenRTDDS reader gate
 
-**Status:** Implemented
+**Status:** Verified
 **Verification:** Test
 
 The CI interoperability job shall run one OpenRTDDS best-effort reader against

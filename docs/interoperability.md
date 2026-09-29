@@ -10,7 +10,7 @@ green.
 | G0 — Internal wire conformance | Golden RTPS 2.5 subset bytes and defensive parser tests | Passed |
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
-| G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | In progress: reader direction implemented in PR19; live CI pending |
+| G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR19 for pinned best-effort scope |
 | G4 — ROS 2 RMW | `rmw_openrtdds` passes selected ROS 2 conformance and graph tests | Planned |
 
 ## Vendor matrix planned for G2 and G3
@@ -50,8 +50,8 @@ bounded probe sample to the discovered reader locator. The reverse vendor
 writer to OpenRTDDS reader direction is implemented by PR19. The bounded
 OpenRTDDS reader announces its subscription, repairs reliable built-in
 discovery, correlates live SPDP/SEDP/DATA identities, and validates the exact
-CDR sample. G3 passes only after both pinned vendors complete that reverse live
-gate in CI.
+CDR sample. Both pinned vendors complete both live directions in CI, so G3 is
+passed for the documented best-effort package versions and settings.
 
 ## ROS 2 boundary
 
@@ -63,6 +63,7 @@ discovery, type support, QoS mapping, graph discovery, services, and clients.
 
 ## Claim policy
 
-Until G3 passes, release notes may say “RTPS 2.5-oriented subset” and identify
-the passed gates. They shall not say “Fast DDS compatible,” “Cyclone DDS
-compatible,” “drop-in DDS,” or “ROS 2 ready.”
+With G3 passed, release notes may claim bounded live best-effort
+interoperability with the exact pinned Fast DDS and Cyclone DDS versions and
+settings. They shall not generalize this evidence to reliable live exchange,
+drop-in DDS compatibility, other vendor versions, or ROS 2 readiness.
