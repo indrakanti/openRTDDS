@@ -154,7 +154,7 @@ production UDP, discovery, matching, DATA, and CDR receive path.
 
 ### ORT-INT-010 — Live reliable OpenRTDDS writer to vendor reader gate
 
-**Status:** Implemented
+**Status:** Verified
 **Verification:** Test
 
 The CI interoperability job shall run one OpenRTDDS reliable writer against

@@ -535,7 +535,7 @@ The reverse harness has the same two-child, one-deadline ownership rule.
 ORT-INT-004, ORT-INT-007, and G2 are complete for the scoped pinned packet
 corpus. ORT-INT-008 and ORT-INT-009 implement both best-effort G3 directions
 for Fast DDS and Cyclone DDS. The pinned ORT-INT-009 live CI evidence is green,
-so G3 is passed for that bounded scope. ORT-INT-010 implements the OpenRTDDS
-reliable-writer direction; its status becomes Verified only after both pinned
-vendor CI exchanges pass. The reverse reliable direction and a ROS 2 RMW
-remain separate extensions; no ROS 2 RMW evidence is claimed here.
+so G3 is passed for that bounded scope. ORT-INT-010 is Verified by both pinned
+vendor CI exchanges and establishes the OpenRTDDS reliable-writer direction.
+The reverse reliable direction and a ROS 2 RMW remain separate extensions; no
+bidirectional reliable or ROS 2 RMW evidence is claimed here.

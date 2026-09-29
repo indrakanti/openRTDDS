@@ -76,7 +76,7 @@ interoperability with the exact pinned Fast DDS and Cyclone DDS versions and
 settings. They shall not generalize this evidence to reliable live exchange,
 drop-in DDS compatibility, other vendor versions, or ROS 2 readiness.
 
-After ORT-INT-010 is Verified, release notes may additionally claim the
+With ORT-INT-010 Verified, release notes may additionally claim the
 OpenRTDDS reliable-writer to vendor-reader direction for those exact versions,
 settings, history depth, retry bound, and repair window. Bidirectional reliable
 interoperability remains unqualified until the reverse direction passes.
