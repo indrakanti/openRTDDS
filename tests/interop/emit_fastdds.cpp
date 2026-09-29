@@ -1,5 +1,5 @@
 // Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
-// Requirements: ORT-INT-008, ORT-INT-009
+// Requirements: ORT-INT-008, ORT-INT-009, ORT-INT-010
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -36,16 +36,19 @@ int main(int argc, char** argv) {
   }
   const std::string mode = argc > 1 ? argv[1] : "participant";
   const bool reliable = mode == "publish-reliable" ||
-                        mode == "subscribe-reliable";
+                        mode == "subscribe-reliable" ||
+                        mode == "receive-openrtdds-reliable";
   const bool subscribe = mode == "subscribe-data" ||
                          mode == "subscribe-reliable" ||
-                         mode == "receive-openrtdds";
+                         mode == "receive-openrtdds" ||
+                         mode == "receive-openrtdds-reliable";
   const bool write_sample = mode == "publish-data" ||
                             mode == "publish-reliable" ||
                             mode == "publish-openrtdds";
   if (mode == "publish" || mode == "publish-data" ||
       mode == "publish-openrtdds" || mode == "subscribe-data" ||
-      mode == "receive-openrtdds" || reliable) {
+      mode == "receive-openrtdds" ||
+      mode == "receive-openrtdds-reliable" || reliable) {
     TypeSupport type(new VendorProbePubSubType());
     if (type.register_type(participant) != ReturnCode_t::RETCODE_OK) {
       std::cerr << "Fast DDS type registration failed\n";
@@ -71,7 +74,8 @@ int main(int argc, char** argv) {
         std::cerr << "Fast DDS reader creation failed\n";
         return 1;
       }
-      if (mode == "receive-openrtdds") {
+      if (mode == "receive-openrtdds" ||
+          mode == "receive-openrtdds-reliable") {
         VendorProbe sample;
         SampleInfo info;
         const auto deadline = std::chrono::steady_clock::now() +
@@ -96,6 +100,9 @@ int main(int argc, char** argv) {
         if (!accepted) {
           std::cerr << "Fast DDS did not receive OpenRTDDS sample\n";
           return 1;
+        }
+        if (reliable) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
       } else {
         std::this_thread::sleep_for(

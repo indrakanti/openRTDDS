@@ -1,7 +1,7 @@
 # Vendor packet interoperability evidence
 
 This feature verifies received RTPS wire subsets and bounded live best-effort
-exchanges against pinned vendor implementations. It does not establish
+and reliable exchanges against pinned vendor implementations. It does not establish
 drop-in DDS compatibility outside the documented feature and version scope.
 
 ### ORT-INT-001 — Vendor packet generation
@@ -151,3 +151,28 @@ process outputs as JSON evidence.
 **Rationale:** Frozen inbound packets do not demonstrate that a vendor can
 discover a live OpenRTDDS reader and deliver an application sample through the
 production UDP, discovery, matching, DATA, and CDR receive path.
+
+### ORT-INT-010 — Live reliable OpenRTDDS writer to vendor reader gate
+
+**Status:** Verified
+**Verification:** Test
+
+The CI interoperability job shall run one OpenRTDDS reliable writer against
+reliable readers created by each pinned vendor in domain 43. OpenRTDDS shall
+complete the ORT-INT-008 participant, subscription, QoS, endpoint, and
+publications-reader discovery checks with reliable requested/offered QoS. It
+shall retain exactly one bounded serialized DATA datagram, transmit sequence
+number 1, and send `INFO_DST`-directed HEARTBEAT messages whose reader and
+writer identities match the discovered subscription and local publication.
+It shall accept ACKNACK only from the discovered participant and reader for
+that writer, process it through `ReliableWriter`, retransmit only when the
+bounded bitmap requests sequence 1, allow at most two repairs inside a
+three-second repair window, and report success only after an ACKNACK confirms
+delivery. The vendor API shall take and validate `VendorProbe.value =
+0x4F525444` within one 20-second process deadline. The job shall preserve the
+vendor version, QoS, commands, exit results, timeout results, and both process
+outputs as JSON evidence.
+
+**Rationale:** A reliable wire fixture does not demonstrate live OpenRTDDS
+history ownership, HEARTBEAT/ACKNACK processing, bounded repair, or confirmed
+delivery to an independently implemented reader.

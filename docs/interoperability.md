@@ -53,6 +53,14 @@ discovery, correlates live SPDP/SEDP/DATA identities, and validates the exact
 CDR sample. Both pinned vendors complete both live directions in CI, so G3 is
 passed for the documented best-effort package versions and settings.
 
+PR20 adds the first live reliable direction. The OpenRTDDS writer offers
+reliable QoS, retains one bounded DATA datagram, emits directed HEARTBEATs,
+processes correlated vendor ACKNACKs through the production reliability state
+machine, permits at most two requested repairs inside three seconds, and
+requires positive delivery acknowledgment. Fast DDS and Cyclone DDS readers
+must both take the exact sample inside the shared 20-second CI deadline. The
+reverse reliable vendor-writer direction remains a separate gate.
+
 ## ROS 2 boundary
 
 ROS 2 can run over OpenRTDDS only after a separate ROS middleware adapter,
@@ -67,3 +75,8 @@ With G3 passed, release notes may claim bounded live best-effort
 interoperability with the exact pinned Fast DDS and Cyclone DDS versions and
 settings. They shall not generalize this evidence to reliable live exchange,
 drop-in DDS compatibility, other vendor versions, or ROS 2 readiness.
+
+With ORT-INT-010 Verified, release notes may additionally claim the
+OpenRTDDS reliable-writer to vendor-reader direction for those exact versions,
+settings, history depth, retry bound, and repair window. Bidirectional reliable
+interoperability remains unqualified until the reverse direction passes.
