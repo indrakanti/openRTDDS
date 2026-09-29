@@ -74,7 +74,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-INT-008 | Verified | `udp_socket.cpp`, `examples/vendor_best_effort_writer.cpp`, `tests/interop/emit_*.{c,cpp}` | `run_live_writer.py`, `vendor-packets` CI job | `vendor_best_effort_writer.cpp` |
 | ORT-INT-009 | Verified | `examples/vendor_best_effort_reader.cpp`, `tests/interop/emit_*.{c,cpp}` | `test_run_live_reader.py`, `run_live_reader.py`, `vendor-packets` CI job | `vendor_best_effort_reader.cpp` |
 | ORT-INT-010 | Verified | `rtps/reliability_state.hpp`, `examples/vendor_best_effort_writer.cpp`, `tests/interop/emit_*.{c,cpp}` | `test_run_live_writer.py`, `run_live_writer.py`, `vendor-packets` CI job | `vendor_best_effort_writer.cpp --reliable` |
-| ORT-INT-011 | Implemented | `rtps/reliability_state.hpp`, `examples/vendor_best_effort_reader.cpp`, `tests/interop/emit_*.{c,cpp}` | `test_run_live_reader.py`, `run_live_reader.py`, `vendor-packets` CI job | `vendor_best_effort_reader.cpp --reliable` |
+| ORT-INT-011 | Verified | `rtps/reliability_state.hpp`, `examples/vendor_best_effort_reader.cpp`, `tests/interop/emit_*.{c,cpp}` | `test_run_live_reader.py`, `run_live_reader.py`, `vendor-packets` CI job | `vendor_best_effort_reader.cpp --reliable` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

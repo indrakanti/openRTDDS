@@ -179,7 +179,7 @@ delivery to an independently implemented reader.
 
 ### ORT-INT-011 — Live reliable vendor writer to OpenRTDDS reader gate
 
-**Status:** Implemented
+**Status:** Verified
 **Verification:** Test
 
 The CI interoperability job shall run one OpenRTDDS reliable reader against

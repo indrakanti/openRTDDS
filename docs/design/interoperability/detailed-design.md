@@ -628,7 +628,7 @@ corpus. ORT-INT-008 and ORT-INT-009 implement both best-effort G3 directions
 for Fast DDS and Cyclone DDS. The pinned ORT-INT-009 live CI evidence is green,
 so G3 is passed for that bounded scope. ORT-INT-010 is Verified by both pinned
 vendor CI exchanges and establishes the OpenRTDDS reliable-writer direction.
-ORT-INT-011 implements the reverse reliable direction; its status becomes
-Verified only after both pinned vendor CI exchanges pass. A ROS 2 RMW remains
-a separate extension; no bidirectional reliable or ROS 2 RMW evidence is
-claimed before that verification.
+ORT-INT-011 is Verified by both pinned vendor CI exchanges and establishes the
+reverse reliable direction. Together they provide bounded bidirectional
+reliable evidence for the documented versions and settings. A ROS 2 RMW
+remains a separate extension; no ROS 2 readiness is claimed here.
