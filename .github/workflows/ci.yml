@@ -67,7 +67,8 @@ jobs:
           cmake -S . -B build -DOPENRTDDS_WARNINGS_AS_ERRORS=ON \
             -DOPENRTDDS_BUILD_EXAMPLES=ON
           cmake --build build --target openrtdds_vendor_packet_probe \
-            openrtdds_vendor_best_effort_writer --parallel
+            openrtdds_vendor_best_effort_writer \
+            openrtdds_vendor_best_effort_reader --parallel
       - name: Validate capture filter
         run: python3 -m unittest discover -s tests/interop -p 'test_*.py'
       - name: Capture Fast DDS SPDP packet
