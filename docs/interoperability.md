@@ -61,6 +61,14 @@ requires positive delivery acknowledgment. Fast DDS and Cyclone DDS readers
 must both take the exact sample inside the shared 20-second CI deadline. The
 reverse reliable vendor-writer direction remains a separate gate.
 
+PR21 adds the reverse live reliable direction. The OpenRTDDS reader requests
+reliable QoS, tracks an eight-sequence fixed receive window, processes DATA
+before HEARTBEAT in compound datagrams, requests a missing vendor sequence,
+and sends a directed final ACKNACK only after validating the exact sample.
+Fast DDS and Cyclone DDS writers must both complete inside the shared
+20-second CI deadline. Passing this gate establishes bidirectional reliable
+exchange only for the exact pinned versions and documented bounds.
+
 ## ROS 2 boundary
 
 ROS 2 can run over OpenRTDDS only after a separate ROS middleware adapter,
@@ -80,3 +88,8 @@ With ORT-INT-010 Verified, release notes may additionally claim the
 OpenRTDDS reliable-writer to vendor-reader direction for those exact versions,
 settings, history depth, retry bound, and repair window. Bidirectional reliable
 interoperability remains unqualified until the reverse direction passes.
+
+After ORT-INT-011 is Verified, release notes may claim bounded bidirectional
+reliable interoperability for the exact pinned versions and settings. They
+shall not generalize that evidence to arbitrary histories, payload sizes,
+vendor versions, drop-in DDS compatibility, or ROS 2 readiness.

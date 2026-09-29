@@ -11,13 +11,14 @@
 #include "openrtdds/rtps/data_message.hpp"
 #include "openrtdds/rtps/message_router.hpp"
 #include "openrtdds/rtps/reliability_messages.hpp"
+#include "openrtdds/rtps/reliability_state.hpp"
 #include "openrtdds/rtps/sedp.hpp"
 #include "openrtdds/rtps/spdp.hpp"
 #include "openrtdds/serialization/cdr.hpp"
 #include "openrtdds/transport/udp_socket.hpp"
 
-// Requirements: ORT-INT-009, ORT-UDP-006
-// Demonstrates: ORT-INT-009, ORT-UDP-006
+// Requirements: ORT-INT-009, ORT-INT-011, ORT-UDP-006
+// Demonstrates: ORT-INT-009, ORT-INT-011, ORT-UDP-006
 
 namespace {
 
@@ -119,15 +120,47 @@ template <std::size_t Capacity>
   return left.value == right.value;
 }
 
+[[nodiscard]] bool to_endpoint(const Locator& locator,
+                               UdpEndpoint& endpoint) noexcept {
+  if (!openrtdds::rtps::valid_udp_v4_locator(locator)) {
+    return false;
+  }
+  endpoint.address.octets = {{locator.address[12], locator.address[13],
+                              locator.address[14], locator.address[15]}};
+  endpoint.port = static_cast<std::uint16_t>(locator.port);
+  return true;
+}
+
+template <std::size_t Capacity>
+[[nodiscard]] bool first_endpoint(
+    const openrtdds::rtps::BoundedLocatorList<Capacity>& locators,
+    UdpEndpoint& endpoint) noexcept {
+  for (std::size_t index = 0U; index < locators.size; ++index) {
+    if (to_endpoint(locators[index], endpoint)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 int main(const int argc, char** const argv) {
   using namespace openrtdds::rtps;
 
   Ipv4Address local_address = loopback;
-  if ((argc > 2) || ((argc == 2) && !parse_address(argv[1], local_address))) {
-    std::cerr << "usage: openrtdds_vendor_best_effort_reader [local-ipv4]\n";
-    return 1;
+  bool address_set = false;
+  bool reliable = false;
+  for (int index = 1; index < argc; ++index) {
+    if (std::strcmp(argv[index], "--reliable") == 0) {
+      reliable = true;
+    } else if (!address_set && parse_address(argv[index], local_address)) {
+      address_set = true;
+    } else {
+      std::cerr << "usage: openrtdds_vendor_best_effort_reader "
+                   "[--reliable] [local-ipv4]\n";
+      return 1;
+    }
   }
 
   std::uint16_t multicast_port = 0U;
@@ -205,7 +238,8 @@ int main(const int argc, char** const argv) {
               subscription.endpoint.topic_name_size);
   std::memcpy(subscription.endpoint.type_name.data(), type_name,
               subscription.endpoint.type_name_size);
-  subscription.endpoint.reliability = ReliabilityKind::best_effort;
+  subscription.endpoint.reliability = reliable
+      ? ReliabilityKind::reliable : ReliabilityKind::best_effort;
   subscription.endpoint.durability = DurabilityKind::volatile_durability;
   subscription.reader_id = subscriptions_reader;
   static_cast<void>(subscription.endpoint.unicast_locators.push_back(
@@ -237,17 +271,23 @@ int main(const int argc, char** const argv) {
   local_reader.topic_name_size = sizeof(topic_name) - 1U;
   local_reader.type_name = type_name;
   local_reader.type_name_size = sizeof(type_name) - 1U;
-  local_reader.reliability = ReliabilityKind::best_effort;
+  local_reader.reliability = reliable
+      ? ReliabilityKind::reliable : ReliabilityKind::best_effort;
   local_reader.durability = DurabilityKind::volatile_durability;
 
   const UdpEndpoint spdp_destination{spdp_group, multicast_port};
   SpdpMessageView remote_participant{};
   SedpMessageView remote_writer{};
   UdpEndpoint remote_metadata{};
+  UdpEndpoint remote_user{};
   bool participant_found = false;
   bool writer_found = false;
   bool subscription_requested = false;
   bool sample_received = false;
+  bool delivery_ack_sent = false;
+  bool reliable_state_ready = false;
+  std::uint64_t accepted_sequence = 0U;
+  ReliableReader<8U> reliable_reader;
   std::int32_t acknack_count = 1;
   std::int32_t heartbeat_count = 1;
   auto next_announcement = std::chrono::steady_clock::time_point::min();
@@ -255,7 +295,8 @@ int main(const int argc, char** const argv) {
                         std::chrono::seconds(12);
   std::array<std::uint8_t, 2048U> incoming{};
 
-  while (std::chrono::steady_clock::now() < deadline && !sample_received) {
+  while (std::chrono::steady_clock::now() < deadline &&
+         (!sample_received || (reliable && !delivery_ack_sent))) {
     const auto now = std::chrono::steady_clock::now();
     if (now >= next_announcement) {
       if (!metadata_socket.send_to(spdp_destination, spdp.data(), spdp.size())
@@ -330,7 +371,18 @@ int main(const int argc, char** const argv) {
           evaluate_endpoint_match(local_reader, endpoint.endpoint) ==
               MatchStatus::matched) {
         remote_writer = endpoint;
-        writer_found = true;
+        writer_found = first_endpoint(endpoint.endpoint.unicast_locators,
+                                      remote_user) ||
+            first_endpoint(remote_participant.participant.default_unicast,
+                           remote_user);
+        if (reliable && writer_found && !reliable_state_ready) {
+          ReliableReaderConfig reader_config{};
+          reader_config.reader_id = user_reader;
+          reader_config.writer_id = endpoint.endpoint.endpoint_id;
+          reader_config.initial_sequence_number = 1U;
+          reliable_reader = ReliableReader<8U>(reader_config);
+          reliable_state_ready = true;
+        }
         continue;
       }
 
@@ -400,7 +452,87 @@ int main(const int argc, char** const argv) {
         std::uint32_t value = 0U;
         if (cdr.begin() && cdr.read_uint32(value) &&
             cdr.remaining() == 0U && value == sample_value) {
-          sample_received = true;
+          if (!reliable) {
+            sample_received = true;
+          } else if (reliable_state_ready) {
+            ReliabilityActionBuffer<4U> actions;
+            const auto state_error = reliable_reader.on_data(
+                sample.sequence_number, actions);
+            if (state_error == ReliabilityError::none &&
+                actions.size() == 1U &&
+                actions[0U].kind ==
+                    ReliabilityActionKind::sample_received) {
+              sample_received = true;
+              accepted_sequence = sample.sequence_number;
+            } else if (state_error != ReliabilityError::duplicate_data &&
+                       state_error != ReliabilityError::stale_data) {
+              std::cerr << "reliable DATA state failed: "
+                        << to_string(state_error) << '\n';
+              return 11;
+            }
+          }
+        }
+      }
+
+      if (reliable && reliable_state_ready) {
+        HeartbeatView user_heartbeat{};
+        const auto heartbeat_error = parse_heartbeat_message(
+            incoming.data(), incoming_size, user_heartbeat);
+        const bool addressed_to_reader =
+            user_heartbeat.reader_id == unknown_reader ||
+            user_heartbeat.reader_id == user_reader;
+        if (heartbeat_error == ReliabilityMessageError::none &&
+            same_prefix(user_heartbeat.header.guid_prefix,
+                        remote_participant.participant.guid_prefix) &&
+            user_heartbeat.writer_id ==
+                remote_writer.endpoint.endpoint_id &&
+            addressed_to_reader) {
+          user_heartbeat.reader_id = user_reader;
+          ReliabilityActionBuffer<4U> actions;
+          const auto state_error = reliable_reader.on_heartbeat(
+              user_heartbeat, actions);
+          if (state_error != ReliabilityError::none &&
+              state_error != ReliabilityError::stale_control) {
+            std::cerr << "reliable HEARTBEAT state failed: "
+                      << to_string(state_error) << '\n';
+            return 11;
+          }
+          for (std::size_t action_index = 0U;
+               action_index < actions.size(); ++action_index) {
+            const auto& action = actions[action_index];
+            if (action.kind != ReliabilityActionKind::send_acknack) {
+              continue;
+            }
+            AckNackConfig acknack_config{};
+            acknack_config.header.version = {2U, 3U};
+            acknack_config.header.vendor_id = vendor;
+            acknack_config.header.guid_prefix = prefix;
+            acknack_config.reader_id = action.reader_id;
+            acknack_config.writer_id = action.writer_id;
+            acknack_config.reader_state = action.reader_state;
+            acknack_config.count = action.control_count;
+            acknack_config.final_flag = action.final_flag;
+            std::array<std::uint8_t, 128U> acknack_bytes{};
+            std::array<std::uint8_t, 144U> directed_acknack{};
+            std::size_t directed_size = 0U;
+            ReliabilityMessageBuilder acknack(
+                acknack_bytes.data(), acknack_bytes.size());
+            if (!acknack.build_acknack(acknack_config) ||
+                !direct_message(
+                    acknack.data(), acknack.size(),
+                    remote_participant.participant.guid_prefix,
+                    directed_acknack, directed_size) ||
+                !user_socket.send_to(remote_user, directed_acknack.data(),
+                                     directed_size).ok()) {
+              std::cerr << "reliable user ACKNACK send failed\n";
+              return 12;
+            }
+            if (sample_received &&
+                action.reader_state.bitmap_base() > accepted_sequence &&
+                action.reader_state.num_bits() == 0U) {
+              delivery_ack_sent = true;
+            }
+          }
         }
       }
     }
@@ -423,8 +555,14 @@ int main(const int argc, char** const argv) {
     std::cerr << "vendor DATA receive timed out\n";
     return 10;
   }
+  if (reliable && !delivery_ack_sent) {
+    std::cerr << "reliable delivery ACKNACK timed out\n";
+    return 13;
+  }
 
-  std::cout << "OpenRTDDS received best-effort value=" << sample_value
+  std::cout << "OpenRTDDS received "
+            << (reliable ? "reliable" : "best-effort")
+            << " value=" << sample_value
             << " writer="
             << static_cast<unsigned>(remote_writer.endpoint.endpoint_id.value[2])
             << ':'

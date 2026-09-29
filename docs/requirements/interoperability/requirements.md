@@ -176,3 +176,30 @@ outputs as JSON evidence.
 **Rationale:** A reliable wire fixture does not demonstrate live OpenRTDDS
 history ownership, HEARTBEAT/ACKNACK processing, bounded repair, or confirmed
 delivery to an independently implemented reader.
+
+### ORT-INT-011 — Live reliable vendor writer to OpenRTDDS reader gate
+
+**Status:** Implemented
+**Verification:** Test
+
+The CI interoperability job shall run one OpenRTDDS reliable reader against
+reliable writers created by each pinned vendor in domain 43. OpenRTDDS shall
+complete the ORT-INT-009 participant, publication, QoS, endpoint, and
+subscriptions-reader discovery checks with reliable requested/offered QoS.
+It shall accept DATA and HEARTBEAT only from the discovered participant and
+writer and only when addressed to its reader or the unknown reader. It shall
+process valid DATA before HEARTBEAT when both occur in one datagram, track a
+fixed eight-sequence receive window through `ReliableReader`, and send an
+`INFO_DST`-directed ACKNACK to the discovered user-data locator. A HEARTBEAT
+that precedes DATA shall produce a bounded missing-sequence request; accepted
+DATA shall advance the window and the next non-final HEARTBEAT shall produce
+an empty final ACKNACK whose base confirms delivery. The reader shall report
+success only after exact CDR value `0x4F525444` is accepted and that delivery
+ACKNACK is sent. The exchange shall complete within one 20-second process
+deadline and preserve vendor version, QoS, commands, exit results, timeout
+results, and both process outputs as JSON evidence.
+
+**Rationale:** Bidirectional reliable interoperability requires evidence that
+OpenRTDDS can detect a missing live vendor sample, drive repair, advance its
+bounded receive window, and acknowledge successful delivery through standard
+RTPS control traffic.

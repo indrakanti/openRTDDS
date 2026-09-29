@@ -87,6 +87,15 @@ maps to `ORT-FLT-REL-001`; and missing delivery confirmation (`16`) is an
 availability/deadline fault owned by the application integration. These exit
 values are example-process diagnostics, not stable library fault codes.
 
+For ORT-INT-011, reliable receive-state failure (`11`) maps by
+`ReliabilityError`, including `ORT-FLT-RTPS-003` for an invalid sequence and
+`ORT-FLT-REL-001` for an unrepairable gap. ACKNACK construction or send failure
+(`12`) maps to the preserved reliability-control error or
+`ORT-FLT-UDP-002`. Missing final delivery acknowledgment (`13`) is an
+availability/deadline fault owned by the application integration. As in
+ORT-INT-010, these process exits are diagnostics rather than stable library
+fault codes.
+
 Current compound-message routing mappings are:
 
 | `MessageRouteError` | Fault code / policy |

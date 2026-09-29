@@ -1,5 +1,5 @@
 // Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
-// Requirements: ORT-INT-008, ORT-INT-009, ORT-INT-010
+// Requirements: ORT-INT-008, ORT-INT-009, ORT-INT-010, ORT-INT-011
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -37,16 +37,19 @@ int main(int argc, char** argv) {
   const std::string mode = argc > 1 ? argv[1] : "participant";
   const bool reliable = mode == "publish-reliable" ||
                         mode == "subscribe-reliable" ||
-                        mode == "receive-openrtdds-reliable";
+                        mode == "receive-openrtdds-reliable" ||
+                        mode == "publish-openrtdds-reliable";
   const bool subscribe = mode == "subscribe-data" ||
                          mode == "subscribe-reliable" ||
                          mode == "receive-openrtdds" ||
                          mode == "receive-openrtdds-reliable";
   const bool write_sample = mode == "publish-data" ||
                             mode == "publish-reliable" ||
-                            mode == "publish-openrtdds";
+                            mode == "publish-openrtdds" ||
+                            mode == "publish-openrtdds-reliable";
   if (mode == "publish" || mode == "publish-data" ||
-      mode == "publish-openrtdds" || mode == "subscribe-data" ||
+      mode == "publish-openrtdds" ||
+      mode == "publish-openrtdds-reliable" || mode == "subscribe-data" ||
       mode == "receive-openrtdds" ||
       mode == "receive-openrtdds-reliable" || reliable) {
     TypeSupport type(new VendorProbePubSubType());
