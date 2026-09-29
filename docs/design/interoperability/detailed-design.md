@@ -1,9 +1,10 @@
 # Vendor interoperability detailed design
 
-**Design status:** Current for G2 evidence and both G3 best-effort directions
+**Design status:** Current for G2, both G3 best-effort directions, and the
+OpenRTDDS reliable-writer direction
 **Requirements:** ORT-INT-001, ORT-INT-002, ORT-INT-003  
 **Requirements:** ORT-INT-004, ORT-INT-005, ORT-INT-006, ORT-INT-007
-**Requirements:** ORT-INT-008, ORT-INT-009
+**Requirements:** ORT-INT-008, ORT-INT-009, ORT-INT-010
 
 ## Behavior and interfaces
 
@@ -233,6 +234,73 @@ retry, or blocking socket call. Its only waits are explicit ten-millisecond
 scheduling intervals controlled by the example. Vendor libraries and the
 Python evidence harness are test-only and are not linked into OpenRTDDS.
 
+### Live reliable OpenRTDDS writer behavior
+
+ORT-INT-010 extends the same executable with `--reliable`; omitting the option
+preserves the ORT-INT-008 path. Discovery remains identical except that the
+publication and local writer descriptors offer `ReliabilityKind::reliable`,
+so `evaluate_endpoint_match` rejects a best-effort vendor subscription. The
+vendor programs expose `receive-openrtdds-reliable`, create a reliable reader,
+disable Fast DDS DataSharing, validate the fixed sample through the vendor
+take API, and remain alive for 500 milliseconds after acceptance so the RTPS
+reader can emit its final ACKNACK.
+
+The reliable application path reuses the production state and wire APIs:
+
+```cpp
+ReliableWriterConfig config{
+    .reader_id = discovered_reader,
+    .writer_id = user_writer,
+    .max_repair_attempts = 2,
+    .repair_window_ns = 3'000'000'000ULL,
+};
+ReliableWriter<1, 256> writer(config);
+ReliabilityActionBuffer<4> actions;
+```
+
+`ReliableWriter<1, 256>` owns exactly one retained RTPS DATA datagram. The
+256-byte record bound includes the RTPS header, DATA submessage, XCDR1
+encapsulation, and the four-byte sample. The action buffer can hold every
+possible transition for the single record without allocation. Sequence number
+1 is inserted by `write()` before the first send; failure to retain the record
+prevents any network transmission.
+
+After the initial DATA, the writer calls `fill_heartbeat()` and sends one
+HEARTBEAT every 200 milliseconds until delivery or a terminal bound. Each
+HEARTBEAT is preceded by `INFO_DST` for the discovered vendor participant and
+names the exact discovered user reader plus local user writer. Incoming user
+ACKNACK is accepted only when `parse_acknack_message()` succeeds, its source
+GUID prefix equals the SPDP participant, its reader EntityId equals the SEDP
+subscription, and its writer EntityId equals `00 00 01 03`. All other control
+traffic is ignored without changing retained history.
+
+The accepted ACKNACK is passed unchanged to `ReliableWriter::on_acknack()`.
+A set bitmap bit for sequence 1 produces one `retransmit_data` action; a base
+greater than sequence 1 produces `sample_delivered`. `stale_control` is an
+observable duplicate and is ignored. Any other state error terminates the
+example. `on_timer()` runs on every loop iteration and converts the retained
+sample to `sample_failed` at the three-second repair-window boundary. At most
+two ACKNACK-requested retransmissions are possible. The example never performs
+an autonomous DATA retry; only HEARTBEAT is periodic.
+
+| Interface | Preconditions | Success | Failure/error |
+|---|---|---|---|
+| `ReliableWriter::write` | one bounded DATA datagram, sequence 1, monotonic time | retained record plus `send_data` | `ReliabilityError`; exit `11` |
+| `fill_heartbeat` | valid configured writer state | bounded range/count for sequence 1 | state/build/send failure; exit `13` |
+| `parse_acknack_message` | immutable UDP datagram | bounded `AckNackView` | malformed or unrelated control is rejected |
+| `ReliableWriter::on_acknack` | correlated participant and endpoint identities | repair or delivery action | non-stale state error; exit `14` |
+| `ReliableWriter::on_timer` | non-regressing monotonic time | retained state or terminal failure action | state error; exit `14` |
+| repair policy | no more than two requests before 3 seconds | requested datagram retransmitted | bound exhaustion; exit `15` |
+| delivery policy | ACKNACK advances base past sequence 1 | example exits `0` | no confirmation by 4 seconds; exit `16` |
+| process harness | both children finish before 20 seconds | JSON with `qos: reliable` | evidence retained; harness exits `1` |
+
+The relevant stable fault mappings are `ORT-FLT-UDP-002` for send failure,
+`ORT-FLT-RTPS-001` or `ORT-FLT-RTPS-002` for malformed or unsupported control,
+`ORT-FLT-RTPS-003` for invalid sequence state, `ORT-FLT-TIME-001` for time
+regression, and `ORT-FLT-REL-001` for repair-window or repair-count exhaustion.
+The example reports the immediate symbolic error and numeric process exit; it
+does not publish a fault event or select a system safe state.
+
 ### Live OpenRTDDS reader behavior
 
 ORT-INT-009 completes the reverse G3 direction. The
@@ -357,6 +425,29 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant H as CI harness
+    participant O as OpenRTDDS writer
+    participant V as Reliable vendor reader
+    H->>V: create reliable reader
+    H->>O: start writer --reliable
+    O->>V: SPDP + reliable publication SEDP
+    V-->>O: SPDP + reliable subscription SEDP
+    O->>O: match participant, reader, and QoS
+    O->>V: DATA sequence 1
+    loop Every 200 ms within bounds
+        O->>V: INFO_DST + HEARTBEAT
+        V-->>O: ACKNACK
+        opt Sequence 1 requested
+            O->>V: retained DATA repair
+        end
+    end
+    O->>O: ACKNACK base confirms delivery
+    V-->>H: take validates fixed sample
+    O-->>H: reliable delivery acknowledged
+```
+
+```mermaid
+sequenceDiagram
+    participant H as CI harness
     participant O as OpenRTDDS reader
     participant V as Vendor writer
     H->>O: start bounded reader
@@ -400,6 +491,10 @@ sequenceDiagram
 | Vendor reader is absent or incompatible | writer exit `8` at ten seconds | endpoint/QoS owner |
 | Vendor publications reader does not request SEDP | writer exit `12` at ten seconds | discovery reliability owner |
 | Vendor rejects or does not take DATA | vendor nonzero exit before 16 seconds | wire-compatibility owner |
+| Reliable ACKNACK source or endpoint identity differs | control ignored; writer remains bounded | routing/discovery owner |
+| Reliable ACKNACK requests sequence 1 | one retained repair, limited to two attempts | reliability owner |
+| Reliable repair window or attempt bound expires | `sample_failed`, writer exit `15` | application/safety monitor |
+| Reliable delivery ACKNACK is absent | writer exit `16` before harness deadline | peer/network owner |
 | Vendor writer is absent or incompatible | reader exit `8` at 12 seconds | endpoint/QoS owner |
 | Vendor subscriptions reader does not request SEDP | reader exit `9` at 12 seconds | discovery reliability owner |
 | DATA destination or source identity differs | DATA ignored; reader exit `10` if no valid sample arrives | wire-compatibility owner |
@@ -424,6 +519,13 @@ RAII. The Python harness owns exactly two child processes and kills an
 unfinished child at the shared 16-second deadline. The vendor reader owns the
 vendor entities and deletes them on normal completion.
 
+Reliable mode adds one inline history record, a four-entry action buffer, a
+HEARTBEAT builder buffer, and a directed-HEARTBEAT buffer. Their storage is
+automatic and fixed. It adds no descriptor, thread, heap-backed collection, or
+blocking operation. The reliable child-process deadline is 20 seconds; the
+writer's application reliability phase is independently bounded to four
+seconds and its retained record expires at three seconds.
+
 The live reader owns the same three descriptor roles and no vendor object.
 The vendor writer owns its DDS entities and deletes them on normal completion.
 The reverse harness has the same two-child, one-deadline ownership rule.
@@ -433,5 +535,7 @@ The reverse harness has the same two-child, one-deadline ownership rule.
 ORT-INT-004, ORT-INT-007, and G2 are complete for the scoped pinned packet
 corpus. ORT-INT-008 and ORT-INT-009 implement both best-effort G3 directions
 for Fast DDS and Cyclone DDS. The pinned ORT-INT-009 live CI evidence is green,
-so G3 is passed for that bounded scope. Reliable live exchange and a ROS 2 RMW
+so G3 is passed for that bounded scope. ORT-INT-010 implements the OpenRTDDS
+reliable-writer direction; its status becomes Verified only after both pinned
+vendor CI exchanges pass. The reverse reliable direction and a ROS 2 RMW
 remain separate extensions; no ROS 2 RMW evidence is claimed here.

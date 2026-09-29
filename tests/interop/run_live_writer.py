@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run a bounded OpenRTDDS-writer to vendor-reader exchange."""
 
-# Requirements: ORT-INT-008
-# Verifies: ORT-INT-008
+# Requirements: ORT-INT-008, ORT-INT-010
+# Verifies: ORT-INT-008, ORT-INT-010
 
 import argparse
 import json
@@ -37,13 +37,21 @@ def main() -> int:
     parser.add_argument("--reader", required=True)
     parser.add_argument("--writer", required=True)
     parser.add_argument("--writer-address")
+    parser.add_argument(
+        "--qos", choices=("best_effort", "reliable"),
+        default="best_effort")
     args = parser.parse_args()
 
-    reader_command = [args.reader, "receive-openrtdds"]
+    reader_mode = "receive-openrtdds-reliable" \
+        if args.qos == "reliable" else "receive-openrtdds"
+    reader_command = [args.reader, reader_mode]
     writer_command = [args.writer]
+    if args.qos == "reliable":
+        writer_command.append("--reliable")
     if args.writer_address:
         writer_command.append(args.writer_address)
-    deadline = time.monotonic() + 16.0
+    timeout_seconds = 20 if args.qos == "reliable" else 16
+    deadline = time.monotonic() + timeout_seconds
     reader = None
     writer = None
     reader_code = None
@@ -80,9 +88,9 @@ def main() -> int:
         "package_version": args.version,
         "domain_id": 43,
         "direction": "openrtdds_writer_to_vendor_reader",
-        "qos": "best_effort",
+        "qos": args.qos,
         "sample_uint32": 0x4F525444,
-        "timeout_seconds": 16,
+        "timeout_seconds": timeout_seconds,
         "reader_command": reader_command,
         "writer_command": writer_command,
         "reader_exit": reader_code,

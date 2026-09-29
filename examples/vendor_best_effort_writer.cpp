@@ -11,13 +11,14 @@
 #include "openrtdds/rtps/data_message.hpp"
 #include "openrtdds/rtps/message_router.hpp"
 #include "openrtdds/rtps/reliability_messages.hpp"
+#include "openrtdds/rtps/reliability_state.hpp"
 #include "openrtdds/rtps/sedp.hpp"
 #include "openrtdds/rtps/spdp.hpp"
 #include "openrtdds/serialization/cdr.hpp"
 #include "openrtdds/transport/udp_socket.hpp"
 
-// Requirements: ORT-INT-008, ORT-UDP-006
-// Demonstrates: ORT-INT-008, ORT-UDP-006
+// Requirements: ORT-INT-008, ORT-INT-010, ORT-UDP-006
+// Demonstrates: ORT-INT-008, ORT-INT-010, ORT-UDP-006
 
 namespace {
 
@@ -139,6 +140,13 @@ template <std::size_t Capacity>
   return false;
 }
 
+[[nodiscard]] std::uint64_t monotonic_now_ns() noexcept {
+  return static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(
+          std::chrono::steady_clock::now().time_since_epoch())
+          .count());
+}
+
 }  // namespace
 
 int main(const int argc, char** const argv) {
@@ -146,9 +154,18 @@ int main(const int argc, char** const argv) {
   using openrtdds::serialization::ByteOrder;
 
   Ipv4Address local_address = loopback;
-  if ((argc > 2) || ((argc == 2) && !parse_address(argv[1], local_address))) {
-    std::cerr << "usage: openrtdds_vendor_best_effort_writer [local-ipv4]\n";
-    return 1;
+  bool address_set = false;
+  bool reliable = false;
+  for (int index = 1; index < argc; ++index) {
+    if (std::strcmp(argv[index], "--reliable") == 0) {
+      reliable = true;
+    } else if (!address_set && parse_address(argv[index], local_address)) {
+      address_set = true;
+    } else {
+      std::cerr << "usage: openrtdds_vendor_best_effort_writer "
+                   "[--reliable] [local-ipv4]\n";
+      return 1;
+    }
   }
 
   std::uint16_t multicast_port = 0U;
@@ -226,7 +243,8 @@ int main(const int argc, char** const argv) {
               publication.endpoint.topic_name_size);
   std::memcpy(publication.endpoint.type_name.data(), type_name,
               publication.endpoint.type_name_size);
-  publication.endpoint.reliability = ReliabilityKind::best_effort;
+  publication.endpoint.reliability = reliable
+      ? ReliabilityKind::reliable : ReliabilityKind::best_effort;
   publication.endpoint.durability = DurabilityKind::volatile_durability;
   publication.reader_id = publications_reader;
   static_cast<void>(publication.endpoint.unicast_locators.push_back(
@@ -259,7 +277,8 @@ int main(const int argc, char** const argv) {
   local_writer.topic_name_size = sizeof(topic_name) - 1U;
   local_writer.type_name = type_name;
   local_writer.type_name_size = sizeof(type_name) - 1U;
-  local_writer.reliability = ReliabilityKind::best_effort;
+  local_writer.reliability = reliable
+      ? ReliabilityKind::reliable : ReliabilityKind::best_effort;
   local_writer.durability = DurabilityKind::volatile_durability;
 
   SpdpMessageView remote_participant{};
@@ -429,19 +448,152 @@ int main(const int argc, char** const argv) {
   if (!data.build(data_config, payload.data(), cdr.size())) {
     return 10;
   }
-  for (unsigned attempt = 0U; attempt < 4U; ++attempt) {
-    if (!user_socket.send_to(remote_user, data.data(), data.size()).ok()) {
-      std::cerr << "user DATA send failed\n";
-      return 11;
+  if (!reliable) {
+    for (unsigned attempt = 0U; attempt < 4U; ++attempt) {
+      if (!user_socket.send_to(remote_user, data.data(), data.size()).ok()) {
+        std::cerr << "user DATA send failed\n";
+        return 11;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::cout << "OpenRTDDS delivered best-effort value=" << sample_value
+              << " reader="
+              << static_cast<unsigned>(
+                     remote_reader.endpoint.endpoint_id.value[2])
+              << ':'
+              << static_cast<unsigned>(
+                     remote_reader.endpoint.endpoint_id.value[3])
+              << '\n';
+    return 0;
   }
 
-  std::cout << "OpenRTDDS delivered best-effort value=" << sample_value
+  ReliableWriterConfig reliable_config{};
+  reliable_config.reader_id = remote_reader.endpoint.endpoint_id;
+  reliable_config.writer_id = user_writer;
+  reliable_config.max_repair_attempts = 2U;
+  reliable_config.repair_window_ns = 3'000'000'000ULL;
+  ReliableWriter<1U, 256U> reliable_writer(reliable_config);
+  ReliabilityActionBuffer<4U> actions;
+  const auto write_error = reliable_writer.write(
+      data.data(), data.size(), 1U, monotonic_now_ns(), actions);
+  if (write_error != ReliabilityError::none || actions.size() != 1U ||
+      actions[0U].kind != ReliabilityActionKind::send_data ||
+      !user_socket.send_to(remote_user, actions[0U].data,
+                           actions[0U].data_size).ok()) {
+    std::cerr << "reliable DATA initial send failed: "
+              << to_string(write_error) << '\n';
+    return 11;
+  }
+
+  HeartbeatConfig user_heartbeat{};
+  user_heartbeat.header.version = {2U, 3U};
+  user_heartbeat.header.vendor_id = vendor;
+  user_heartbeat.header.guid_prefix = prefix;
+  user_heartbeat.final_flag = false;
+  std::array<std::uint8_t, 128U> user_heartbeat_bytes{};
+  std::array<std::uint8_t, 144U> directed_heartbeat{};
+  ReliabilityMessageBuilder user_heartbeat_builder(
+      user_heartbeat_bytes.data(), user_heartbeat_bytes.size());
+
+  bool delivered = false;
+  bool terminal_failure = false;
+  auto next_user_heartbeat = std::chrono::steady_clock::time_point::min();
+  const auto reliable_deadline = std::chrono::steady_clock::now() +
+                                 std::chrono::seconds(4);
+  while (std::chrono::steady_clock::now() < reliable_deadline &&
+         !delivered && !terminal_failure) {
+    const auto now = std::chrono::steady_clock::now();
+    if (now >= next_user_heartbeat) {
+      std::size_t directed_size = 0U;
+      if (reliable_writer.fill_heartbeat(user_heartbeat) !=
+              ReliabilityError::none ||
+          !user_heartbeat_builder.build_heartbeat(user_heartbeat) ||
+          !direct_message(user_heartbeat_builder.data(),
+                          user_heartbeat_builder.size(),
+                          remote_participant.participant.guid_prefix,
+                          directed_heartbeat, directed_size) ||
+          !user_socket.send_to(remote_user, directed_heartbeat.data(),
+                               directed_size).ok()) {
+        std::cerr << "reliable HEARTBEAT send failed\n";
+        return 13;
+      }
+      next_user_heartbeat = now + std::chrono::milliseconds(200);
+    }
+
+    std::size_t incoming_size = 0U;
+    if (receive_one(user_socket, incoming, incoming_size)) {
+      AckNackView acknack{};
+      const auto parse_error = parse_acknack_message(
+          incoming.data(), incoming_size, acknack);
+      if (parse_error == ReliabilityMessageError::none &&
+          acknack.header.guid_prefix.value ==
+              remote_participant.participant.guid_prefix.value &&
+          acknack.reader_id == remote_reader.endpoint.endpoint_id &&
+          acknack.writer_id == user_writer) {
+        actions.clear();
+        const auto state_error = reliable_writer.on_acknack(
+            acknack, monotonic_now_ns(), actions);
+        if (state_error != ReliabilityError::none &&
+            state_error != ReliabilityError::stale_control) {
+          std::cerr << "reliable ACKNACK state failed: "
+                    << to_string(state_error) << '\n';
+          return 14;
+        }
+        for (std::size_t action_index = 0U;
+             action_index < actions.size(); ++action_index) {
+          const auto& action = actions[action_index];
+          if (action.kind == ReliabilityActionKind::retransmit_data) {
+            if (!user_socket.send_to(remote_user, action.data,
+                                     action.data_size).ok()) {
+              std::cerr << "reliable DATA repair send failed\n";
+              return 11;
+            }
+            next_user_heartbeat =
+                std::chrono::steady_clock::time_point::min();
+          } else if (action.kind ==
+                     ReliabilityActionKind::sample_delivered) {
+            delivered = true;
+          } else if (action.kind == ReliabilityActionKind::sample_failed) {
+            terminal_failure = true;
+          }
+        }
+      }
+    }
+
+    actions.clear();
+    const auto timer_error = reliable_writer.on_timer(
+        monotonic_now_ns(), actions);
+    if (timer_error != ReliabilityError::none) {
+      std::cerr << "reliable timer state failed: "
+                << to_string(timer_error) << '\n';
+      return 14;
+    }
+    for (std::size_t action_index = 0U;
+         action_index < actions.size(); ++action_index) {
+      if (actions[action_index].kind ==
+          ReliabilityActionKind::sample_failed) {
+        terminal_failure = true;
+      }
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  if (terminal_failure) {
+    std::cerr << "reliable DATA repair bound exhausted\n";
+    return 15;
+  }
+  if (!delivered) {
+    std::cerr << "reliable DATA acknowledgment timed out\n";
+    return 16;
+  }
+
+  std::cout << "OpenRTDDS delivered reliable value=" << sample_value
             << " reader="
-            << static_cast<unsigned>(remote_reader.endpoint.endpoint_id.value[2])
+            << static_cast<unsigned>(
+                   remote_reader.endpoint.endpoint_id.value[2])
             << ':'
-            << static_cast<unsigned>(remote_reader.endpoint.endpoint_id.value[3])
+            << static_cast<unsigned>(
+                   remote_reader.endpoint.endpoint_id.value[3])
             << '\n';
   return 0;
 }

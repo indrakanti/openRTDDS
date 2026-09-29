@@ -1,5 +1,5 @@
 /* Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
- * Requirements: ORT-INT-008, ORT-INT-009 */
+ * Requirements: ORT-INT-008, ORT-INT-009, ORT-INT-010 */
 #include <dds/dds.h>
 #include <stdio.h>
 #include <string.h>
@@ -48,7 +48,8 @@ int main(int argc, char **argv) {
         }
       }
       dds_sleepfor(reliable ? DDS_SECS(4) : DDS_SECS(2));
-    } else if (strcmp(mode, "receive-openrtdds") == 0) {
+    } else if (strcmp(mode, "receive-openrtdds") == 0 ||
+               strcmp(mode, "receive-openrtdds-reliable") == 0) {
       VendorProbe sample = {0};
       void *samples[1] = {&sample};
       dds_sample_info_t information[1] = {{0}};
@@ -72,6 +73,9 @@ int main(int argc, char **argv) {
       if (!accepted) {
         fprintf(stderr, "Cyclone DDS did not receive OpenRTDDS sample\n");
         return 1;
+      }
+      if (reliable) {
+        dds_sleepfor(DDS_MSECS(500));
       }
     } else {
       dds_sleepfor(reliable ? DDS_SECS(7) : DDS_SECS(5));

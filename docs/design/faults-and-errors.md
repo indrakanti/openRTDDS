@@ -79,6 +79,14 @@ The wire codec returns these errors but does not publish fault events. It
 rejects malformed control input without modifying the caller's prior parsed
 view.
 
+For ORT-INT-010, live-writer exits map to the same catalog: DATA or repair send
+failure (`11`) maps to `ORT-FLT-UDP-002`; HEARTBEAT construction or send
+failure (`13`) maps to its preserved reliability-control or UDP error; state
+failure (`14`) maps by `ReliabilityError`; terminal repair exhaustion (`15`)
+maps to `ORT-FLT-REL-001`; and missing delivery confirmation (`16`) is an
+availability/deadline fault owned by the application integration. These exit
+values are example-process diagnostics, not stable library fault codes.
+
 Current compound-message routing mappings are:
 
 | `MessageRouteError` | Fault code / policy |

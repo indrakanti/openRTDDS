@@ -187,6 +187,29 @@ jobs:
             --reader /tmp/emit_cyclone \
             --writer ./build/openrtdds_vendor_best_effort_writer \
             --writer-address "$(hostname -I | cut -d' ' -f1)"
+      - name: Exchange reliable OpenRTDDS writer to Fast DDS reader
+        run: |
+          FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
+            python3 tests/interop/run_live_writer.py \
+            --vendor fastdds \
+            --version "$(dpkg-query -W -f='${Version}' libfastrtps-dev)" \
+            --evidence artifacts/vendor-packets/fastdds/live-openrtdds-reliable-writer.json \
+            --reader /tmp/emit_fastdds \
+            --writer ./build/openrtdds_vendor_best_effort_writer \
+            --writer-address "$(hostname -I | cut -d' ' -f1)" \
+            --qos reliable
+      - name: Exchange reliable OpenRTDDS writer to Cyclone DDS reader
+        env:
+          CYCLONEDDS_URI: '<CycloneDDS><Domain id="any"><Discovery><SPDPInterval>1s</SPDPInterval></Discovery></Domain></CycloneDDS>'
+        run: |
+          python3 tests/interop/run_live_writer.py \
+            --vendor cyclonedds \
+            --version "$(dpkg-query -W -f='${Version}' cyclonedds-dev)" \
+            --evidence artifacts/vendor-packets/cyclonedds/live-openrtdds-reliable-writer.json \
+            --reader /tmp/emit_cyclone \
+            --writer ./build/openrtdds_vendor_best_effort_writer \
+            --writer-address "$(hostname -I | cut -d' ' -f1)" \
+            --qos reliable
       - name: Exchange Fast DDS writer to OpenRTDDS reader
         run: |
           FASTDDS_BUILTIN_TRANSPORTS=UDPv4 \
