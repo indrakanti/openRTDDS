@@ -1,7 +1,8 @@
 # Vendor packet interoperability evidence
 
-This feature verifies received SPDP and publications SEDP wire subsets against
-actual vendor implementations. It does not establish live DDS interoperability.
+This feature verifies received RTPS wire subsets and bounded live best-effort
+exchanges against pinned vendor implementations. It does not establish
+drop-in DDS compatibility outside the documented feature and version scope.
 
 ### ORT-INT-001 — Vendor packet generation
 
@@ -127,3 +128,26 @@ outputs as JSON evidence.
 
 **Rationale:** Inbound packet parsing alone does not demonstrate that a vendor
 can discover an OpenRTDDS writer and consume an OpenRTDDS application sample.
+
+### ORT-INT-009 — Live vendor writer to OpenRTDDS reader gate
+
+**Status:** Verified
+**Verification:** Test
+
+The CI interoperability job shall run one OpenRTDDS best-effort reader against
+writers created by each pinned vendor in domain 43. OpenRTDDS shall announce
+the CI-selected local IPv4 address in its participant and subscription,
+receive and parse the vendor's participant and publication announcements,
+request missing bounded publication SEDP samples with an `INFO_DST`-directed
+ACKNACK, require topic, type, reliability, durability, source participant, and
+writer identity compatibility, observe the vendor subscriptions reader's
+ACKNACK and repair its SEDP sample, and accept only a DATA submessage addressed
+to its reader or the unknown reader. The reader shall decode standard CDR and
+accept only the exact `VendorProbe.value = 0x4F525444` sample with no trailing
+payload. The exchange shall complete within one 16-second process deadline and
+preserve the vendor version, commands, exit results, timeout results, and both
+process outputs as JSON evidence.
+
+**Rationale:** Frozen inbound packets do not demonstrate that a vendor can
+discover a live OpenRTDDS reader and deliver an application sample through the
+production UDP, discovery, matching, DATA, and CDR receive path.

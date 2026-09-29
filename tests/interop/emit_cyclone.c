@@ -1,5 +1,5 @@
 /* Requirements: ORT-INT-001, ORT-INT-005, ORT-INT-006, ORT-INT-007,
- * Requirements: ORT-INT-008 */
+ * Requirements: ORT-INT-008, ORT-INT-009 */
 #include <dds/dds.h>
 #include <stdio.h>
 #include <string.h>
@@ -30,14 +30,22 @@ int main(int argc, char **argv) {
       return 1;
     }
     if (strcmp(mode, "publish-data") == 0 ||
-        strcmp(mode, "publish-reliable") == 0) {
+        strcmp(mode, "publish-reliable") == 0 ||
+        strcmp(mode, "publish-openrtdds") == 0) {
       dds_sleepfor(DDS_SECS(3));
       const VendorProbe sample = {.value = 0x4F525444U};
-      const dds_return_t result = dds_write(endpoint, &sample);
-      if (result != DDS_RETCODE_OK) {
-        fprintf(stderr, "Cyclone sample write failed: %s\n",
-                dds_strretcode(-result));
-        return 1;
+      const unsigned attempts = strcmp(mode, "publish-openrtdds") == 0
+          ? 4U : 1U;
+      for (unsigned attempt = 0U; attempt < attempts; ++attempt) {
+        const dds_return_t result = dds_write(endpoint, &sample);
+        if (result != DDS_RETCODE_OK) {
+          fprintf(stderr, "Cyclone sample write failed: %s\n",
+                  dds_strretcode(-result));
+          return 1;
+        }
+        if (attempt + 1U < attempts) {
+          dds_sleepfor(DDS_MSECS(100));
+        }
       }
       dds_sleepfor(reliable ? DDS_SECS(4) : DDS_SECS(2));
     } else if (strcmp(mode, "receive-openrtdds") == 0) {
