@@ -64,11 +64,17 @@ not treated as a build/test failure.
 6. [x] Typed static DDS API and UDP loopback path
 7. [x] Bounded SPDP participant discovery for the General Profile
 8. [x] Bounded SEDP endpoint discovery and dynamic matching
-9. [ ] Fast DDS and Cyclone DDS interoperability gates
+9. [x] Pinned Fast DDS and Cyclone DDS G0-G3 interoperability subset
    - [x] Compound RTPS message routing prerequisite
-   - [ ] Versioned vendor packet corpus (SPDP CI capture added)
-   - [ ] Live bidirectional vendor exchange
+   - [x] Versioned vendor packet corpus
+   - [x] Live bidirectional best-effort and bounded reliable exchange
 10. [ ] ROS 2 RMW adapter and graph integration
+   - [x] Readiness requirements, capability gaps, and staged G4 design
+   - [ ] G4.1 package, ABI, context, and node skeleton
+   - [ ] G4.2 bounded topic publish/wait/take
+   - [ ] G4.3 graph integration
+   - [ ] G4.4 service/client integration
+   - [ ] G4.5 selected conformance qualification
 11. [ ] Shared-memory transport, latency instrumentation, and fault injection
 
 See [the architecture](docs/architecture.md),
