@@ -70,6 +70,7 @@ not treated as a build/test failure.
    - [x] Live bidirectional best-effort and bounded reliable exchange
 10. [ ] ROS 2 RMW adapter and graph integration
    - [x] Readiness requirements, capability gaps, and staged G4 design
+   - [x] Bounded context/node/guard-condition foundation and Jazzy ABI baseline
    - [ ] G4.1 package, ABI, context, and node skeleton
    - [ ] G4.2 bounded topic publish/wait/take
    - [ ] G4.3 graph integration
