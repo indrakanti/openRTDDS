@@ -13,6 +13,7 @@ feature designs.
 | `core/static_pool.hpp` | `openrtdds::core` | fixed-capacity object ownership |
 | `core/keep_last_history.hpp` | `openrtdds::core` | bounded sample and KEEP_LAST history |
 | `os/linux/realtime.hpp` | `openrtdds::os::linux_rt` | memory lock, affinity, FIFO scheduling, monotonic time |
+| `rmw/foundation.hpp` | `openrtdds::rmw` | ROS-independent bounded context, node handles, guard-condition generations, baseline identity, and errors |
 | `serialization/cdr.hpp` | `openrtdds::serialization` | bounded XCDR1 reader and writer |
 | `rtps/types.hpp` | `openrtdds::rtps` | RTPS identity value types |
 | `rtps/data_message.hpp` | `openrtdds::rtps` | DATA message construction and parsing |
@@ -42,6 +43,12 @@ guard conditions, graph queries, services/clients, metadata, and event/status
 handling. Unsupported semantics return `RMW_RET_UNSUPPORTED`. See the
 [planned detailed design](ros2-rmw/detailed-design.md) and
 [capability-gap matrix](ros2-rmw/capability-matrix.md).
+
+The Current `rmw/foundation.hpp` interface is deliberately below the ROS C
+ABI. It implements bounded lifecycle primitives and the pinned Jazzy identity
+without including ROS headers or registering `rmw_openrtdds_cpp`. Calls that
+mutate lifecycle or slots are single-owner; guard trigger and wake generations
+use atomics, but blocking wait and concurrent destruction remain Planned.
 
 ## Wire interface
 
