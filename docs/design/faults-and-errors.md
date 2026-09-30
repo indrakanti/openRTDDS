@@ -27,6 +27,7 @@ deadline or retry bound is exceeded.
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
+| ROS 2 RMW adapter (Planned) | `RmwError` mapped to `rmw_ret_t` | ABI validation, lifecycle, adapter resources, type support, wait, and graph failure |
 
 Error enums are symbolic API values. Their implicit integer representation is
 not a stable fault code.
@@ -60,6 +61,11 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-DISC-003` | Warning/Error | malformed or unsupported discovery announcement | discovery/application |
 | `ORT-FLT-DISC-004` | Warning/Error | unknown must-understand discovery parameter | compatibility owner |
 | `ORT-FLT-DEADLINE-001` | Error/Fatal by topic | planned delivery deadline exceeded | application safety monitor |
+| `ORT-FLT-RMW-001` (Planned) | Error/Fatal by context | invalid adapter lifecycle or stale active handle | context owner |
+| `ORT-FLT-RMW-002` (Planned) | Error | adapter pool, graph, table, or byte bound exhausted | system integrator |
+| `ORT-FLT-RMW-003` (Planned) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
+| `ORT-FLT-RMW-004` (Planned) | Warning/Error | invalid or over-bound ROS graph update | discovery/context owner |
+| `ORT-FLT-RMW-005` (Planned) | Error/Fatal by context | wait registry or wake primitive failure | context owner |
 
 Severity is deployment-configurable except where the selected deterministic
 profile cannot satisfy its assumptions. The component detecting an API error
