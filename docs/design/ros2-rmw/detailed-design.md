@@ -1,6 +1,7 @@
 # ROS 2 RMW adapter detailed design
 
-**Design status:** Planned
+**Design status:** Current for the bounded foundation; Planned for the ROS C
+ABI and G4.1 through G4.5
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -14,12 +15,18 @@
 
 **Requirements:** ORT-RMW-021, ORT-RMW-022
 
+**Requirements:** ORT-RMW-023, ORT-RMW-024, ORT-RMW-025, ORT-RMW-026
+
+**Requirements:** ORT-RMW-027, ORT-RMW-028
+
 ## Status and scope
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
 OpenRTDDS C++ library. The first target is ROS 2 Jazzy on Linux. The exact
-Jazzy `rmw` ABI, ROS package set, compiler, and Ubuntu image will be pinned by
-the first implementation PR. Rolling is a reference, not the compatibility
+Jazzy `rmw` package baseline is now pinned to version `7.3.4` and upstream
+`package.xml` blob `6b81eedd240033dcd695d5fa14511b0e41cdfd39`.
+The complete ROS package set, compiler, and Ubuntu image remain to be pinned by
+the C ABI implementation PR. Rolling is a reference, not the compatibility
 target.
 
 This design covers lifecycle, pub/sub, wait/take, graph, services, metadata,
@@ -29,6 +36,84 @@ deliberately excluded from the initial profile.
 
 See [the capability-gap matrix](capability-matrix.md) for the feature-to-gate
 plan.
+
+## Current bounded foundation
+
+`include/openrtdds/rmw/foundation.hpp` supplies the ROS-independent ownership
+layer that future C entry points will wrap. `src/rmw/foundation.cpp` supplies
+stable diagnostic names. The unit owner is `tests/test_rmw_foundation.cpp`,
+and `examples/rmw_foundation_lifecycle.cpp` demonstrates a complete bounded
+context, node, guard-condition, shutdown, release, and finalize sequence. The
+upstream selection evidence is recorded in `rmw_openrtdds_cpp/BASELINE.md`.
+
+The foundation is compiled into `OpenRTDDS::openrtdds`; it includes no ROS
+headers and does not register an RMW implementation. Therefore this increment
+does not pass G4.1 and cannot be selected through `RMW_IMPLEMENTATION`.
+
+### Current types and ownership
+
+| Type | Current responsibility | Bound/lifetime |
+|---|---|---|
+| `AdapterLimits` | validates runtime node and guard-condition limits against template capacities | copied into a successfully initialized context |
+| `AdapterConfig` | supplies limits, portable domain ID, and exact implementation identifier | caller-owned input, never retained by pointer |
+| `AdapterContext<N,G>` | owns fixed node/guard slots, lifecycle, context generation, and wake generation | static or caller-owned object; no heap allocation |
+| `NodeHandle` | identifies one node slot plus slot/context generations | valid only while its exact slot instance is active |
+| `GuardConditionHandle` | identifies one guard slot plus slot/context generations | valid only while its exact slot instance is active |
+| `AdapterError` | exact immediate foundation result | symbolic; integer values are not persistent diagnostics |
+
+Node records contain fixed arrays for name and namespace. Guard-condition
+trigger generations and the context wake generation are atomics. Lifecycle,
+node, and guard slot creation/destruction are deliberately single-owner in
+this increment; only trigger/wake generation storage is prepared for the later
+concurrent wait-set boundary. Concurrent destroy/trigger behavior remains
+Planned under ORT-RMW-009 and ORT-RMW-016.
+
+### Current behavior and invariants
+
+- initialization commits only after identifier, limits, and portable domain
+  ID (`0..232`) validation succeeds;
+- failed creation leaves the output handle and slot counts unchanged;
+- each initialization and slot reuse advances a wrapping nonzero generation;
+- node and guard handles must match context, slot, and slot generation;
+- shutdown advances the wake generation and prohibits new/trigger operations;
+- objects may be released during shutdown, and the final release transitions
+  the context to `finalizable`;
+- finalization is rejected while an object remains owned;
+- no operation allocates, creates a thread, blocks, invokes a callback, or
+  performs I/O.
+
+### Current normal sequence
+
+```mermaid
+sequenceDiagram
+    participant A as Adapter owner
+    participant C as AdapterContext
+    A->>C: initialize(config)
+    A->>C: create_node(name, namespace)
+    A->>C: create_guard_condition()
+    A->>C: trigger_guard_condition()
+    A->>C: observe_guard_condition(last)
+    A->>C: shutdown()
+    A->>C: destroy guard and node
+    A->>C: finalize()
+```
+
+### Current error and fault mapping
+
+| `AdapterError` | Meaning | Planned external mapping |
+|---|---|---|
+| `invalid_argument` | null/empty required input | `RMW_RET_INVALID_ARGUMENT` |
+| `incorrect_implementation` | identifier differs from `rmw_openrtdds_cpp` | `RMW_RET_INCORRECT_RMW_IMPLEMENTATION` |
+| `invalid_limits` | zero or over-capacity startup limit | `RMW_RET_INVALID_ARGUMENT`, `ORT-FLT-RMW-002` |
+| `invalid_domain` | domain exceeds initial portable bound | `RMW_RET_INVALID_ARGUMENT` |
+| `invalid_state` | lifecycle ordering violation | `RMW_RET_ERROR`, `ORT-FLT-RMW-001` |
+| `resource_exhausted` | active configured slot limit reached | `RMW_RET_BAD_ALLOC`, `ORT-FLT-RMW-002` |
+| `name_too_long` | name or namespace lacks terminator inside bound | `RMW_RET_INVALID_ARGUMENT` |
+| `stale_handle` | context/slot generation or active state mismatch | `RMW_RET_ERROR`, `ORT-FLT-RMW-001` |
+| `unsupported` | reserved for truthful unsupported semantics | `RMW_RET_UNSUPPORTED` |
+
+No `rmw_ret_t` conversion exists yet; the table is the contract for the future
+C wrapper and is not an implemented ROS API claim.
 
 ## Architectural boundary
 
