@@ -28,6 +28,21 @@ All implemented API functions are `noexcept`. Failure is represented by a
 boolean plus an object error accessor, a feature error enum, or a result
 structure. Exceptions are neither thrown nor translated.
 
+## Planned ROS 2 RMW adapter boundary
+
+`rmw_openrtdds_cpp` is a Planned, separately built shared library. It will
+implement the ROS 2 Jazzy `rmw` C ABI and keep all ROS types, allocators, and
+package dependencies outside the OpenRTDDS core public headers. Opaque ROS
+handles will refer to generation-checked objects owned by a bounded context;
+they will not expose core C++ objects directly.
+
+The adapter boundary includes context and node lifecycle, publisher and
+subscription handles, type-erased serialization, QoS conversion, wait sets,
+guard conditions, graph queries, services/clients, metadata, and event/status
+handling. Unsupported semantics return `RMW_RET_UNSUPPORTED`. See the
+[planned detailed design](ros2-rmw/detailed-design.md) and
+[capability-gap matrix](ros2-rmw/capability-matrix.md).
+
 ## Wire interface
 
 The current network interface is one IPv4 UDP datagram containing:
