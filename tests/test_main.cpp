@@ -7,6 +7,7 @@ void test_cdr();
 void test_keep_last_history();
 void test_message_router();
 void test_realtime();
+void test_rmw_foundation();
 void test_reliability_messages();
 void test_reliability_state();
 void test_rtps_data_message();
@@ -22,6 +23,7 @@ int main() {
   test_keep_last_history();
   test_message_router();
   test_realtime();
+  test_rmw_foundation();
   test_reliability_messages();
   test_reliability_state();
   test_rtps_data_message();
