@@ -97,6 +97,12 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-020 | Draft | — | Planned G4.3 graph tests and demonstration | Planned ROS graph pair |
 | ORT-RMW-021 | Draft | — | Planned G4.4 service tests and demonstration | Planned ROS service pair |
 | ORT-RMW-022 | Draft | — | Planned G4.5 conformance tests and analysis | — |
+| ORT-RMW-023 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp`, bounded-storage analysis | — |
+| ORT-RMW-024 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp` | `rmw_foundation_lifecycle.cpp` |
+| ORT-RMW-025 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp` | `rmw_foundation_lifecycle.cpp` |
+| ORT-RMW-026 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp` | `rmw_foundation_lifecycle.cpp` |
+| ORT-RMW-027 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp`, `rmw_openrtdds_cpp/BASELINE.md` inspection | — |
+| ORT-RMW-028 | Verified | `rmw/foundation.hpp`, `rmw/foundation.cpp` | `test_rmw_foundation.cpp` | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each
