@@ -87,6 +87,11 @@ enable a general ROS 2 compatibility claim. The requirements and planned
 interfaces are in [ROS 2 RMW requirements](requirements/ros2-rmw/requirements.md)
 and [detailed design](design/ros2-rmw/detailed-design.md).
 
+PR23 implements and verifies the ROS-independent bounded foundation for
+context states, node slots, guard-condition generations, adapter errors, and
+the pinned Jazzy `rmw` 7.3.4 baseline. It intentionally does not register an
+RMW package or export the ROS C ABI, so G4.1 remains Planned.
+
 ## Claim policy
 
 With G3 passed, release notes may claim bounded live best-effort
