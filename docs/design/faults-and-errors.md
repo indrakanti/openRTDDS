@@ -27,7 +27,7 @@ deadline or retry bound is exceeded.
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
-| ROS 2 RMW adapter (Planned) | `RmwError` mapped to `rmw_ret_t` | ABI validation, lifecycle, adapter resources, type support, wait, and graph failure |
+| RMW foundation (Current) / ROS adapter (Planned) | `AdapterError`; future mapping to `rmw_ret_t` | bounded lifecycle, identity, limits, resources, handles, and future ABI/type/wait/graph failure |
 
 Error enums are symbolic API values. Their implicit integer representation is
 not a stable fault code.
