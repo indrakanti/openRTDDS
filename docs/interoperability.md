@@ -10,10 +10,10 @@ green.
 | G0 — Internal wire conformance | Golden RTPS 2.5 subset bytes and defensive parser tests | Passed |
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
-| G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR19 for pinned best-effort scope |
-| G4 — ROS 2 RMW | `rmw_openrtdds` passes selected ROS 2 conformance and graph tests | Planned |
+| G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR21 for pinned best-effort and bounded reliable scope |
+| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | Planned by PR22 |
 
-## Vendor matrix planned for G2 and G3
+## Vendor matrix qualified for G2 and bounded G3 scope
 
 | Peer | Discovery | Best-effort DATA | Reliable DATA | Direction |
 |---|---|---|---|---|
@@ -76,6 +76,16 @@ ROS 2 can run over OpenRTDDS only after a separate ROS middleware adapter,
 the DDS behavior used by ROS 2. RTPS wire support alone is insufficient. The
 adapter follows G3 rather than preceding it because it depends on proven DDS
 discovery, type support, QoS mapping, graph discovery, services, and clients.
+
+PR22 divides G4 into evidence gates. G4.1 proves package discovery, ABI
+loading, context/node lifecycle, and shutdown. G4.2 proves ROS topic
+publish/wait/take for the bounded QoS and type subset. G4.3 proves distributed
+graph add/query/removal behavior. G4.4 proves correlated service/client
+request-response. G4.5 runs a version-controlled allowlist of upstream Jazzy
+conformance tests and records every exclusion. Passing a lower gate does not
+enable a general ROS 2 compatibility claim. The requirements and planned
+interfaces are in [ROS 2 RMW requirements](requirements/ros2-rmw/requirements.md)
+and [detailed design](design/ros2-rmw/detailed-design.md).
 
 ## Claim policy
 
