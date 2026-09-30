@@ -75,6 +75,28 @@ from source tags and rejects missing or unknown evidence.
 | ORT-INT-009 | Verified | `examples/vendor_best_effort_reader.cpp`, `tests/interop/emit_*.{c,cpp}` | `test_run_live_reader.py`, `run_live_reader.py`, `vendor-packets` CI job | `vendor_best_effort_reader.cpp` |
 | ORT-INT-010 | Verified | `rtps/reliability_state.hpp`, `examples/vendor_best_effort_writer.cpp`, `tests/interop/emit_*.{c,cpp}` | `test_run_live_writer.py`, `run_live_writer.py`, `vendor-packets` CI job | `vendor_best_effort_writer.cpp --reliable` |
 | ORT-INT-011 | Verified | `rtps/reliability_state.hpp`, `examples/vendor_best_effort_reader.cpp`, `tests/interop/emit_*.{c,cpp}` | `test_run_live_reader.py`, `run_live_reader.py`, `vendor-packets` CI job | `vendor_best_effort_reader.cpp --reliable` |
+| ORT-RMW-001 | Draft | — | Planned G4.1 test and inspection | — |
+| ORT-RMW-002 | Draft | — | Planned lifecycle tests | — |
+| ORT-RMW-003 | Draft | — | Planned node and graph tests | — |
+| ORT-RMW-004 | Draft | — | Planned publisher tests and talker demonstration | Planned talker |
+| ORT-RMW-005 | Draft | — | Planned subscription tests and listener demonstration | Planned listener |
+| ORT-RMW-006 | Draft | — | Planned type-support tests and bound analysis | — |
+| ORT-RMW-007 | Draft | — | Planned mapping vectors and inspection | — |
+| ORT-RMW-008 | Draft | — | Planned QoS mapping/compatibility tests and analysis | — |
+| ORT-RMW-009 | Draft | — | Planned wait/guard tests and race analysis | — |
+| ORT-RMW-010 | Draft | — | Planned graph tests and multi-process demonstration | Planned graph probe |
+| ORT-RMW-011 | Draft | — | Planned service tests and client/service demonstration | Planned service pair |
+| ORT-RMW-012 | Draft | — | Planned GID and message-info tests | — |
+| ORT-RMW-013 | Draft | — | Planned event/status tests | — |
+| ORT-RMW-014 | Draft | — | Planned ABI error tests and inspection | — |
+| ORT-RMW-015 | Draft | — | Planned exhaustion/allocation tests and analysis | — |
+| ORT-RMW-016 | Draft | — | Planned concurrency/shutdown tests and analysis | — |
+| ORT-RMW-017 | Draft | — | Planned feature-reporting tests and inspection | — |
+| ORT-RMW-018 | Draft | — | Planned G4.1 build/load test | — |
+| ORT-RMW-019 | Draft | — | Planned G4.2 topic tests and demonstration | Planned ROS topic pair |
+| ORT-RMW-020 | Draft | — | Planned G4.3 graph tests and demonstration | Planned ROS graph pair |
+| ORT-RMW-021 | Draft | — | Planned G4.4 service tests and demonstration | Planned ROS service pair |
+| ORT-RMW-022 | Draft | — | Planned G4.5 conformance tests and analysis | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each
