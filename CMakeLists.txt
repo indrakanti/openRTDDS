@@ -16,6 +16,7 @@ add_library(openrtdds
   src/core/runtime_limits.cpp
   src/core/version.cpp
   src/os/linux/realtime.cpp
+  src/rmw/foundation.cpp
   src/rtps/data_message.cpp
   src/rtps/message_router.cpp
   src/rtps/reliability_messages.cpp
@@ -101,6 +102,13 @@ if(OPENRTDDS_BUILD_EXAMPLES)
     PRIVATE OpenRTDDS::openrtdds
   )
 
+  add_executable(openrtdds_rmw_foundation_lifecycle
+    examples/rmw_foundation_lifecycle.cpp
+  )
+  target_link_libraries(openrtdds_rmw_foundation_lifecycle
+    PRIVATE OpenRTDDS::openrtdds
+  )
+
   foreach(example_target IN ITEMS
       openrtdds_runtime_probe
       openrtdds_vehicle_state
@@ -112,7 +120,8 @@ if(OPENRTDDS_BUILD_EXAMPLES)
       openrtdds_sedp_matching
       openrtdds_compound_rtps_message
       openrtdds_vendor_best_effort_writer
-      openrtdds_vendor_best_effort_reader)
+      openrtdds_vendor_best_effort_reader
+      openrtdds_rmw_foundation_lifecycle)
     target_compile_options(${example_target} PRIVATE -Wall -Wextra -Wpedantic)
     if(OPENRTDDS_WARNINGS_AS_ERRORS)
       target_compile_options(${example_target} PRIVATE -Werror)
@@ -142,6 +151,7 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     tests/test_keep_last_history.cpp
     tests/test_message_router.cpp
     tests/test_realtime.cpp
+    tests/test_rmw_foundation.cpp
     tests/test_reliability_messages.cpp
     tests/test_reliability_state.cpp
     tests/test_rtps_data_message.cpp
@@ -276,6 +286,9 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     )
     add_test(NAME openrtdds_compound_rtps_message_example
       COMMAND openrtdds_compound_rtps_message
+    )
+    add_test(NAME openrtdds_rmw_foundation_lifecycle_example
+      COMMAND openrtdds_rmw_foundation_lifecycle
     )
   endif()
 endif()
