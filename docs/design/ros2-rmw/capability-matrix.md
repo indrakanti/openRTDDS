@@ -6,16 +6,16 @@ it does not mean the corresponding `rmw` function is implemented.
 
 | RMW capability | Existing OpenRTDDS basis | Gap before adapter support | Planned gate |
 |---|---|---|---|
-| Package discovery and selection | CMake library | ament package, shared ABI, exported C symbols, implementation registration | G4.1 |
-| Init/context/shutdown | runtime limits, static pools, Linux clocks | context owner, allocator contract, lifecycle state machine | G4.1 |
-| Nodes | participant identity | logical ROS node records and graph publication | G4.1/G4.3 |
+| Package discovery and selection | pinned Jazzy `rmw` 7.3.4 baseline | ament package, shared ABI, exported C symbols, implementation registration | G4.1 |
+| Init/context/shutdown | fixed foundation context and lifecycle state machine | ROS init options/allocator wrapper, workers, transport, wait shutdown | G4.1 |
+| Nodes | bounded generation-checked node slots | `rmw_node_t` wrapper and graph publication | G4.1/G4.3 |
 | Publishers | typed static writer, CDR, UDP, reliability | type-erased handle, ROS mapping, QoS conversion, metadata | G4.2 |
 | Subscriptions | typed static reader, bounded history | readiness/take contract, type-erased decode, metadata | G4.2 |
 | Type support | bounded XCDR1 primitives | Jazzy introspection traversal, max-size analysis, ROS strings/sequences | G4.2 |
 | Topic/type names | bounded SEDP names | ROS DDS name/type mapping and bound validation | G4.2 |
 | QoS | reliability, volatile durability, KEEP_LAST | complete supported-policy map, defaults, compatibility API, events | G4.2/G4.5 |
 | Wait sets | nonblocking UDP | readiness registry, wakeup primitive, monotonic timeout, shutdown wake | G4.2 |
-| Guard conditions | none | bounded trigger/reset object and wait integration | G4.1/G4.2 |
+| Guard conditions | fixed slots plus trigger/wake generations | `rmw_guard_condition_t` wrapper and blocking wait integration | G4.1/G4.2 |
 | ROS graph | SPDP/SEDP caches | logical nodes, graph discovery protocol/cache, queries, graph guard | G4.3 |
 | Services/clients | pub/sub primitives | request/response topics, identities, correlation, readiness | G4.4 |
 | GIDs and message info | RTPS GUID and sequence | stable `rmw_gid_t` encoding and `rmw_message_info_t` conversion | G4.2 |
