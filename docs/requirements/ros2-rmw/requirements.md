@@ -323,6 +323,92 @@ all mandatory tests and G4.1 through G4.4 pass in CI.
 **Rationale:** A reproducible, reviewable qualification set is stronger than a
 claim based only on demonstration programs.
 
+### ORT-RMW-023 — Bounded adapter-foundation limits
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+The implementation-independent RMW foundation shall accept explicit maximum
+node and guard-condition counts at initialization, reject zero or
+compile-time-capacity-exceeding limits before changing context state, and
+reject runtime exhaustion without modifying the caller's output handle.
+
+**Rationale:** The ROS-facing layer needs bounded ownership before C ABI
+objects can safely be attached to it.
+
+### ORT-RMW-024 — Foundation context state machine
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration
+
+The foundation context shall enforce `zero`, `initialized`, `active`,
+`shutting_down`, and `finalizable` lifecycle states; reject invalid transition
+order; assign a new nonzero generation to each initialization; advance the
+context wake generation on shutdown; and permit finalization only after all
+owned handles are released.
+
+**Rationale:** A small tested state machine prevents partial activation,
+use-after-finalize, and shutdown that silently abandons owned entities.
+
+### ORT-RMW-025 — Bounded node slots and stale-handle rejection
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration
+
+The foundation shall store node names and namespaces in fixed-capacity slots,
+validate null, empty, and over-bound inputs before slot commitment, encode
+context and slot generations in each node handle, and reject released or
+reused handles without changing the active node.
+
+**Rationale:** Future opaque `rmw_node_t` data must not turn a reused pool slot
+into a valid stale ROS handle.
+
+### ORT-RMW-026 — Guard-condition generation semantics
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration
+
+The foundation shall create guard conditions from fixed-capacity slots,
+represent triggers with an advancing generation that reserves zero and wraps
+from its maximum to one, expose readiness by comparing observed generations,
+advance a context wake generation on trigger and shutdown, and reject
+triggering after shutdown begins.
+
+**Rationale:** Generation comparison provides a bounded primitive from which a
+later wait-set implementation can avoid lost wakeups.
+
+### ORT-RMW-027 — Pinned Jazzy RMW baseline
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+The foundation shall expose the implementation identifier
+`rmw_openrtdds_cpp`, ROS distribution `jazzy`, and upstream `rmw` package
+version `7.3.4`, and the baseline record shall identify the exact upstream
+`package.xml` blob used to select that version.
+
+**Rationale:** Adapter symbols and behavior must be implemented against a
+reviewable ABI source rather than an unbounded rolling target.
+
+### ORT-RMW-028 — Stable foundation error vocabulary
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+Every foundation operation shall return a symbolic `AdapterError` without
+throwing, output handles shall remain unchanged on failure, and every defined
+error shall have a stable diagnostic name while unknown values map to
+`unknown`.
+
+**Rationale:** Exact errors can later be mapped to `rmw_ret_t` without losing
+the internal cause or allowing exceptions across the C ABI.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)

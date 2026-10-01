@@ -98,3 +98,9 @@ machine checker independently validates requirement references in feature
 | ORT-RMW-020 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-021 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-022 | Planned | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-023 | Current | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-024 | Current | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-025 | Current | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-026 | Current | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-027 | Current | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-028 | Current | `ros2-rmw/detailed-design.md` |
