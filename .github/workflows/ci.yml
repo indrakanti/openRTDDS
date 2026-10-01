@@ -261,3 +261,54 @@ jobs:
           name: pinned-vendor-packets
           path: artifacts/vendor-packets/
           if-no-files-found: warn
+
+  ros2-jazzy-lifecycle-abi:
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-core
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ROS build and ABI tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            binutils build-essential cmake python3-colcon-common-extensions
+      - name: Build Jazzy RMW lifecycle slice
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build \
+            --base-paths rmw_openrtdds_cpp \
+            --packages-select rmw_openrtdds_cpp \
+            --event-handlers console_direct+ \
+            --cmake-args -DBUILD_TESTING=ON
+      - name: Run lifecycle tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          colcon test \
+            --packages-select rmw_openrtdds_cpp \
+            --event-handlers console_direct+
+          colcon test-result --verbose
+      - name: Verify package registration, load, and ABI symbols
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          resource=install/rmw_openrtdds_cpp/share/ament_index/resource_index/rmw_typesupport/rmw_openrtdds_cpp
+          library=install/rmw_openrtdds_cpp/lib/librmw_openrtdds_cpp.so
+          test -f "$resource"
+          test ! -s "$resource"
+          test -f "$library"
+          python3 tools/check_rmw_symbols.py \
+            "$library" rmw_openrtdds_cpp/abi_symbols.txt
+          python3 - "$library" <<'PY'
+          import ctypes
+          import sys
+
+          library = ctypes.CDLL(sys.argv[1])
+          library.rmw_get_implementation_identifier.restype = ctypes.c_char_p
+          assert library.rmw_get_implementation_identifier() == b"rmw_openrtdds_cpp"
+          PY

@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION 3.20)
+project(rmw_openrtdds_cpp VERSION 0.1.0 LANGUAGES CXX)
+
+find_package(ament_cmake REQUIRED)
+find_package(rcutils REQUIRED)
+find_package(rmw 7.3.4 EXACT REQUIRED)
+
+# The ROS-free core remains independently buildable. The adapter consumes it
+# as a private implementation dependency and does not leak ROS headers into it.
+set(OPENRTDDS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(OPENRTDDS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.."
+  "${CMAKE_CURRENT_BINARY_DIR}/openrtdds-core" EXCLUDE_FROM_ALL)
+set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(${PROJECT_NAME} SHARED src/rmw_adapter.cpp)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  OpenRTDDS::openrtdds
+  rcutils::rcutils
+  rmw::rmw
+)
+configure_rmw_library(${PROJECT_NAME})
+
+# Register the implementation itself but deliberately register no type-support
+# backend until the publisher/subscription boundary is implemented and tested.
+register_rmw_implementation()
+ament_export_libraries(${PROJECT_NAME})
+
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+if(BUILD_TESTING)
+  enable_testing()
+  add_executable(test_rmw_lifecycle test/test_rmw_lifecycle.cpp)
+  target_compile_features(test_rmw_lifecycle PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_lifecycle PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_lifecycle PRIVATE
+    ${PROJECT_NAME}
+    rcutils::rcutils
+    rmw::rmw
+  )
+  add_test(NAME rmw_openrtdds_lifecycle COMMAND test_rmw_lifecycle)
+endif()
+
+ament_package()

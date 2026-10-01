@@ -103,6 +103,11 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-026 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp` | `rmw_foundation_lifecycle.cpp` |
 | ORT-RMW-027 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp`, `rmw_openrtdds_cpp/BASELINE.md` inspection | — |
 | ORT-RMW-028 | Verified | `rmw/foundation.hpp`, `rmw/foundation.cpp` | `test_rmw_foundation.cpp` | — |
+| ORT-RMW-029 | Verified | `rmw_openrtdds_cpp/CMakeLists.txt`, `rmw_adapter.cpp` | Jazzy package/load/symbol CI, `test_rmw_lifecycle.cpp` | — |
+| ORT-RMW-030 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_lifecycle.cpp` | — |
+| ORT-RMW-031 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_lifecycle.cpp` | — |
+| ORT-RMW-032 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_lifecycle.cpp` | — |
+| ORT-RMW-033 | Verified | `rmw_adapter.cpp`, `abi_symbols.txt`, `check_rmw_symbols.py` | Jazzy package/load/symbol CI, `test_rmw_lifecycle.cpp` | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

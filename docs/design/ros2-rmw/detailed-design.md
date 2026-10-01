@@ -1,7 +1,7 @@
 # ROS 2 RMW adapter detailed design
 
-**Design status:** Current for the bounded foundation; Planned for the ROS C
-ABI and G4.1 through G4.5
+**Design status:** Current for the bounded foundation and Jazzy lifecycle C ABI
+slice; Planned for the remaining C ABI and G4.1 through G4.5
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -19,15 +19,18 @@ ABI and G4.1 through G4.5
 
 **Requirements:** ORT-RMW-027, ORT-RMW-028
 
+**Requirements:** ORT-RMW-029, ORT-RMW-030, ORT-RMW-031, ORT-RMW-032
+
+**Requirements:** ORT-RMW-033
+
 ## Status and scope
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
 OpenRTDDS C++ library. The first target is ROS 2 Jazzy on Linux. The exact
 Jazzy `rmw` package baseline is now pinned to version `7.3.4` and upstream
 `package.xml` blob `6b81eedd240033dcd695d5fa14511b0e41cdfd39`.
-The complete ROS package set, compiler, and Ubuntu image remain to be pinned by
-the C ABI implementation PR. Rolling is a reference, not the compatibility
-target.
+The adapter is built and tested in the `ros:jazzy-ros-core` CI environment.
+Rolling is a reference, not the compatibility target.
 
 This design covers lifecycle, pub/sub, wait/take, graph, services, metadata,
 QoS, errors, bounds, and qualification. DDS Security, SROS 2, dynamic types,
@@ -47,8 +50,10 @@ context, node, guard-condition, shutdown, release, and finalize sequence. The
 upstream selection evidence is recorded in `rmw_openrtdds_cpp/BASELINE.md`.
 
 The foundation is compiled into `OpenRTDDS::openrtdds`; it includes no ROS
-headers and does not register an RMW implementation. Therefore this increment
-does not pass G4.1 and cannot be selected through `RMW_IMPLEMENTATION`.
+headers. The separate `rmw_openrtdds_cpp` ament package now registers and
+exports a loadable shared library, but it deliberately registers an empty
+type-support set. This lifecycle slice is not full G4.1 and cannot yet run a
+ROS node or executor end to end.
 
 ### Current types and ownership
 
@@ -112,8 +117,64 @@ sequenceDiagram
 | `stale_handle` | context/slot generation or active state mismatch | `RMW_RET_ERROR`, `ORT-FLT-RMW-001` |
 | `unsupported` | reserved for truthful unsupported semantics | `RMW_RET_UNSUPPORTED` |
 
-No `rmw_ret_t` conversion exists yet; the table is the contract for the future
-C wrapper and is not an implemented ROS API claim.
+The Jazzy lifecycle wrapper maps these results to `rmw_ret_t`; later entity
+families shall reuse the same mapping rather than invent local return policy.
+
+## Current Jazzy lifecycle C ABI slice
+
+`rmw_openrtdds_cpp/src/rmw_adapter.cpp` owns all ROS ABI objects and wraps the
+bounded foundation. The implemented entry points are limited to identity,
+serialization-format declaration, conservative feature reporting, init
+options, context lifecycle, node lifecycle, and guard-condition lifecycle.
+`rmw_openrtdds_cpp/abi_symbols.txt` is the machine-checked symbol manifest for
+this slice; it is explicitly not the complete Jazzy RMW symbol set.
+
+The ament resource index contains `rmw_openrtdds_cpp`, but its registered type
+support list is empty. Publisher, subscription, wait-set, graph-cache, service,
+client, event, serialization, and take APIs are not implemented by this PR.
+All optional features return `false` from `rmw_feature_supported`.
+
+### ABI ownership
+
+| Object | Allocation and ownership | Release rule |
+|---|---|---|
+| `rmw_init_options_t` owned fields | caller-provided `rcutils_allocator_t`; security, discovery, and enclave are deep-copied | `rmw_init_options_fini` |
+| `rmw_context_impl_t` | context allocator; placement-constructed C++ foundation | only after shutdown and release of all external handles |
+| `rmw_node_t`, node data, name, namespace | context allocator; one bounded foundation node slot | `rmw_destroy_node`, including during shutdown |
+| user `rmw_guard_condition_t` and data | context allocator; one bounded foundation guard slot | `rmw_destroy_guard_condition`, including during shutdown |
+| graph guard condition | context-owned; reserves one guard slot at initialization | automatically released by first shutdown |
+
+### Implemented lifecycle sequence
+
+```mermaid
+sequenceDiagram
+    participant R as ROS caller
+    participant A as RMW C ABI
+    participant F as Bounded foundation
+    R->>A: init options and enclave
+    R->>A: rmw_init(context)
+    A->>F: initialize and reserve graph guard
+    R->>A: create node and user guard
+    A->>F: claim bounded slots
+    R->>A: destroy node and user guard
+    A->>F: release bounded slots
+    R->>A: rmw_shutdown(context)
+    A->>F: shutdown and release graph guard
+    R->>A: rmw_context_fini(context)
+    A->>F: finalize
+```
+
+`rmw_shutdown` is idempotent. `rmw_context_fini` rejects an active context and
+also rejects a shutdown context that still owns an external node or guard.
+This preserves the underlying foundation's no-abandoned-handle invariant.
+
+### Qualification boundary
+
+The Jazzy CI job builds with `colcon`, runs the lifecycle executable, checks
+ament registration, loads the installed shared library, and compares its
+dynamic exports with `abi_symbols.txt`. Passing these checks qualifies
+ORT-RMW-029 through ORT-RMW-033 only. Full G4.1 remains open until the complete
+mandatory Jazzy ABI surface and standard runtime-selection smoke test pass.
 
 ## Architectural boundary
 

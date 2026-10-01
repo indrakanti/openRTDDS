@@ -109,6 +109,10 @@ def main() -> int:
     code = collect_references("include", "Requirements")
     for identifier, paths in collect_references("src", "Requirements").items():
         code.setdefault(identifier, set()).update(paths)
+    for identifier, paths in collect_references(
+        "rmw_openrtdds_cpp/src", "Requirements"
+    ).items():
+        code.setdefault(identifier, set()).update(paths)
     # The vendor interoperability harness lives under tests/interop. Its
     # capture and emitter code implements test-infrastructure requirements.
     for identifier, paths in collect_references(
@@ -116,6 +120,10 @@ def main() -> int:
     ).items():
         code.setdefault(identifier, set()).update(paths)
     tests = collect_references("tests", "Verifies")
+    for identifier, paths in collect_references(
+        "rmw_openrtdds_cpp/test", "Verifies"
+    ).items():
+        tests.setdefault(identifier, set()).update(paths)
     examples = collect_references("examples", "Demonstrates")
     designs = collect_references(
         "docs/design", "Requirements", "detailed-design.md"

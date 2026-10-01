@@ -92,6 +92,13 @@ context states, node slots, guard-condition generations, adapter errors, and
 the pinned Jazzy `rmw` 7.3.4 baseline. It intentionally does not register an
 RMW package or export the ROS C ABI, so G4.1 remains Planned.
 
+PR24 adds the discoverable Jazzy ament package, loadable shared library, and a
+tested C ABI slice for init options, contexts, nodes, and guard conditions. It
+registers no type-support backend and does not implement the remaining
+mandatory ABI, wait sets, graph propagation, endpoints, or services. G4.1
+therefore remains Planned even though its package/load/lifecycle evidence has
+started.
+
 ## Claim policy
 
 With G3 passed, release notes may claim bounded live best-effort
