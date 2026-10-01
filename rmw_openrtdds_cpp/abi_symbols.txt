@@ -1,0 +1,17 @@
+# Requirements: ORT-RMW-029, ORT-RMW-033
+# This is the implemented PR24 lifecycle slice, not the complete Jazzy ABI.
+rmw_context_fini
+rmw_create_guard_condition
+rmw_create_node
+rmw_destroy_guard_condition
+rmw_destroy_node
+rmw_feature_supported
+rmw_get_implementation_identifier
+rmw_get_serialization_format
+rmw_init
+rmw_init_options_copy
+rmw_init_options_fini
+rmw_init_options_init
+rmw_node_get_graph_guard_condition
+rmw_shutdown
+rmw_trigger_guard_condition

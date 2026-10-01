@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rmw_openrtdds_cpp</name>
+  <version>0.1.0</version>
+  <description>Bounded ROS 2 Jazzy RMW adapter for OpenRTDDS.</description>
+  <maintainer email="maintainers@openrtdds.dev">OpenRTDDS maintainers</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rcutils</depend>
+  <depend version_gte="7.3.3" version_lt="7.4.0">rmw</depend>
+
+  <member_of_group>rmw_implementation_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

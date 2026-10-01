@@ -409,6 +409,79 @@ error shall have a stable diagnostic name while unknown values map to
 **Rationale:** Exact errors can later be mapped to `rmw_ret_t` without losing
 the internal cause or allowing exceptions across the C ABI.
 
+### ORT-RMW-029 — Jazzy package discovery and shared-library identity
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+The adapter shall build as the `rmw_openrtdds_cpp` ament package against Jazzy
+`rmw` versions greater than or equal to 7.3.3 and less than 7.4.0, retain
+7.3.4 as its exact reviewed header baseline, install a loadable shared library,
+register it in the `rmw_typesupport` ament resource index, and export the exact
+implementation identifier `rmw_openrtdds_cpp` without registering a ROS type
+support backend before pub/sub support exists.
+
+**Rationale:** ROS package discovery and library identity can be qualified
+without implying that an incomplete adapter can carry ROS topics.
+
+### ORT-RMW-030 — Jazzy initialization C ABI slice
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+The adapter shall implement init-options initialize/copy/finalize and context
+initialize/shutdown/finalize entry points using the caller-provided allocator,
+deep-copy owned option fields, map the default domain deterministically, reject
+invalid lifecycle order, and prevent finalization while adapter entities remain
+owned.
+
+**Rationale:** A real allocator-correct context is the minimum safe owner for
+all later ROS entities.
+
+### ORT-RMW-031 — Jazzy node lifecycle C ABI slice
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+The adapter shall validate ROS node names and namespaces, create and destroy
+`rmw_node_t` objects backed by bounded foundation slots, copy ABI-visible
+strings with the context allocator, reject creation after shutdown, and expose
+the context graph guard-condition handle without claiming graph propagation.
+
+**Rationale:** Node ownership can be proven before endpoints and graph-cache
+semantics are introduced.
+
+### ORT-RMW-032 — Jazzy guard-condition lifecycle C ABI slice
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+The adapter shall create, trigger, and destroy `rmw_guard_condition_t` objects
+through bounded foundation handles, validate implementation and context
+ownership on every operation, reserve one bounded guard for the context graph
+handle, and reject triggering after shutdown.
+
+**Rationale:** Guard conditions establish the wake primitive used by a later
+wait-set implementation while retaining exact bounded ownership.
+
+### ORT-RMW-033 — Honest lifecycle-slice qualification gate
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+CI shall build and test the adapter in a ROS 2 Jazzy environment, verify every
+symbol listed for the lifecycle slice is exported, verify package registration
+and shared-library loading, and report all optional RMW features as unsupported
+until their semantics have dedicated requirements and tests.
+
+**Rationale:** A checked partial ABI is useful evidence only when it cannot be
+mistaken for full G4.1 or ROS 2 application compatibility.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)
