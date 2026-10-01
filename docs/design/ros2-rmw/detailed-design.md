@@ -27,10 +27,11 @@ slice; Planned for the remaining C ABI and G4.1 through G4.5
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
 OpenRTDDS C++ library. The first target is ROS 2 Jazzy on Linux. The exact
-Jazzy `rmw` package baseline is now pinned to version `7.3.4` and upstream
-`package.xml` blob `6b81eedd240033dcd695d5fa14511b0e41cdfd39`.
-The adapter is built and tested in the `ros:jazzy-ros-core` CI environment.
-Rolling is a reference, not the compatibility target.
+reviewed `rmw` header baseline is version `7.3.4` and upstream `package.xml`
+blob `6b81eedd240033dcd695d5fa14511b0e41cdfd39`. The package accepts the bounded
+Jazzy patch range `>=7.3.3,<7.4.0`; CI currently compiles and runs against the
+7.3.3 package in `ros:jazzy-ros-core`. A version outside that range fails at
+configure time. Rolling is a reference, not the compatibility target.
 
 This design covers lifecycle, pub/sub, wait/take, graph, services, metadata,
 QoS, errors, bounds, and qualification. DDS Security, SROS 2, dynamic types,

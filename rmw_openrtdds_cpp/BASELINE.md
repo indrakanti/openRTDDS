@@ -14,6 +14,8 @@ application compatibility claim.
 | Upstream branch | `jazzy` |
 | `rmw` package version | `7.3.4` |
 | Upstream `package.xml` blob | `6b81eedd240033dcd695d5fa14511b0e41cdfd39` |
+| Accepted build range | `>=7.3.3,<7.4.0` |
+| Jazzy CI package | `7.3.3` |
 | Platform | Linux |
 | Language ABI | ROS `rmw` C ABI wrapped by C++17 implementation |
 
@@ -23,3 +25,8 @@ member of `rmw_implementation_packages`; its empty type-support registration
 prevents discovery from being confused with topic capability. The implemented
 lifecycle symbols are pinned in `abi_symbols.txt`. Later PRs must complete the
 mandatory symbol set and runtime-selection gates before G4.1 passes.
+
+The reviewed source baseline and accepted build range are distinct on purpose:
+7.3.4 is the exact API source used for implementation review, while the range
+admits the current Jazzy image's ABI-compatible 7.3.3 patch and rejects a new
+minor line until it is reviewed.

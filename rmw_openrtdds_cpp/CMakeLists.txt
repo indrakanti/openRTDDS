@@ -3,7 +3,15 @@ project(rmw_openrtdds_cpp VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(ament_cmake REQUIRED)
 find_package(rcutils REQUIRED)
-find_package(rmw 7.3.4 EXACT REQUIRED)
+find_package(rmw 7.3 REQUIRED)
+if(rmw_VERSION VERSION_LESS "7.3.3" OR
+    NOT rmw_VERSION VERSION_LESS "7.4.0")
+  message(FATAL_ERROR
+    "rmw_openrtdds_cpp supports Jazzy rmw >=7.3.3 and <7.4.0; found ${rmw_VERSION}")
+endif()
+message(STATUS
+  "Building rmw_openrtdds_cpp against supported rmw ${rmw_VERSION} "
+  "(reviewed baseline 7.3.4)")
 
 # The ROS-free core remains independently buildable. The adapter consumes it
 # as a private implementation dependency and does not leak ROS headers into it.

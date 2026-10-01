@@ -415,9 +415,10 @@ the internal cause or allowing exceptions across the C ABI.
 
 **Verification:** Test, Inspection
 
-The adapter shall build as the `rmw_openrtdds_cpp` ament package against the
-exact Jazzy `rmw` 7.3.4 baseline, install a loadable shared library, register
-it in the `rmw_typesupport` ament resource index, and export the exact
+The adapter shall build as the `rmw_openrtdds_cpp` ament package against Jazzy
+`rmw` versions greater than or equal to 7.3.3 and less than 7.4.0, retain
+7.3.4 as its exact reviewed header baseline, install a loadable shared library,
+register it in the `rmw_typesupport` ament resource index, and export the exact
 implementation identifier `rmw_openrtdds_cpp` without registering a ROS type
 support backend before pub/sub support exists.
 

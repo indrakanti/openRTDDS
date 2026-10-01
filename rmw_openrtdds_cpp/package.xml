@@ -10,7 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rcutils</depend>
-  <depend version_eq="7.3.4">rmw</depend>
+  <depend version_gte="7.3.3" version_lt="7.4.0">rmw</depend>
 
   <member_of_group>rmw_implementation_packages</member_of_group>
 
