@@ -16,6 +16,10 @@ application compatibility claim.
 | Upstream `package.xml` blob | `6b81eedd240033dcd695d5fa14511b0e41cdfd39` |
 | Accepted build range | `>=7.3.3,<7.4.0` |
 | Jazzy CI package | `7.3.3` |
+| Jazzy proxy package | `ros2/rmw_implementation` |
+| Jazzy proxy commit | `835ff87c676cd65634edd3ad7ba88c8d8a0452e7` |
+| Proxy `functions.cpp` blob | `6201e037b7997bea8f66c552f2075887a62adf92` |
+| Required proxy symbols | `95` |
 | Platform | Linux |
 | Language ABI | ROS `rmw` C ABI wrapped by C++17 implementation |
 
@@ -30,3 +34,9 @@ The reviewed source baseline and accepted build range are distinct on purpose:
 7.3.4 is the exact API source used for implementation review, while the range
 admits the current Jazzy image's ABI-compatible 7.3.3 patch and rejects a new
 minor line until it is reviewed.
+
+PR25 derives `abi_symbols.txt` and the typed unsupported definitions from the
+pinned Jazzy proxy function table. The symbol list includes the 94 macro-routed
+entry points plus the separately dispatched `rmw_init`. This records ABI
+completeness, not semantic completeness: unimplemented API families remain
+truthfully unsupported.

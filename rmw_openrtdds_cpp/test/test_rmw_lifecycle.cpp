@@ -9,7 +9,7 @@
 #include "rmw/rmw.h"
 
 // Verifies: ORT-RMW-029, ORT-RMW-030, ORT-RMW-031, ORT-RMW-032
-// Verifies: ORT-RMW-033
+// Verifies: ORT-RMW-033, ORT-RMW-036
 namespace {
 
 int fail(const int code) {
@@ -69,6 +69,9 @@ int main() {
     cleanup_options(&options_copy);
     cleanup_options(&options);
     return fail(8);
+  }
+  if (rmw_error_is_set()) {
+    return fail(25);
   }
   if ((context.actual_domain_id != 43U) ||
       (context.instance_id != options.instance_id)) {

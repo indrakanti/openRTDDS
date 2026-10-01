@@ -273,8 +273,9 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            binutils build-essential cmake python3-colcon-common-extensions
-      - name: Build Jazzy RMW lifecycle slice
+            binutils build-essential cmake python3-colcon-common-extensions \
+            ros-jazzy-rmw-implementation
+      - name: Build complete Jazzy RMW ABI surface
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
@@ -283,7 +284,7 @@ jobs:
             --packages-select rmw_openrtdds_cpp \
             --event-handlers console_direct+ \
             --cmake-args -DBUILD_TESTING=ON
-      - name: Run lifecycle tests
+      - name: Run direct and runtime-selection tests
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
@@ -292,7 +293,7 @@ jobs:
             --packages-select rmw_openrtdds_cpp \
             --event-handlers console_direct+
           colcon test-result --verbose
-      - name: Verify package registration, load, and ABI symbols
+      - name: Verify package registration, load, and complete ABI manifest
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash

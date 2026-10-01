@@ -1,7 +1,8 @@
 # ROS 2 RMW adapter detailed design
 
-**Design status:** Current for the bounded foundation and Jazzy lifecycle C ABI
-slice; Planned for the remaining C ABI and G4.1 through G4.5
+**Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
+surface, and lifecycle semantics; Planned for communication semantics and the
+remaining G4.1 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -22,6 +23,8 @@ slice; Planned for the remaining C ABI and G4.1 through G4.5
 **Requirements:** ORT-RMW-029, ORT-RMW-030, ORT-RMW-031, ORT-RMW-032
 
 **Requirements:** ORT-RMW-033
+
+**Requirements:** ORT-RMW-034, ORT-RMW-035, ORT-RMW-036
 
 ## Status and scope
 
@@ -51,10 +54,12 @@ context, node, guard-condition, shutdown, release, and finalize sequence. The
 upstream selection evidence is recorded in `rmw_openrtdds_cpp/BASELINE.md`.
 
 The foundation is compiled into `OpenRTDDS::openrtdds`; it includes no ROS
-headers. The separate `rmw_openrtdds_cpp` ament package now registers and
-exports a loadable shared library, but it deliberately registers an empty
-type-support set. This lifecycle slice is not full G4.1 and cannot yet run a
-ROS node or executor end to end.
+headers. The separate `rmw_openrtdds_cpp` ament package registers and exports a
+loadable shared library with the complete reviewed Jazzy proxy symbol surface,
+but it deliberately registers an empty type-support set. The current adapter
+can complete its lifecycle through the standard runtime-selection proxy; it
+cannot yet run a ROS publisher, subscription, service, client, or executor end
+to end.
 
 ### Current types and ownership
 
@@ -121,19 +126,42 @@ sequenceDiagram
 The Jazzy lifecycle wrapper maps these results to `rmw_ret_t`; later entity
 families shall reuse the same mapping rather than invent local return policy.
 
-## Current Jazzy lifecycle C ABI slice
+## Current Jazzy C ABI and lifecycle scaffold
 
 `rmw_openrtdds_cpp/src/rmw_adapter.cpp` owns all ROS ABI objects and wraps the
 bounded foundation. The implemented entry points are limited to identity,
 serialization-format declaration, conservative feature reporting, init
 options, context lifecycle, node lifecycle, and guard-condition lifecycle.
-`rmw_openrtdds_cpp/abi_symbols.txt` is the machine-checked symbol manifest for
-this slice; it is explicitly not the complete Jazzy RMW symbol set.
+`rmw_openrtdds_cpp/src/rmw_unsupported.cpp` supplies type-correct definitions
+for every other function required by the pinned Jazzy proxy. The reviewed
+`rmw_openrtdds_cpp/abi_symbols.txt` manifest contains all 95 exports: 94
+macro-routed proxy functions plus the separately dispatched `rmw_init`.
+
+The proxy reference is `ros2/rmw_implementation` Jazzy commit
+`835ff87c676cd65634edd3ad7ba88c8d8a0452e7`, with `src/functions.cpp` blob
+`6201e037b7997bea8f66c552f2075887a62adf92`. Any baseline change requires a
+manifest diff, header compatibility review, and CI evidence before acceptance.
 
 The ament resource index contains `rmw_openrtdds_cpp`, but its registered type
 support list is empty. Publisher, subscription, wait-set, graph-cache, service,
 client, event, serialization, and take APIs are not implemented by this PR.
 All optional features return `false` from `rmw_feature_supported`.
+
+### Unsupported-entry-point contract
+
+An exported symbol does not imply implemented semantics. Every unimplemented
+entry point follows a return-type-specific policy and must leave adapter state
+unchanged.
+
+| Return family | Required result | Diagnostic policy |
+|---|---|---|
+| `rmw_ret_t` | `RMW_RET_UNSUPPORTED` | set an `rcutils` error naming the unsupported function |
+| created-handle pointer | `nullptr` | set an `rcutils` error naming the unsupported function |
+| capability query `bool` | `false` | do not set an error; unsupported is the query result |
+
+Stub definitions use the official Jazzy declarations so signature drift is a
+compile error. They do not allocate, dereference caller objects, mutate
+contexts or handles, invoke callbacks, create threads, or perform I/O.
 
 ### ABI ownership
 
@@ -169,13 +197,38 @@ sequenceDiagram
 also rejects a shutdown context that still owns an external node or guard.
 This preserves the underlying foundation's no-abandoned-handle invariant.
 
+### Standard runtime-selection sequence
+
+```mermaid
+sequenceDiagram
+    participant U as ROS process
+    participant P as rmw_implementation proxy
+    participant L as rmw_openrtdds_cpp
+    U->>P: set RMW_IMPLEMENTATION and call rmw_init_options_init
+    P->>L: discover and load shared library
+    U->>P: rmw_init
+    P->>L: prefetch all 95 reviewed symbols
+    P->>L: dispatch lifecycle calls
+    L-->>U: bounded lifecycle results
+```
+
+The proxy-linked test does not link directly to `rmw_openrtdds_cpp`. This
+prevents link-time resolution from masking package discovery, loader, manifest,
+or proxy-dispatch defects.
+
 ### Qualification boundary
 
-The Jazzy CI job builds with `colcon`, runs the lifecycle executable, checks
-ament registration, loads the installed shared library, and compares its
-dynamic exports with `abi_symbols.txt`. Passing these checks qualifies
-ORT-RMW-029 through ORT-RMW-033 only. Full G4.1 remains open until the complete
-mandatory Jazzy ABI surface and standard runtime-selection smoke test pass.
+The Jazzy CI job builds with `colcon`, runs direct lifecycle and unsupported
+contract tests, checks ament registration, loads the installed shared library,
+and compares all `rmw_*` dynamic exports with `abi_symbols.txt`. A second
+lifecycle executable links only to `rmw_implementation`, selects this adapter
+with `RMW_IMPLEMENTATION=rmw_openrtdds_cpp`, and exercises proxy load, full
+symbol prefetch, and lifecycle dispatch.
+
+Passing these checks qualifies ORT-RMW-029 through ORT-RMW-036. Full G4.1
+remains open for explicit sanitizer, invalid-access, and leak evidence plus the
+gate review. It does not qualify endpoint, wait-set, graph, service, client, or
+general ROS application behavior.
 
 ## Architectural boundary
 

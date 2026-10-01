@@ -21,7 +21,10 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.."
   "${CMAKE_CURRENT_BINARY_DIR}/openrtdds-core" EXCLUDE_FROM_ALL)
 set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_library(${PROJECT_NAME} SHARED src/rmw_adapter.cpp)
+add_library(${PROJECT_NAME} SHARED
+  src/rmw_adapter.cpp
+  src/rmw_unsupported.cpp
+)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -44,6 +47,8 @@ install(TARGETS ${PROJECT_NAME}
 
 if(BUILD_TESTING)
   enable_testing()
+  find_package(rmw_implementation REQUIRED)
+
   add_executable(test_rmw_lifecycle test/test_rmw_lifecycle.cpp)
   target_compile_features(test_rmw_lifecycle PRIVATE cxx_std_17)
   target_compile_options(test_rmw_lifecycle PRIVATE
@@ -54,6 +59,31 @@ if(BUILD_TESTING)
     rmw::rmw
   )
   add_test(NAME rmw_openrtdds_lifecycle COMMAND test_rmw_lifecycle)
+
+  add_executable(test_rmw_unsupported test/test_rmw_unsupported.cpp)
+  target_compile_features(test_rmw_unsupported PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_unsupported PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_unsupported PRIVATE
+    ${PROJECT_NAME}
+    rcutils::rcutils
+    rmw::rmw
+  )
+  add_test(NAME rmw_openrtdds_unsupported COMMAND test_rmw_unsupported)
+
+  add_executable(test_rmw_runtime_selection test/test_rmw_lifecycle.cpp)
+  target_compile_features(test_rmw_runtime_selection PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_runtime_selection PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_runtime_selection PRIVATE
+    rmw_implementation::rmw_implementation
+    rcutils::rcutils
+    rmw::rmw
+  )
+  add_test(NAME rmw_openrtdds_runtime_selection
+    COMMAND test_rmw_runtime_selection)
+  set_tests_properties(rmw_openrtdds_runtime_selection PROPERTIES
+    ENVIRONMENT "RMW_IMPLEMENTATION=rmw_openrtdds_cpp")
 endif()
 
 ament_package()
