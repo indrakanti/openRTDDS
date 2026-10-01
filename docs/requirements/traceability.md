@@ -108,6 +108,9 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-031 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_lifecycle.cpp` | — |
 | ORT-RMW-032 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_lifecycle.cpp` | — |
 | ORT-RMW-033 | Verified | `rmw_adapter.cpp`, `abi_symbols.txt`, `check_rmw_symbols.py` | Jazzy package/load/symbol CI, `test_rmw_lifecycle.cpp` | — |
+| ORT-RMW-034 | Verified | `rmw_adapter.cpp`, `rmw_unsupported.cpp`, `abi_symbols.txt` | exact symbol-manifest CI | — |
+| ORT-RMW-035 | Verified | `rmw_unsupported.cpp` | `test_rmw_unsupported.cpp` | — |
+| ORT-RMW-036 | Verified | `rmw_openrtdds_cpp/CMakeLists.txt`, complete ABI sources | proxy-linked `test_rmw_lifecycle.cpp`, Jazzy CI | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

@@ -11,7 +11,7 @@ green.
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR21 for pinned best-effort and bounded reliable scope |
-| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | Planned by PR22 |
+| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; ABI/lifecycle scaffold through PR25 |
 
 ## Vendor matrix qualified for G2 and bounded G3 scope
 
@@ -98,6 +98,16 @@ registers no type-support backend and does not implement the remaining
 mandatory ABI, wait sets, graph propagation, endpoints, or services. G4.1
 therefore remains Planned even though its package/load/lifecycle evidence has
 started.
+
+PR25 completes the reviewed 95-symbol Jazzy `rmw_implementation` proxy export
+surface. Fifteen lifecycle and identity functions retain their implemented
+semantics; the remaining entry points use type-correct, side-effect-free
+unsupported stubs. CI selects the adapter through
+`RMW_IMPLEMENTATION=rmw_openrtdds_cpp`, forces the standard proxy to prefetch
+the full surface, and runs the lifecycle sequence through that proxy. This is
+load and dispatch evidence, not topic, wait-set, graph, service, or general ROS
+2 application readiness. G4.1 remains open for its memory-safety qualification
+and gate review.
 
 ## Claim policy
 

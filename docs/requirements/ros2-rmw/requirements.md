@@ -482,6 +482,52 @@ until their semantics have dedicated requirements and tests.
 **Rationale:** A checked partial ABI is useful evidence only when it cannot be
 mistaken for full G4.1 or ROS 2 application compatibility.
 
+### ORT-RMW-034 — Complete Jazzy proxy symbol surface
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+The adapter shared library shall export every one of the 95 symbols requested
+by the pinned Jazzy `rmw_implementation` proxy source, record the exact
+upstream commit and source-blob identity used to produce that list, and fail CI
+when any required `rmw_*` export is missing or an unreviewed export appears.
+
+**Rationale:** The Jazzy proxy prefetches its complete function table during
+`rmw_init`; one absent symbol can leave runtime selection with a delayed load
+failure even when lifecycle functions themselves exist.
+
+### ORT-RMW-035 — Type-correct unsupported ABI stubs
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+Each not-yet-implemented Jazzy entry point shall have its declared C signature,
+shall not mutate caller or middleware state, shall return
+`RMW_RET_UNSUPPORTED` for `rmw_ret_t` APIs or null for handle-producing APIs
+while setting a diagnostic, and shall return false without setting an error for
+capability predicates.
+
+**Rationale:** Type-correct stubs allow complete dynamic loading while making
+unimplemented behavior immediate and observable instead of fabricating
+success or relying on calling-convention-unsafe aliases.
+
+### ORT-RMW-036 — Standard runtime-selection lifecycle smoke
+
+**Status:** Verified
+
+**Verification:** Test
+
+CI shall link a lifecycle executable only to the standard
+`rmw_implementation` proxy, select OpenRTDDS through
+`RMW_IMPLEMENTATION=rmw_openrtdds_cpp`, and successfully execute init-options,
+context, node, guard-condition, shutdown, release, and finalization operations
+without a missing-symbol diagnostic.
+
+**Rationale:** Directly linking the adapter does not prove a ROS installation
+can discover and dispatch through the standard runtime-selection path.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)

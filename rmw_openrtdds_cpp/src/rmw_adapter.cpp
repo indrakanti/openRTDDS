@@ -19,6 +19,7 @@
 namespace {
 
 // Requirements: ORT-RMW-030, ORT-RMW-031, ORT-RMW-032, ORT-RMW-033
+// Requirements: ORT-RMW-036
 constexpr std::size_t kNodeCapacity = 8U;
 constexpr std::size_t kGuardConditionCapacity = 16U;
 using Foundation =

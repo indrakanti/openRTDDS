@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the explicitly implemented RMW ABI slice in a shared library."""
+"""Check the reviewed RMW ABI manifest against a shared library."""
 
 from __future__ import annotations
 
@@ -32,11 +32,21 @@ def main() -> int:
     parser.add_argument("expected", type=Path)
     args = parser.parse_args()
 
-    missing = sorted(expected_symbols(args.expected) - exported_symbols(args.library))
-    if missing:
-        print("missing RMW symbols:")
-        for symbol in missing:
-            print(f"  {symbol}")
+    expected = expected_symbols(args.expected)
+    exported = exported_symbols(args.library)
+    missing = sorted(expected - exported)
+    unexpected = sorted(
+        symbol for symbol in exported - expected if symbol.startswith("rmw_")
+    )
+    if missing or unexpected:
+        if missing:
+            print("missing RMW symbols:")
+            for symbol in missing:
+                print(f"  {symbol}")
+        if unexpected:
+            print("unreviewed RMW symbols:")
+            for symbol in unexpected:
+                print(f"  {symbol}")
         return 1
     return 0
 
