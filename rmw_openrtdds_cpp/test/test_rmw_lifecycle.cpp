@@ -17,6 +17,13 @@ int fail(const int code) {
   return code;
 }
 
+void cleanup_options(rmw_init_options_t* options) {
+  const rmw_ret_t result = rmw_init_options_fini(options);
+  if (result != RMW_RET_OK) {
+    rmw_reset_error();
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -41,26 +48,26 @@ int main() {
   options.domain_id = 43U;
   options.enclave = rcutils_strdup("/openrtdds_test", allocator);
   if (options.enclave == nullptr) {
-    static_cast<void>(rmw_init_options_fini(&options));
+    cleanup_options(&options);
     return fail(5);
   }
 
   rmw_init_options_t options_copy = rmw_get_zero_initialized_init_options();
   if (rmw_init_options_copy(&options, &options_copy) != RMW_RET_OK) {
-    static_cast<void>(rmw_init_options_fini(&options));
+    cleanup_options(&options);
     return fail(6);
   }
   if ((options_copy.enclave == options.enclave) ||
       (std::strcmp(options_copy.enclave, options.enclave) != 0)) {
-    static_cast<void>(rmw_init_options_fini(&options_copy));
-    static_cast<void>(rmw_init_options_fini(&options));
+    cleanup_options(&options_copy);
+    cleanup_options(&options);
     return fail(7);
   }
 
   rmw_context_t context = rmw_get_zero_initialized_context();
   if (rmw_init(&options, &context) != RMW_RET_OK) {
-    static_cast<void>(rmw_init_options_fini(&options_copy));
-    static_cast<void>(rmw_init_options_fini(&options));
+    cleanup_options(&options_copy);
+    cleanup_options(&options);
     return fail(8);
   }
   if ((context.actual_domain_id != 43U) ||

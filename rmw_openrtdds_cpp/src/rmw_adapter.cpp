@@ -247,17 +247,18 @@ rmw_ret_t rmw_init_options_copy(const rmw_init_options_t* source,
   result = rmw_discovery_options_copy(&source->discovery_options, &allocator,
                                       &value.discovery_options);
   if (result != RMW_RET_OK) {
-    static_cast<void>(
-        rmw_security_options_fini(&value.security_options, &allocator));
+    [[maybe_unused]] const rmw_ret_t security_cleanup_result =
+        rmw_security_options_fini(&value.security_options, &allocator);
     return result;
   }
 
   if (source->enclave != nullptr) {
     value.enclave = rcutils_strdup(source->enclave, allocator);
     if (value.enclave == nullptr) {
-      static_cast<void>(rmw_discovery_options_fini(&value.discovery_options));
-      static_cast<void>(
-          rmw_security_options_fini(&value.security_options, &allocator));
+      [[maybe_unused]] const rmw_ret_t discovery_cleanup_result =
+          rmw_discovery_options_fini(&value.discovery_options);
+      [[maybe_unused]] const rmw_ret_t security_cleanup_result =
+          rmw_security_options_fini(&value.security_options, &allocator);
       RMW_SET_ERROR_MSG("unable to copy enclave");
       return RMW_RET_BAD_ALLOC;
     }
@@ -338,7 +339,8 @@ rmw_ret_t rmw_init(const rmw_init_options_t* options, rmw_context_t* context) {
   void* storage = allocator.zero_allocate(1U, sizeof(rmw_context_impl_t),
                                            allocator.state);
   if (storage == nullptr) {
-    static_cast<void>(rmw_init_options_fini(&value.options));
+    [[maybe_unused]] const rmw_ret_t cleanup_result =
+        rmw_init_options_fini(&value.options);
     RMW_SET_ERROR_MSG("unable to allocate OpenRTDDS context implementation");
     return RMW_RET_BAD_ALLOC;
   }
@@ -351,7 +353,8 @@ rmw_ret_t rmw_init(const rmw_init_options_t* options, rmw_context_t* context) {
   if (foundation_result != openrtdds::rmw::AdapterError::none) {
     value.impl->~rmw_context_impl_t();
     allocator.deallocate(value.impl, allocator.state);
-    static_cast<void>(rmw_init_options_fini(&value.options));
+    [[maybe_unused]] const rmw_ret_t cleanup_result =
+        rmw_init_options_fini(&value.options);
     return set_adapter_error(foundation_result);
   }
 
@@ -362,7 +365,8 @@ rmw_ret_t rmw_init(const rmw_init_options_t* options, rmw_context_t* context) {
     static_cast<void>(context->impl->foundation.finalize());
     context->impl->~rmw_context_impl_t();
     allocator.deallocate(context->impl, allocator.state);
-    static_cast<void>(rmw_init_options_fini(&context->options));
+    [[maybe_unused]] const rmw_ret_t cleanup_result =
+        rmw_init_options_fini(&context->options);
     *context = rmw_get_zero_initialized_context();
     return RMW_RET_BAD_ALLOC;
   }
