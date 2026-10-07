@@ -11,7 +11,7 @@ green.
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR21 for pinned best-effort and bounded reliable scope |
-| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; G4.1 passed by PR26 |
+| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; G4.1 passed, G4.2 foundation through PR27 |
 
 ## Vendor matrix qualified for G2 and bounded G3 scope
 
@@ -117,6 +117,15 @@ bounded adapter lifecycle scaffold loads and passes its documented memory and
 fault paths. It still provides no topic, wait-set, graph, service/client,
 executor, or general ROS 2 compatibility claim; those remain G4.2 through
 G4.5 work.
+
+PR27 starts G4.2 without activating endpoints. It accepts direct Jazzy C and
+C++ introspection metadata for a bounded scalar, array, sequence, string, and
+nested-message subset; computes the maximum aligned XCDR1 wire size; and
+freezes allocation-free `rt/rq/rr`, `Request/Reply`, and DDS type-name golden
+vectors. Unbounded, recursive, malformed, unsupported, over-depth, and
+over-sample schemas fail atomically. Because no publisher, subscription,
+serializer, wait set, or take path consumes this foundation yet, G4.2 remains
+open and no ROS topic-exchange claim is enabled.
 
 ## Claim policy
 
