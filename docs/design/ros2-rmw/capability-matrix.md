@@ -6,16 +6,16 @@ it does not mean the corresponding `rmw` function is implemented.
 
 | RMW capability | Existing OpenRTDDS basis | Gap before adapter support | Planned gate |
 |---|---|---|---|
-| Package discovery and selection | ament registration, loadable shared library, reviewed 95-symbol Jazzy proxy manifest, and `RMW_IMPLEMENTATION` lifecycle smoke | memory-safety qualification and semantic APIs beyond lifecycle | G4.1 |
-| Init/context/shutdown | fixed foundation context, ROS allocator wrapper, and C ABI lifecycle state machine | transport workers, wait shutdown, sanitizer/leak evidence | G4.1 |
-| Nodes | bounded generation-checked slots and `rmw_node_t` wrapper | graph publication | G4.1/G4.3 |
+| Package discovery and selection | ament registration, loadable shared library, reviewed 95-symbol Jazzy proxy manifest, `RMW_IMPLEMENTATION` lifecycle smoke, and sanitizer qualification | semantic APIs beyond lifecycle | G4.1 passed |
+| Init/context/shutdown | fixed foundation context, ROS allocator wrapper, C ABI lifecycle state machine, 256-cycle stress, fault injection, and zero-balance accounting | transport workers and wait shutdown belong to G4.2 | G4.1 passed |
+| Nodes | bounded generation-checked slots, `rmw_node_t` wrapper, exhaustion rollback, and sanitizer stress | graph publication | G4.1 passed/G4.3 |
 | Publishers | typed static writer, CDR, UDP, reliability | type-erased handle, ROS mapping, QoS conversion, metadata | G4.2 |
 | Subscriptions | typed static reader, bounded history | readiness/take contract, type-erased decode, metadata | G4.2 |
 | Type support | bounded XCDR1 primitives | Jazzy introspection traversal, max-size analysis, ROS strings/sequences | G4.2 |
 | Topic/type names | bounded SEDP names | ROS DDS name/type mapping and bound validation | G4.2 |
 | QoS | reliability, volatile durability, KEEP_LAST | complete supported-policy map, defaults, compatibility API, events | G4.2/G4.5 |
 | Wait sets | nonblocking UDP | readiness registry, wakeup primitive, monotonic timeout, shutdown wake | G4.2 |
-| Guard conditions | fixed slots, trigger/wake generations, and `rmw_guard_condition_t` wrapper | blocking wait integration | G4.1/G4.2 |
+| Guard conditions | fixed slots, trigger/wake generations, `rmw_guard_condition_t` wrapper, and exhaustion rollback | blocking wait integration | G4.1 passed/G4.2 |
 | ROS graph | SPDP/SEDP caches | logical nodes, graph discovery protocol/cache, queries, graph guard | G4.3 |
 | Services/clients | pub/sub primitives | request/response topics, identities, correlation, readiness | G4.4 |
 | GIDs and message info | RTPS GUID and sequence | stable `rmw_gid_t` encoding and `rmw_message_info_t` conversion | G4.2 |
@@ -28,8 +28,8 @@ it does not mean the corresponding `rmw` function is implemented.
 
 ## Required implementation order
 
-1. G4.1: package, ABI surface, bounded context, node, guard condition, and
-   lifecycle/error scaffolding.
+1. G4.1 (passed by PR26): package, ABI surface, bounded context, node, guard
+   condition, lifecycle/error scaffolding, and memory-safety qualification.
 2. G4.2: type support, topic mapping, publisher/subscription, QoS, wait/take,
    and metadata.
 3. G4.3: distributed graph cache, discovery propagation, queries, and expiry.

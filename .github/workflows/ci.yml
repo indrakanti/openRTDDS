@@ -313,3 +313,42 @@ jobs:
           library.rmw_get_implementation_identifier.restype = ctypes.c_char_p
           assert library.rmw_get_implementation_identifier() == b"rmw_openrtdds_cpp"
           PY
+
+  ros2-jazzy-lifecycle-sanitizers:
+    runs-on: ubuntu-24.04
+    container: ros:jazzy-ros-core
+    permissions:
+      contents: read
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1:strict_string_checks=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ROS build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential cmake python3-colcon-common-extensions \
+            ros-jazzy-rmw-implementation
+      - name: Build instrumented Jazzy lifecycle surface
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build \
+            --base-paths rmw_openrtdds_cpp \
+            --packages-select rmw_openrtdds_cpp \
+            --event-handlers console_direct+ \
+            --cmake-args \
+              -DBUILD_TESTING=ON \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DOPENRTDDS_RMW_ENABLE_SANITIZERS=ON
+      - name: Run leak, invalid-access, and lifecycle stress qualification
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          colcon test \
+            --packages-select rmw_openrtdds_cpp \
+            --event-handlers console_direct+ \
+            --return-code-on-test-failure
+          colcon test-result --verbose

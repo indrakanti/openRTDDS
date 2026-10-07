@@ -72,7 +72,7 @@ not treated as a build/test failure.
    - [x] Readiness requirements, capability gaps, and staged G4 design
    - [x] Bounded context/node/guard-condition foundation and Jazzy ABI baseline
    - [x] Complete Jazzy proxy export manifest and runtime-selection smoke
-   - [ ] G4.1 package, ABI, context, and node skeleton
+   - [x] G4.1 package, ABI, context, node, and memory-safety qualification
    - [ ] G4.2 bounded topic publish/wait/take
    - [ ] G4.3 graph integration
    - [ ] G4.4 service/client integration

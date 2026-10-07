@@ -1,8 +1,8 @@
 # ROS 2 RMW adapter detailed design
 
 **Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
-surface, and lifecycle semantics; Planned for communication semantics and the
-remaining G4.1 through G4.5 evidence
+surface, lifecycle semantics, and G4.1 memory-safety qualification; Planned
+for communication semantics and G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -25,6 +25,8 @@ remaining G4.1 through G4.5 evidence
 **Requirements:** ORT-RMW-033
 
 **Requirements:** ORT-RMW-034, ORT-RMW-035, ORT-RMW-036
+
+**Requirements:** ORT-RMW-037, ORT-RMW-038, ORT-RMW-039
 
 ## Status and scope
 
@@ -225,10 +227,26 @@ lifecycle executable links only to `rmw_implementation`, selects this adapter
 with `RMW_IMPLEMENTATION=rmw_openrtdds_cpp`, and exercises proxy load, full
 symbol prefetch, and lifecycle dispatch.
 
-Passing these checks qualifies ORT-RMW-029 through ORT-RMW-036. Full G4.1
-remains open for explicit sanitizer, invalid-access, and leak evidence plus the
-gate review. It does not qualify endpoint, wait-set, graph, service, client, or
-general ROS application behavior.
+PR26 adds a caller-supplied accounting allocator and exercises 256 complete
+lifecycle cycles at the configured maximum of eight nodes and fifteen user
+guards (the graph guard owns the sixteenth slot). Every cycle deliberately
+exceeds both pools, verifies atomic rejection, shuts down with live objects,
+releases them, finalizes, and requires zero outstanding allocations. Separate
+failure sweeps reject each partial context, graph-guard, node, and guard
+construction edge, verify allocation and slot rollback, then perform a valid
+recovery operation.
+
+The sanitizer job instruments the adapter, its ROS-free OpenRTDDS dependency,
+and all lifecycle executables with AddressSanitizer and
+UndefinedBehaviorSanitizer. Leak detection is enabled and failures stop the
+job. It covers direct and proxy-selected lifecycle paths, invalid null and
+foreign-implementation inputs, resource exhaustion, allocation fault
+injection, and repeated cleanup.
+
+Passing these checks qualifies ORT-RMW-029 through ORT-RMW-039 and closes
+G4.1. This proves that the documented lifecycle scaffold loads and survives
+the tested memory and fault paths; it does not qualify endpoint, wait-set,
+graph, service, client, executor, or general ROS application behavior.
 
 ## Architectural boundary
 
@@ -533,14 +551,15 @@ discovery announcement, lease, wait, and shutdown join has a monotonic bound.
 
 | Gate | Required evidence | Claim enabled |
 |---|---|---|
-| G4.1 Build/load | Jazzy build/install, symbol/load test, init/node/shutdown sanitizer test | adapter skeleton loads |
+| G4.1 Build/load | Jazzy build/install, exact symbol/load test, runtime selection, failure injection, allocation balance, and init/node/shutdown ASan/LSan/UBSan stress | Passed by PR26: adapter lifecycle scaffold loads |
 | G4.2 Topics | C/C++ fixed-message best-effort and reliable talker/listener, QoS and metadata tests | bounded ROS topic exchange |
 | G4.3 Graph | multi-process graph add/query/remove and lease-expiry tests | selected graph introspection |
 | G4.4 Services | concurrent request/reply correlation, wait readiness, invalid response test | bounded ROS services |
 | G4.5 Conformance | versioned upstream allowlist, exclusions, stress, sanitizers, determinism analysis | ROS 2 Jazzy readiness for documented profile |
 
-G4 remains Planned until all five gates pass. Passing a lower gate shall be
-claimed precisely and shall not be described as general ROS 2 support.
+G4.1 is passed; G4 remains Planned until all five gates pass. Passing a lower
+gate shall be claimed precisely and shall not be described as general ROS 2
+support.
 
 ## Verification strategy
 

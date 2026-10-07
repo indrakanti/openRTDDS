@@ -1,6 +1,19 @@
 cmake_minimum_required(VERSION 3.20)
 project(rmw_openrtdds_cpp VERSION 0.1.0 LANGUAGES CXX)
 
+option(OPENRTDDS_RMW_ENABLE_SANITIZERS
+  "Enable AddressSanitizer, LeakSanitizer, and UndefinedBehaviorSanitizer"
+  OFF)
+
+if(OPENRTDDS_RMW_ENABLE_SANITIZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    message(FATAL_ERROR
+      "OPENRTDDS_RMW_ENABLE_SANITIZERS requires GCC or Clang")
+  endif()
+  add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+endif()
+
 find_package(ament_cmake REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw 7.3 REQUIRED)
@@ -70,6 +83,21 @@ if(BUILD_TESTING)
     rmw::rmw
   )
   add_test(NAME rmw_openrtdds_unsupported COMMAND test_rmw_unsupported)
+
+  add_executable(test_rmw_memory_qualification
+    test/test_rmw_memory_qualification.cpp)
+  target_compile_features(test_rmw_memory_qualification PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_memory_qualification PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_memory_qualification PRIVATE
+    ${PROJECT_NAME}
+    rcutils::rcutils
+    rmw::rmw
+  )
+  add_test(NAME rmw_openrtdds_memory_qualification
+    COMMAND test_rmw_memory_qualification)
+  set_tests_properties(rmw_openrtdds_memory_qualification PROPERTIES
+    TIMEOUT 30)
 
   add_executable(test_rmw_runtime_selection test/test_rmw_lifecycle.cpp)
   target_compile_features(test_rmw_runtime_selection PRIVATE cxx_std_17)
