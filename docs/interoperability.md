@@ -11,7 +11,7 @@ green.
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR21 for pinned best-effort and bounded reliable scope |
-| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; ABI/lifecycle scaffold through PR25 |
+| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; G4.1 passed by PR26 |
 
 ## Vendor matrix qualified for G2 and bounded G3 scope
 
@@ -108,6 +108,15 @@ the full surface, and runs the lifecycle sequence through that proxy. This is
 load and dispatch evidence, not topic, wait-set, graph, service, or general ROS
 2 application readiness. G4.1 remains open for its memory-safety qualification
 and gate review.
+
+PR26 closes G4.1 with a sanitizer-instrumented Jazzy job, 256 maximum-capacity
+lifecycle cycles, exact caller-allocation accounting, allocation-failure
+injection and rollback, invalid-input rejection, and both direct and standard
+runtime-selection execution. G4.1 now supports the precise claim that the
+bounded adapter lifecycle scaffold loads and passes its documented memory and
+fault paths. It still provides no topic, wait-set, graph, service/client,
+executor, or general ROS 2 compatibility claim; those remain G4.2 through
+G4.5 work.
 
 ## Claim policy
 

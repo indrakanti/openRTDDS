@@ -111,6 +111,9 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-034 | Verified | `rmw_adapter.cpp`, `rmw_unsupported.cpp`, `abi_symbols.txt` | exact symbol-manifest CI | — |
 | ORT-RMW-035 | Verified | `rmw_unsupported.cpp` | `test_rmw_unsupported.cpp` | — |
 | ORT-RMW-036 | Verified | `rmw_openrtdds_cpp/CMakeLists.txt`, complete ABI sources | proxy-linked `test_rmw_lifecycle.cpp`, Jazzy CI | — |
+| ORT-RMW-037 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_memory_qualification.cpp` stress and allocation accounting | — |
+| ORT-RMW-038 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_memory_qualification.cpp` allocation-failure sweep | — |
+| ORT-RMW-039 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp`, sanitizer build option | Jazzy ASan/LSan/UBSan CI | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

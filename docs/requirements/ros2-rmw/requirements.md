@@ -528,6 +528,51 @@ without a missing-symbol diagnostic.
 **Rationale:** Directly linking the adapter does not prove a ROS installation
 can discover and dispatch through the standard runtime-selection path.
 
+### ORT-RMW-037 — Bounded lifecycle stress and allocation balance
+
+**Status:** Verified
+
+**Verification:** Test
+
+The adapter shall complete at least 256 consecutive init, maximum-capacity
+node and guard-condition creation, resource-exhaustion rejection, shutdown,
+release, and finalization cycles while a caller-supplied accounting allocator
+reports zero outstanding allocations after every cycle.
+
+**Rationale:** A single successful lifecycle does not expose cumulative leaks,
+slot reuse faults, or incomplete cleanup after bounded pool exhaustion.
+
+### ORT-RMW-038 — Allocation-failure atomicity
+
+**Status:** Verified
+
+**Verification:** Test
+
+Tests shall inject allocation failure at every adapter-owned allocation edge
+during context, graph-guard, node, and user guard-condition creation. Each
+failed operation shall leave the destination zero or null, restore the prior
+allocation balance and bounded-slot availability, and permit a subsequent
+valid operation.
+
+**Rationale:** Deterministic resource exhaustion is safe only when partial
+construction cannot leak memory, consume a slot, or poison later lifecycle
+operations.
+
+### ORT-RMW-039 — G4.1 memory-safety qualification
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+CI shall build the ROS 2 Jazzy adapter, ROS-free core dependency, and lifecycle
+tests with AddressSanitizer and UndefinedBehaviorSanitizer, enable leak
+detection, and run normal, invalid-input, failure-injection, maximum-capacity,
+stress, and standard runtime-selection paths with zero sanitizer findings.
+
+**Rationale:** G4.1 load and lifecycle claims require explicit evidence against
+invalid access, undefined behavior, and leaks in addition to functional return
+codes.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)
