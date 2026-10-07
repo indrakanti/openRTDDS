@@ -17,6 +17,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw 7.3 REQUIRED)
+find_package(rosidl_typesupport_introspection_c REQUIRED)
+find_package(rosidl_typesupport_introspection_cpp REQUIRED)
 if(rmw_VERSION VERSION_LESS "7.3.3" OR
     NOT rmw_VERSION VERSION_LESS "7.4.0")
   message(FATAL_ERROR
@@ -37,13 +39,22 @@ set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(${PROJECT_NAME} SHARED
   src/rmw_adapter.cpp
   src/rmw_unsupported.cpp
+  src/type_support.cpp
 )
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+  RMW_OPENRTDDS_CPP_BUILDING_DLL)
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_include_directories(${PROJECT_NAME} PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+)
 target_link_libraries(${PROJECT_NAME} PRIVATE
   OpenRTDDS::openrtdds
   rcutils::rcutils
   rmw::rmw
+  rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+  rosidl_typesupport_introspection_cpp::rosidl_typesupport_introspection_cpp
 )
 configure_rmw_library(${PROJECT_NAME})
 
@@ -51,12 +62,17 @@ configure_rmw_library(${PROJECT_NAME})
 # backend until the publisher/subscription boundary is implemented and tested.
 register_rmw_implementation()
 ament_export_libraries(${PROJECT_NAME})
+ament_export_dependencies(
+  rosidl_typesupport_introspection_c
+  rosidl_typesupport_introspection_cpp
+)
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
+install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   enable_testing()
@@ -83,6 +99,17 @@ if(BUILD_TESTING)
     rmw::rmw
   )
   add_test(NAME rmw_openrtdds_unsupported COMMAND test_rmw_unsupported)
+
+  add_executable(test_rmw_type_support test/test_type_support.cpp)
+  target_compile_features(test_rmw_type_support PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_type_support PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_type_support PRIVATE
+    ${PROJECT_NAME}
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+    rosidl_typesupport_introspection_cpp::rosidl_typesupport_introspection_cpp
+  )
+  add_test(NAME rmw_openrtdds_type_support COMMAND test_rmw_type_support)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)

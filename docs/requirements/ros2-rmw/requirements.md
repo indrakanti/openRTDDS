@@ -573,6 +573,39 @@ stress, and standard runtime-selection paths with zero sanitizer findings.
 invalid access, undefined behavior, and leaks in addition to functional return
 codes.
 
+### ORT-RMW-040 — Bounded Jazzy introspection analysis
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+The adapter shall inspect direct Jazzy C and C++ introspection message handles
+without allocation, derive the ROS DDS type identity, and calculate a maximum
+XCDR1 serialized size including encapsulation for supported scalars, fixed
+arrays, bounded sequences, bounded strings, and nested messages. It shall
+reject null or malformed metadata, unsupported kinds, unbounded fields,
+recursive descriptions, nesting beyond 16 levels, arithmetic overflow, and
+sizes above the caller's sample limit without modifying the prior output.
+
+**Rationale:** Publisher and subscription creation cannot reserve deterministic
+storage until the type-erased ROS schema has a reviewed finite wire bound.
+
+### ORT-RMW-041 — Allocation-free ROS-to-DDS name mapping
+
+**Status:** Verified
+
+**Verification:** Test, Inspection
+
+The adapter shall map ordinary topics with the `rt` prefix, service requests
+with `rq` and `Request`, and service responses with `rr` and `Reply`; omit only
+the prefix when `avoid_ros_namespace_conventions` is true; derive
+`<namespace>::dds_::<message>_` type identities from both C and C++
+introspection namespaces; reject empty or over-255-byte results; allocate no
+memory; and leave output unchanged on failure.
+
+**Rationale:** Freezing bounded golden mapping vectors before endpoint creation
+prevents discovery names from drifting away from the pinned ROS DDS convention.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)
