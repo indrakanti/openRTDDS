@@ -29,13 +29,24 @@ All implemented API functions are `noexcept`. Failure is represented by a
 boolean plus an object error accessor, a feature error enum, or a result
 structure. Exceptions are neither thrown nor translated.
 
-## Planned ROS 2 RMW adapter boundary
+### ROS-facing adapter headers
 
-`rmw_openrtdds_cpp` is a Planned, separately built shared library. It will
-implement the ROS 2 Jazzy `rmw` C ABI and keep all ROS types, allocators, and
-package dependencies outside the OpenRTDDS core public headers. Opaque ROS
-handles will refer to generation-checked objects owned by a bounded context;
-they will not expose core C++ objects directly.
+| Header | Namespace | Current contract |
+|---|---|---|
+| `rmw_openrtdds_cpp/type_support.hpp` | `rmw_openrtdds_cpp` | direct Jazzy C/C++ bounded schema analysis and ROS/DDS name mapping |
+| `rmw_openrtdds_cpp/xcdr1_codec.hpp` | `rmw_openrtdds_cpp` | allocation-free introspection-driven XCDR1 serialization and validated deserialization into pre-sized storage |
+
+These headers belong to the separately built ament package and may expose ROS
+types. They do not enter the ROS-free `OpenRTDDS::openrtdds` public interface.
+
+## Current and planned ROS 2 RMW adapter boundary
+
+`rmw_openrtdds_cpp` is a Current, separately built shared library with the full
+ROS 2 Jazzy symbol surface, qualified lifecycle slice, bounded direct
+introspection analysis, name mapping, and XCDR1 codec. ROS types, allocators,
+and package dependencies remain outside the OpenRTDDS core public headers.
+Future opaque endpoint handles will refer to generation-checked objects owned
+by a bounded context; they will not expose core C++ objects directly.
 
 The adapter boundary includes context and node lifecycle, publisher and
 subscription handles, type-erased serialization, QoS conversion, wait sets,

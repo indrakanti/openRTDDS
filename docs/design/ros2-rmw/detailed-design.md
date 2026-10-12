@@ -2,7 +2,7 @@
 
 **Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
 surface, lifecycle semantics, G4.1 memory-safety qualification, and bounded
-type/name foundations; Planned for endpoint communication semantics and the
+type/name/codec foundations; Planned for endpoint communication semantics and the
 remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
@@ -30,6 +30,8 @@ remaining G4.2 through G4.5 evidence
 **Requirements:** ORT-RMW-037, ORT-RMW-038, ORT-RMW-039
 
 **Requirements:** ORT-RMW-040, ORT-RMW-041
+
+**Requirements:** ORT-RMW-042
 
 ## Status and scope
 
@@ -443,10 +445,51 @@ sequenceDiagram
     A-->>E: fixed TypeSupportInfo or exact error
 ```
 
-PR27 does not serialize or deserialize caller messages and does not resolve a
-generic dispatch handle into an introspection backend. Consequently
-ORT-RMW-006 remains Draft until those operations and endpoint integration are
-implemented and tested.
+### Current bounded XCDR1 codec
+
+`rmw_openrtdds_cpp/xcdr1_codec.hpp` consumes the analyzed direct C or C++
+introspection handle and converts caller-owned ROS message storage to or from
+XCDR1 PLAIN_CDR. It supports both byte orders and the same bounded scalar,
+array, sequence, narrow-string, and nested-message subset as the analyzer.
+
+| API/type | Contract |
+|---|---|
+| `serialize_xcdr1` | requires output capacity for the analyzed schema maximum; writes one encapsulated payload without allocation |
+| `deserialize_xcdr1` | requires an explicit sample ceiling and pre-sized sequence/string storage; accepts exactly one complete payload |
+| `CodecResult` | returns an exact codec error, nested type-support error where applicable, and deterministic byte position |
+
+The receive path deliberately runs twice. Pass one parses the complete wire
+sample, validates bounds and callbacks, verifies destination sequence lengths
+and string capacities, and rejects trailing bytes. Only after that pass
+succeeds does pass two apply decoded values. Malformed input and insufficient
+destination storage therefore leave the message unchanged.
+
+```mermaid
+sequenceDiagram
+    participant R as RMW receive path
+    participant C as XCDR1 codec
+    participant M as ROS message storage
+    R->>C: deserialize(handle, bytes, ceiling, message)
+    C->>C: analyze schema and validate full payload
+    C->>M: verify pre-sized storage
+    alt validation succeeds
+      C->>M: apply decoded fields
+      C-->>R: bytes consumed
+    else validation fails
+      C-->>R: exact error; message unchanged
+    end
+```
+
+No generated resize callback is invoked. C strings require existing capacity;
+C++ strings may change length only within existing capacity; bounded sequences
+must already have the encoded element count. Endpoint creation will later
+reserve this storage from analyzed bounds. Serializer failure can leave partial
+bytes in the caller's output buffer, but it never publishes them and reports no
+successful size.
+
+ORT-RMW-006 remains Draft until publisher/subscription creation resolves the
+generic ROS dispatch handle, owns bounded staging storage, and consumes this
+codec end to end.
 
 ## Current name and DDS mapping foundation
 

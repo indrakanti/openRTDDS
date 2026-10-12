@@ -165,6 +165,15 @@ void test_bounded_string() {
   CHECK(length == 3U);
   CHECK(std::strcmp(value.data(), "dds") == 0);
 
+  CdrReader view_reader(buffer.data(), writer.size());
+  const char* view = nullptr;
+  std::size_t view_length = 0U;
+  CHECK(view_reader.begin());
+  CHECK(view_reader.read_string_view(view, 8U, view_length));
+  CHECK(view_length == 3U);
+  CHECK(std::memcmp(view, "dds", view_length) == 0);
+  CHECK(view[view_length] == '\0');
+
   CHECK(writer.begin(ByteOrder::little_endian));
   CHECK(!writer.write_string("too-long", 8U, 4U));
   CHECK(writer.error() == CdrError::bound_exceeded);

@@ -11,7 +11,7 @@ it does not mean the corresponding `rmw` function is implemented.
 | Nodes | bounded generation-checked slots, `rmw_node_t` wrapper, exhaustion rollback, and sanitizer stress | graph publication | G4.1 passed/G4.3 |
 | Publishers | typed static writer, CDR, UDP, reliability | type-erased handle, ROS mapping, QoS conversion, metadata | G4.2 |
 | Subscriptions | typed static reader, bounded history | readiness/take contract, type-erased decode, metadata | G4.2 |
-| Type support | allocation-free Jazzy C/C++ introspection traversal, bounded XCDR1 size/alignment analysis, and exact rejection errors | generic handle resolution, serialization/deserialization, and endpoint integration | G4.2 foundation by PR27 |
+| Type support | allocation-free Jazzy C/C++ introspection traversal, bounded XCDR1 size/alignment analysis, two-pass big/little-endian codec, and exact rejection errors | generic handle resolution, bounded staging ownership, and endpoint integration | G4.2 foundation through PR28 |
 | Topic/type names | fixed `rt/rq/rr` mapping, service suffixes, C/C++ DDS type identity, and 255-byte validation | publisher/subscription/service/client consumption and SEDP announcement | G4.2 foundation by PR27 |
 | QoS | reliability, volatile durability, KEEP_LAST | complete supported-policy map, defaults, compatibility API, events | G4.2/G4.5 |
 | Wait sets | nonblocking UDP | readiness registry, wakeup primitive, monotonic timeout, shutdown wake | G4.2 |
@@ -36,6 +36,24 @@ it does not mean the corresponding `rmw` function is implemented.
 4. G4.4: client/service request-response channels and correlation.
 5. G4.5: supported events, upstream conformance allowlist, stress, sanitizer,
    and deterministic-profile analysis.
+
+## Remaining focused change plan
+
+After PR28, the planned initial ROS 2 scope is nine focused PRs. A PR may split
+if review or CI exposes an ownership boundary, but features shall not be merged
+into one oversized change.
+
+| PR | Planned change | Gate |
+|---:|---|---|
+| 29 | QoS normalization, compatibility, and endpoint resource plan | G4.2 |
+| 30 | Publisher lifecycle, bounded staging, SEDP writer, and publish metadata | G4.2 |
+| 31 | Subscription lifecycle, reader history, take, and message metadata | G4.2 |
+| 32 | Wait-set readiness, guard integration, timeout, and shutdown wake | G4.2 |
+| 33 | C/C++ ROS talker-listener qualification and G4.2 closure | G4.2 |
+| 34 | Bounded ROS graph cache, discovery propagation, queries, and expiry | G4.3 |
+| 35 | Service/client request-reply identity, correlation, and readiness | G4.4 |
+| 36 | Events/status conditions and selected Jazzy conformance allowlist | G4.5 |
+| 37 | Deployment hardening: stress, latency, packaging, and safety evidence | G4.5 |
 
 An earlier gate may introduce a function that returns `RMW_RET_UNSUPPORTED`.
 It may not return success until its required semantics and evidence exist.

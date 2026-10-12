@@ -116,6 +116,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-039 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp`, sanitizer build option | Jazzy ASan/LSan/UBSan CI | — |
 | ORT-RMW-040 | Verified | `rmw_openrtdds_cpp/type_support.hpp`, `type_support.cpp` | `test_type_support.cpp`, Jazzy sanitizer CI | — |
 | ORT-RMW-041 | Verified | `rmw_openrtdds_cpp/type_support.hpp`, `type_support.cpp` | `test_type_support.cpp` golden mapping vectors | — |
+| ORT-RMW-042 | Verified | `rmw_openrtdds_cpp/xcdr1_codec.hpp`, `xcdr1_codec.cpp` | `test_xcdr1_codec.cpp`, Jazzy sanitizer CI | — |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

@@ -56,6 +56,7 @@ struct CFixture final {
     members.message_namespace_ = "demo_msgs__msg";
     members.message_name_ = "Bounded";
     members.member_count_ = static_cast<std::uint32_t>(fields.size());
+    members.size_of_ = 64U;
     members.members_ = fields.data();
 
     handle.typesupport_identifier =
@@ -99,6 +100,7 @@ struct CppFixture final {
     members.message_namespace_ = "demo_msgs::msg";
     members.message_name_ = "Bounded";
     members.member_count_ = static_cast<std::uint32_t>(fields.size());
+    members.size_of_ = 64U;
     members.members_ = fields.data();
 
     handle.typesupport_identifier =
@@ -150,6 +152,7 @@ struct CppFixture final {
   child_members.message_namespace_ = "demo_msgs__msg";
   child_members.message_name_ = "Child";
   child_members.member_count_ = 1U;
+  child_members.size_of_ = 4U;
   child_members.members_ = &child_field;
   rosidl_message_type_support_t child_handle{};
   child_handle.typesupport_identifier =
@@ -169,6 +172,7 @@ struct CppFixture final {
   parent_members.message_namespace_ = "demo_msgs__msg";
   parent_members.message_name_ = "Parent";
   parent_members.member_count_ = 2U;
+  parent_members.size_of_ = 16U;
   parent_members.members_ = parent_fields.data();
   rosidl_message_type_support_t parent_handle{};
   parent_handle.typesupport_identifier =
@@ -230,6 +234,7 @@ struct CppFixture final {
   recursive_members.message_namespace_ = "demo_msgs__msg";
   recursive_members.message_name_ = "Recursive";
   recursive_members.member_count_ = 1U;
+  recursive_members.size_of_ = sizeof(void*);
   recursive_members.members_ = &recursive_field;
   recursive_handle.typesupport_identifier =
       rosidl_typesupport_introspection_c__identifier;
@@ -261,6 +266,15 @@ struct CppFixture final {
           nullptr, kSampleLimit, unchanged, error) ||
       (error != TypeSupportError::invalid_argument)) {
     return 18;
+  }
+
+  CFixture invalid_offset{};
+  invalid_offset.fields[0].offset_ =
+      static_cast<std::uint32_t>(invalid_offset.members.size_of_);
+  if (rmw_openrtdds_cpp::analyze_type_support(
+          &invalid_offset.handle, kSampleLimit, unchanged, error) ||
+      (error != TypeSupportError::invalid_members)) {
+    return 19;
   }
   return 0;
 }
