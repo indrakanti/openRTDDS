@@ -1,6 +1,7 @@
 # `rmw_openrtdds_cpp` compatibility baseline
 
-Requirements: ORT-RMW-027, ORT-RMW-040, ORT-RMW-041, ORT-RMW-042
+Requirements: ORT-RMW-027, ORT-RMW-040, ORT-RMW-041, ORT-RMW-042,
+ORT-RMW-043, ORT-RMW-044
 
 PR23 established the implementation-independent foundation. PR24 adds a
 discoverable, loadable ament package and the bounded lifecycle C ABI slice.
@@ -60,3 +61,9 @@ callbacks. The two-pass receive path validates the entire payload, exact end
 position, callback availability, sequence sizes, and string capacities before
 applying fields. Endpoint ownership and generic ROS dispatch integration remain
 later G4.2 work.
+
+PR29 pins the Jazzy `rmw_qos_profile_t` and
+`rmw_qos_profile_check_compatible` behavior needed by the endpoint boundary.
+It resolves only deterministic defaults, rejects discovery-selected or
+currently unenforced policies, and calculates fixed endpoint history storage
+before construction. It does not create a publisher or subscription.
