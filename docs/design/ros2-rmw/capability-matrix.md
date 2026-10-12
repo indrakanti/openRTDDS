@@ -11,8 +11,8 @@ it does not mean the corresponding `rmw` function is implemented.
 | Nodes | bounded generation-checked slots, `rmw_node_t` wrapper, exhaustion rollback, and sanitizer stress | graph publication | G4.1 passed/G4.3 |
 | Publishers | typed static writer, CDR, UDP, reliability | type-erased handle, ROS mapping, QoS conversion, metadata | G4.2 |
 | Subscriptions | typed static reader, bounded history | readiness/take contract, type-erased decode, metadata | G4.2 |
-| Type support | bounded XCDR1 primitives | Jazzy introspection traversal, max-size analysis, ROS strings/sequences | G4.2 |
-| Topic/type names | bounded SEDP names | ROS DDS name/type mapping and bound validation | G4.2 |
+| Type support | allocation-free Jazzy C/C++ introspection traversal, bounded XCDR1 size/alignment analysis, and exact rejection errors | generic handle resolution, serialization/deserialization, and endpoint integration | G4.2 foundation by PR27 |
+| Topic/type names | fixed `rt/rq/rr` mapping, service suffixes, C/C++ DDS type identity, and 255-byte validation | publisher/subscription/service/client consumption and SEDP announcement | G4.2 foundation by PR27 |
 | QoS | reliability, volatile durability, KEEP_LAST | complete supported-policy map, defaults, compatibility API, events | G4.2/G4.5 |
 | Wait sets | nonblocking UDP | readiness registry, wakeup primitive, monotonic timeout, shutdown wake | G4.2 |
 | Guard conditions | fixed slots, trigger/wake generations, `rmw_guard_condition_t` wrapper, and exhaustion rollback | blocking wait integration | G4.1 passed/G4.2 |

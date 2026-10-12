@@ -73,6 +73,7 @@ not treated as a build/test failure.
    - [x] Bounded context/node/guard-condition foundation and Jazzy ABI baseline
    - [x] Complete Jazzy proxy export manifest and runtime-selection smoke
    - [x] G4.1 package, ABI, context, node, and memory-safety qualification
+   - [x] G4.2 bounded introspection and ROS/DDS naming foundation
    - [ ] G4.2 bounded topic publish/wait/take
    - [ ] G4.3 graph integration
    - [ ] G4.4 service/client integration

@@ -274,8 +274,10 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             binutils build-essential cmake python3-colcon-common-extensions \
-            ros-jazzy-rmw-implementation
-      - name: Build complete Jazzy RMW ABI surface
+            ros-jazzy-rmw-implementation \
+            ros-jazzy-rosidl-typesupport-introspection-c \
+            ros-jazzy-rosidl-typesupport-introspection-cpp
+      - name: Build Jazzy RMW ABI and type-support foundation
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
@@ -329,8 +331,10 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             build-essential cmake python3-colcon-common-extensions \
-            ros-jazzy-rmw-implementation
-      - name: Build instrumented Jazzy lifecycle surface
+            ros-jazzy-rmw-implementation \
+            ros-jazzy-rosidl-typesupport-introspection-c \
+            ros-jazzy-rosidl-typesupport-introspection-cpp
+      - name: Build instrumented Jazzy RMW foundation
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
@@ -342,7 +346,7 @@ jobs:
               -DBUILD_TESTING=ON \
               -DCMAKE_BUILD_TYPE=Debug \
               -DOPENRTDDS_RMW_ENABLE_SANITIZERS=ON
-      - name: Run leak, invalid-access, and lifecycle stress qualification
+      - name: Run type-support, leak, invalid-access, and lifecycle qualification
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash

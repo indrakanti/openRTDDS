@@ -1,8 +1,9 @@
 # ROS 2 RMW adapter detailed design
 
 **Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
-surface, lifecycle semantics, and G4.1 memory-safety qualification; Planned
-for communication semantics and G4.2 through G4.5 evidence
+surface, lifecycle semantics, G4.1 memory-safety qualification, and bounded
+type/name foundations; Planned for endpoint communication semantics and the
+remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -27,6 +28,8 @@ for communication semantics and G4.2 through G4.5 evidence
 **Requirements:** ORT-RMW-034, ORT-RMW-035, ORT-RMW-036
 
 **Requirements:** ORT-RMW-037, ORT-RMW-038, ORT-RMW-039
+
+**Requirements:** ORT-RMW-040, ORT-RMW-041
 
 ## Status and scope
 
@@ -405,35 +408,65 @@ while blocking. It clears non-ready entries from the caller-provided arrays as
 required by the pinned `rmw` ABI. Destruction and shutdown wake affected waits
 before waiting for in-flight operations to leave their slots.
 
-## Type-support interface
+## Current type-support analysis foundation
 
-The first profile uses Jazzy introspection type support for C and C++. During
-endpoint creation, `TypeSupportView` validates the identifier and recursively
-walks the static member description to compute:
+`rmw_openrtdds_cpp/type_support.hpp` exposes an allocation-free analyzer for
+direct Jazzy C and C++ introspection handles. The output is a value-owned
+`TypeSupportInfo`; the input metadata remains owned by generated ROS code.
 
-- maximum XCDR1 serialized size and alignment;
-- maximum nesting depth;
-- string and sequence bounds;
-- whether the type is acceptable for the Safety Profile;
-- serializer/deserializer operations for C or C++ storage.
+| API/type | Current contract |
+|---|---|
+| `analyze_type_support` | atomically derives the DDS type name and maximum XCDR1 PLAIN_CDR size within a caller-provided sample ceiling |
+| `TypeSupportInfo` | language, maximum wire size including the four-byte encapsulation, maximum alignment, maximum nesting depth, and fixed DDS type name |
+| `TypeSupportError` | stable exact rejection category; output remains unchanged on failure |
 
-Unbounded strings or sequences may be accepted only in the General Profile
-with a configured endpoint byte ceiling and explicit allocation policy. They
-are rejected in the initial Safety Profile. Recursive definitions, unsupported
-field kinds, arithmetic overflow, and a maximum size above the configured
-sample bound fail endpoint creation.
+The current accepted subset is boolean, character/octet, integer and floating
+scalar kinds up to 64 bits, fixed arrays, bounded sequences, bounded narrow
+strings, and nested messages. The recursive walk applies CDR alignment at the
+actual accumulated offset, includes the sequence length and string terminator,
+and caps nesting at 16. Empty messages have a four-byte maximum wire size.
 
-## Name and DDS mapping
+The analyzer rejects unbounded strings or sequences, wide strings/characters,
+long double, malformed member tables, mixed nested introspection languages,
+recursive schemas, excessive nesting, arithmetic overflow, and a result above
+the configured sample limit. These are schema-validation results, not runtime
+fault records; endpoint integration will map them to `ORT-FLT-RMW-003`.
 
-Resolved ROS topic names enter the adapter after `rcl` validation. The adapter
-maps ordinary topic names to the selected ROS-over-DDS topic convention and
-uses distinct request/response prefixes and generated type identities for
-services. `avoid_ros_namespace_conventions` selects a literal DDS mapping.
-Mapped name and type bytes are checked before SEDP state is constructed.
+```mermaid
+sequenceDiagram
+    participant E as Endpoint builder
+    participant A as Type analyzer
+    participant M as Jazzy metadata
+    E->>A: analyze(handle, sample limit)
+    A->>M: validate identifier and members
+    A->>M: recursively walk bounded fields
+    A-->>E: fixed TypeSupportInfo or exact error
+```
 
-The mapping algorithm and golden test vectors will be frozen with G4.2. Until
-those tests exist, OpenRTDDS shall not claim wire compatibility with an
-existing ROS DDS RMW implementation.
+PR27 does not serialize or deserialize caller messages and does not resolve a
+generic dispatch handle into an introspection backend. Consequently
+ORT-RMW-006 remains Draft until those operations and endpoint integration are
+implemented and tested.
+
+## Current name and DDS mapping foundation
+
+`map_ros_to_dds_names` writes one fixed `DdsNames` value without allocation.
+Resolved ROS names are expected after `rcl` validation. The pinned mapping is:
+
+| Channel | Normal topic mapping | Literal DDS mode |
+|---|---|---|
+| topic | `rt` + ROS name | ROS name |
+| service request | `rq` + ROS service name + `Request` | ROS service name + `Request` |
+| service response | `rr` + ROS service name + `Reply` | ROS service name + `Reply` |
+
+C namespaces replace `__` with `::`; C++ namespaces are retained. Both produce
+`<namespace>::dds_::<message>_`. Topic and type outputs allow at most 255 bytes
+plus the terminator. Empty or over-bound names fail atomically.
+
+Golden vectors cover all channels, C/C++ type-name equivalence, literal mode,
+the 255-byte boundary, and unchanged output after failure. ORT-RMW-007 remains
+Draft until publisher, subscription, service, and client creation consume the
+mapping and announce the resulting identities through SEDP.
 
 ## QoS contract
 

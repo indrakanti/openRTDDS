@@ -22,7 +22,7 @@ interfaces are exposed, and how errors and faults propagate.
 | SEDP endpoint discovery | Current | [SEDP design](sedp/detailed-design.md) |
 | Compound RTPS routing | Current | [RTPS routing design](rtps-routing/detailed-design.md) |
 | Vendor packet evidence | Current/Planned | [Interoperability design](interoperability/detailed-design.md) |
-| ROS 2 RMW adapter | Current ABI/lifecycle scaffold; Planned communication semantics | [ROS 2 RMW design](ros2-rmw/detailed-design.md) and [capability gaps](ros2-rmw/capability-matrix.md) |
+| ROS 2 RMW adapter | Current G4.1 lifecycle and G4.2 type/name foundations; Planned communication semantics | [ROS 2 RMW design](ros2-rmw/detailed-design.md) and [capability gaps](ros2-rmw/capability-matrix.md) |
 
 Cross-cutting contracts are documented in:
 
