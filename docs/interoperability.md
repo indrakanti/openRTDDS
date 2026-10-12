@@ -11,7 +11,7 @@ green.
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR21 for pinned best-effort and bounded reliable scope |
-| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; G4.1 passed, G4.2 foundation through PR27 |
+| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; G4.1 passed, G4.2 foundation through PR28 |
 
 ## Vendor matrix qualified for G2 and bounded G3 scope
 
@@ -124,8 +124,14 @@ nested-message subset; computes the maximum aligned XCDR1 wire size; and
 freezes allocation-free `rt/rq/rr`, `Request/Reply`, and DDS type-name golden
 vectors. Unbounded, recursive, malformed, unsupported, over-depth, and
 over-sample schemas fail atomically. Because no publisher, subscription,
-serializer, wait set, or take path consumes this foundation yet, G4.2 remains
-open and no ROS topic-exchange claim is enabled.
+wait set, or take path consumes this foundation yet, G4.2 remains open and no
+ROS topic-exchange claim is enabled.
+
+PR28 adds the direct-introspection XCDR1 codec for the PR27 subset. It covers C
+and C++ messages, both byte orders, fixed arrays, bounded sequences, bounded
+strings, nested messages, exact wire consumption, and a two-pass receive
+validation contract over pre-sized storage. It still creates no DDS endpoint
+and enables no ROS topic-exchange claim.
 
 ## Claim policy
 

@@ -606,6 +606,25 @@ memory; and leave output unchanged on failure.
 **Rationale:** Freezing bounded golden mapping vectors before endpoint creation
 prevents discovery names from drifting away from the pinned ROS DDS convention.
 
+### ORT-RMW-042 — Bounded introspection-driven XCDR1 codec
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+The adapter shall serialize and deserialize the ORT-RMW-040 bounded C and C++
+introspection subset in XCDR1 big- or little-endian form; use the generated
+member offsets and array callbacks without runtime schema mutation; require
+caller-owned output and pre-sized destination sequence/string storage; allocate
+no memory and invoke no resize callback; validate the complete input and
+destination bounds before applying decoded fields; reject truncated, malformed,
+over-bound, under-capacity, callback-incomplete, or trailing data with an exact
+error; and preserve the destination when validation fails.
+
+**Rationale:** Type analysis becomes usable by the publisher and subscription
+paths only when type-erased ROS storage can be converted to and from bounded DDS
+wire bytes without adding an unbounded allocation or partial-message failure.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)

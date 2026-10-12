@@ -131,8 +131,8 @@ template <typename Member>
     if (member.string_upper_bound_ == 0U) {
       return fail(state, TypeSupportError::unbounded_type);
     }
-    if (member.string_upper_bound_ ==
-        std::numeric_limits<std::size_t>::max()) {
+    if (member.string_upper_bound_ >=
+        std::numeric_limits<std::uint32_t>::max()) {
       return fail(state, TypeSupportError::arithmetic_overflow);
     }
     const std::size_t wire_characters = member.string_upper_bound_ + 1U;
@@ -184,6 +184,10 @@ template <typename Member>
       if (member.array_size_ == 0U) {
         return fail(state, TypeSupportError::invalid_members);
       }
+      if (member.array_size_ >
+          std::numeric_limits<std::uint32_t>::max()) {
+        return fail(state, TypeSupportError::arithmetic_overflow);
+      }
       if (!append_aligned(state, 4U, 4U)) {
         return false;
       }
@@ -210,6 +214,7 @@ template <typename Members>
                                    AnalysisState& state) noexcept {
   if ((members == nullptr) || (members->message_name_ == nullptr) ||
       (members->message_namespace_ == nullptr) ||
+      ((members->member_count_ != 0U) && (members->size_of_ == 0U)) ||
       ((members->member_count_ != 0U) && (members->members_ == nullptr))) {
     return fail(state, TypeSupportError::invalid_members);
   }
@@ -226,6 +231,9 @@ template <typename Members>
     state.maximum_depth = depth;
   }
   for (std::uint32_t index = 0U; index < members->member_count_; ++index) {
+    if (members->members_[index].offset_ >= members->size_of_) {
+      return fail(state, TypeSupportError::invalid_members);
+    }
     if (!analyze_member(members->members_[index], language, depth, state)) {
       return false;
     }

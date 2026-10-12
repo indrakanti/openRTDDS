@@ -27,7 +27,7 @@ deadline or retry bound is exceeded.
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
-| RMW foundation (Current) / ROS adapter (Planned) | `AdapterError`; future mapping to `rmw_ret_t` | bounded lifecycle, identity, limits, resources, handles, and future ABI/type/wait/graph failure |
+| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`; future mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, and future endpoint/wait/graph failure |
 
 Error enums are symbolic API values. Their implicit integer representation is
 not a stable fault code.
@@ -70,6 +70,20 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 Severity is deployment-configurable except where the selected deterministic
 profile cannot satisfy its assumptions. The component detecting an API error
 does not decide system-level safe state.
+
+Current RMW codec mappings are:
+
+| `CodecError` | Fault code / policy |
+|---|---|
+| `type_support_rejected`, `callback_missing` | `ORT-FLT-RMW-003`; reject endpoint/schema activation |
+| `field_bound_exceeded`, `output_too_small` | `ORT-FLT-SER-001`; reject publish sample |
+| `input_truncated`, `unsupported_encoding`, `invalid_wire_data`, `trailing_data` | `ORT-FLT-SER-002`; reject received sample without modifying destination |
+| `invalid_message_storage`, `destination_size_mismatch` | `ORT-FLT-RMW-002`; endpoint staging/configuration defect |
+| `invalid_argument`, `cdr_failure` | local integration defect; do not publish or accept sample |
+
+The codec returns errors only; the future endpoint owner maps them to
+`rmw_ret_t` and diagnostic events. No codec error triggers allocation, hidden
+retry, destination resizing, or partial receive commit.
 
 Current reliability-control mappings are:
 

@@ -1,12 +1,13 @@
 # `rmw_openrtdds_cpp` compatibility baseline
 
-Requirements: ORT-RMW-027, ORT-RMW-040, ORT-RMW-041
+Requirements: ORT-RMW-027, ORT-RMW-040, ORT-RMW-041, ORT-RMW-042
 
 PR23 established the implementation-independent foundation. PR24 adds a
 discoverable, loadable ament package and the bounded lifecycle C ABI slice.
 PR25 completes the proxy surface, PR26 qualifies G4.1 memory behavior, and
-PR27 pins the first introspection and ROS DDS naming subset. This still does
-**not** provide ROS topic exchange or a ROS 2 application compatibility claim.
+PR27 pins the first introspection and ROS DDS naming subset. PR28 adds the
+bounded direct-introspection XCDR1 codec. This still does **not** provide ROS
+topic exchange or a ROS 2 application compatibility claim.
 
 | Item | Pinned value |
 |---|---|
@@ -52,3 +53,10 @@ DDS mapping behavior only as compatibility references. The OpenRTDDS
 implementation is allocation-free, uses fixed 256-byte outputs, and does not
 link Fast DDS. A baseline change requires layout, identifier, size-analysis,
 and golden-name-vector review.
+
+PR28 serializes and deserializes that exact subset using caller-owned buffers
+and pre-sized destination storage. It does not invoke generated resize
+callbacks. The two-pass receive path validates the entire payload, exact end
+position, callback availability, sequence sizes, and string capacities before
+applying fields. Endpoint ownership and generic ROS dispatch integration remain
+later G4.2 work.

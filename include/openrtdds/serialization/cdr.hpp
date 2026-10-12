@@ -108,6 +108,12 @@ class CdrReader final {
                                  std::size_t max_characters,
                                  std::size_t& length) noexcept;
 
+  // Returns a borrowed view into the input buffer. The view excludes the NUL
+  // terminator and remains valid only while the input buffer remains valid.
+  [[nodiscard]] bool read_string_view(const char*& data,
+                                      std::size_t max_characters,
+                                      std::size_t& length) noexcept;
+
   [[nodiscard]] std::size_t position() const noexcept { return offset_; }
   [[nodiscard]] std::size_t remaining() const noexcept {
     return offset_ <= size_ ? size_ - offset_ : 0U;

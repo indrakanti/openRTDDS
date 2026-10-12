@@ -40,6 +40,7 @@ add_library(${PROJECT_NAME} SHARED
   src/rmw_adapter.cpp
   src/rmw_unsupported.cpp
   src/type_support.cpp
+  src/xcdr1_codec.cpp
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE
   RMW_OPENRTDDS_CPP_BUILDING_DLL)
@@ -110,6 +111,17 @@ if(BUILD_TESTING)
     rosidl_typesupport_introspection_cpp::rosidl_typesupport_introspection_cpp
   )
   add_test(NAME rmw_openrtdds_type_support COMMAND test_rmw_type_support)
+
+  add_executable(test_rmw_xcdr1_codec test/test_xcdr1_codec.cpp)
+  target_compile_features(test_rmw_xcdr1_codec PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_xcdr1_codec PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_xcdr1_codec PRIVATE
+    ${PROJECT_NAME}
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+    rosidl_typesupport_introspection_cpp::rosidl_typesupport_introspection_cpp
+  )
+  add_test(NAME rmw_openrtdds_xcdr1_codec COMMAND test_rmw_xcdr1_codec)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)

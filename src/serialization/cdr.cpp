@@ -460,6 +460,36 @@ bool CdrReader::read_string(char* const destination,
   return true;
 }
 
+bool CdrReader::read_string_view(const char*& data,
+                                 const std::size_t max_characters,
+                                 std::size_t& length) noexcept {
+  std::size_t length_start = 0U;
+  std::size_t data_start = 0U;
+  if (!locate(4U, 4U, length_start, data_start)) {
+    return false;
+  }
+  const std::size_t serialized_length = static_cast<std::size_t>(
+      load_integral(length_start, 4U));
+  if (serialized_length == 0U) {
+    return fail(CdrError::invalid_data);
+  }
+  const std::size_t character_count = serialized_length - 1U;
+  if (character_count > max_characters) {
+    return fail(CdrError::bound_exceeded);
+  }
+  if ((data_start > size_) || (serialized_length > (size_ - data_start))) {
+    return fail(CdrError::underflow);
+  }
+  if (buffer_[data_start + character_count] != 0U) {
+    return fail(CdrError::invalid_data);
+  }
+
+  data = reinterpret_cast<const char*>(&buffer_[data_start]);
+  length = character_count;
+  offset_ = data_start + serialized_length;
+  return true;
+}
+
 bool CdrReader::fail(const CdrError error) noexcept {
   if (error_ == CdrError::none) {
     error_ = error;

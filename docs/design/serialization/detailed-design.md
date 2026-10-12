@@ -41,6 +41,7 @@ classDiagram
       +begin() bool
       +read_*() bool
       +read_string(...) bool
+      +read_string_view(...) bool
       +remaining() size_t
     }
 ```
@@ -102,6 +103,9 @@ For every read, the reader computes aligned start/end positions and validates
 the complete field before assigning the caller's output or advancing offset.
 Boolean values greater than one and strings without a terminal NUL are invalid.
 A string must fit both its declared IDL bound and destination capacity.
+`read_string_view` applies the same wire and bound validation, then returns a
+borrowed non-owning view excluding the terminator. The RMW codec uses this view
+to validate caller-owned ROS string capacity without a temporary allocation.
 
 ## Atomic failure and sticky errors
 

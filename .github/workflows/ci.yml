@@ -346,7 +346,7 @@ jobs:
               -DBUILD_TESTING=ON \
               -DCMAKE_BUILD_TYPE=Debug \
               -DOPENRTDDS_RMW_ENABLE_SANITIZERS=ON
-      - name: Run type-support, leak, invalid-access, and lifecycle qualification
+      - name: Run codec, type-support, and lifecycle sanitizer qualification
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash
