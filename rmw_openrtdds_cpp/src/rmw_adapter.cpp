@@ -3,7 +3,7 @@
 #include <cstring>
 #include <new>
 
-#include "openrtdds/rmw/foundation.hpp"
+#include "internal.hpp"
 
 #include "rcutils/allocator.h"
 #include "rcutils/strdup.h"
@@ -20,24 +20,12 @@ namespace {
 
 // Requirements: ORT-RMW-030, ORT-RMW-031, ORT-RMW-032, ORT-RMW-033
 // Requirements: ORT-RMW-036, ORT-RMW-037, ORT-RMW-038, ORT-RMW-039
-constexpr std::size_t kNodeCapacity = 8U;
-constexpr std::size_t kGuardConditionCapacity = 16U;
-using Foundation =
-    openrtdds::rmw::AdapterContext<kNodeCapacity, kGuardConditionCapacity>;
-
-struct NodeData final {
-  openrtdds::rmw::NodeHandle handle{};
-};
-
-struct GuardConditionData final {
-  openrtdds::rmw::GuardConditionHandle handle{};
-};
-
-[[nodiscard]] bool identifier_matches(const char* identifier) noexcept {
-  return (identifier != nullptr) &&
-         (std::strcmp(identifier,
-                      openrtdds::rmw::kImplementationIdentifier) == 0);
-}
+using rmw_openrtdds_cpp::detail::GuardConditionData;
+using rmw_openrtdds_cpp::detail::NodeData;
+using rmw_openrtdds_cpp::detail::context_is_valid;
+using rmw_openrtdds_cpp::detail::identifier_matches;
+using rmw_openrtdds_cpp::detail::kGuardConditionCapacity;
+using rmw_openrtdds_cpp::detail::kNodeCapacity;
 
 rmw_ret_t set_adapter_error(const openrtdds::rmw::AdapterError error) noexcept {
   RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("OpenRTDDS adapter error: %s",
@@ -63,11 +51,6 @@ rmw_ret_t set_adapter_error(const openrtdds::rmw::AdapterError error) noexcept {
   return RMW_RET_ERROR;
 }
 
-[[nodiscard]] bool context_is_valid(const rmw_context_t* context) noexcept {
-  return (context != nullptr) && identifier_matches(context->implementation_identifier) &&
-         (context->impl != nullptr);
-}
-
 rmw_guard_condition_t* create_guard_condition_handle(
     rmw_context_t* context) noexcept;
 
@@ -75,13 +58,6 @@ rmw_ret_t destroy_guard_condition_handle(
     rmw_guard_condition_t* guard_condition) noexcept;
 
 }  // namespace
-
-// This is the implementation-owned definition promised by rmw/init.h.
-struct rmw_context_impl_s final {
-  Foundation foundation{};
-  rmw_guard_condition_t* graph_guard_condition{nullptr};
-  bool shutdown{false};
-};
 
 namespace {
 
@@ -405,6 +381,10 @@ rmw_ret_t rmw_context_fini(rmw_context_t* context) {
     RMW_SET_ERROR_MSG("context has not been shutdown");
     return RMW_RET_INVALID_ARGUMENT;
   }
+  if (rmw_openrtdds_cpp::detail::context_has_publishers(context)) {
+    RMW_SET_ERROR_MSG("context still owns publishers");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   const auto foundation_result = context->impl->foundation.finalize();
   if (foundation_result != openrtdds::rmw::AdapterError::none) {
     RMW_SET_ERROR_MSG("context still owns nodes or guard conditions");
@@ -523,6 +503,10 @@ rmw_ret_t rmw_destroy_node(rmw_node_t* node) {
   }
 
   auto* data = static_cast<NodeData*>(node->data);
+  if (data->publisher_count != 0U) {
+    RMW_SET_ERROR_MSG("node still owns publishers");
+    return RMW_RET_ERROR;
+  }
   const auto error = context->impl->foundation.destroy_node(data->handle);
   if (error != openrtdds::rmw::AdapterError::none) {
     return set_adapter_error(error);

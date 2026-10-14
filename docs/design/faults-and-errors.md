@@ -61,9 +61,9 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-DISC-003` | Warning/Error | malformed or unsupported discovery announcement | discovery/application |
 | `ORT-FLT-DISC-004` | Warning/Error | unknown must-understand discovery parameter | compatibility owner |
 | `ORT-FLT-DEADLINE-001` | Error/Fatal by topic | planned delivery deadline exceeded | application safety monitor |
-| `ORT-FLT-RMW-001` (Planned) | Error/Fatal by context | invalid adapter lifecycle or stale active handle | context owner |
-| `ORT-FLT-RMW-002` (Planned) | Error | adapter pool, graph, table, or byte bound exhausted | system integrator |
-| `ORT-FLT-RMW-003` (Planned) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
+| `ORT-FLT-RMW-001` (Current for lifecycle/publisher) | Error/Fatal by context | invalid adapter lifecycle or stale active handle | context owner |
+| `ORT-FLT-RMW-002` (Current for lifecycle/publisher) | Error | adapter pool, graph, table, or byte bound exhausted | system integrator |
+| `ORT-FLT-RMW-003` (Current for publisher) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
 | `ORT-FLT-RMW-004` (Planned) | Warning/Error | invalid or over-bound ROS graph update | discovery/context owner |
 | `ORT-FLT-RMW-005` (Planned) | Error/Fatal by context | wait registry or wake primitive failure | context owner |
 | `ORT-FLT-RMW-006` | Fatal at endpoint creation | unsupported, invalid, or over-bound QoS/resource plan | application/configuration owner |
@@ -99,6 +99,22 @@ Normalization and planning return errors only and preserve their prior output.
 The compatibility query returns `OK`, `WARNING`, or `ERROR` as data; only an
 invalid API argument sets the RMW error state. No QoS result emits a fault event
 in this increment.
+
+Current publisher mappings are:
+
+| Publisher failure | Fault code / policy |
+|---|---|
+| foreign, stale, shutdown, or parent-with-live-child lifecycle | `ORT-FLT-RMW-001`; reject without releasing valid ownership |
+| publisher slot or allocator exhaustion | `ORT-FLT-RMW-002`; roll back every partial allocation and slot claim |
+| unsupported, unbounded, malformed, or oversized type | `ORT-FLT-RMW-003`; reject before endpoint activation |
+| unsupported or over-bound QoS/resource plan | `ORT-FLT-RMW-006`; reject before allocation |
+| XCDR1 sample failure | existing `CodecError` mapping; do not advance history or sequence |
+| RTPS DATA/sequence failure | applicable `ORT-FLT-RTPS-*`; do not advance history or sequence |
+| source clock failure | `ORT-FLT-TIME-001`; do not commit the sample |
+
+Publisher faults set the synchronous RMW error state only. No asynchronous
+event is emitted, and no hidden retry, send, allocation, or graph mutation is
+performed by `rmw_publish` in this increment.
 
 Current reliability-control mappings are:
 

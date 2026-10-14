@@ -37,6 +37,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.."
 set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(${PROJECT_NAME} SHARED
+  src/publisher.cpp
   src/qos.cpp
   src/rmw_adapter.cpp
   src/rmw_unsupported.cpp
@@ -69,6 +70,17 @@ target_link_libraries(openrtdds_rmw_qos_plan PRIVATE
   rmw::rmw
 )
 
+add_executable(openrtdds_rmw_publisher_pipeline
+  examples/publisher_pipeline.cpp)
+target_compile_features(openrtdds_rmw_publisher_pipeline PRIVATE cxx_std_17)
+target_compile_options(openrtdds_rmw_publisher_pipeline PRIVATE
+  -Wall -Wextra -Wpedantic -Werror)
+target_link_libraries(openrtdds_rmw_publisher_pipeline PRIVATE
+  ${PROJECT_NAME}
+  rmw::rmw
+  rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+)
+
 # Register the implementation itself but deliberately register no type-support
 # backend until the publisher/subscription boundary is implemented and tested.
 register_rmw_implementation()
@@ -84,7 +96,7 @@ install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
-install(TARGETS openrtdds_rmw_qos_plan
+install(TARGETS openrtdds_rmw_qos_plan openrtdds_rmw_publisher_pipeline
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
@@ -148,6 +160,19 @@ if(BUILD_TESTING)
   )
   add_test(NAME rmw_openrtdds_qos COMMAND test_rmw_qos)
 
+  add_executable(test_rmw_publisher test/test_publisher.cpp)
+  target_compile_features(test_rmw_publisher PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_publisher PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_publisher PRIVATE
+    ${PROJECT_NAME}
+    OpenRTDDS::openrtdds
+    rcutils::rcutils
+    rmw::rmw
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+  )
+  add_test(NAME rmw_openrtdds_publisher COMMAND test_rmw_publisher)
+
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)
   target_compile_features(test_rmw_memory_qualification PRIVATE cxx_std_17)
@@ -157,6 +182,7 @@ if(BUILD_TESTING)
     ${PROJECT_NAME}
     rcutils::rcutils
     rmw::rmw
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
   )
   add_test(NAME rmw_openrtdds_memory_qualification
     COMMAND test_rmw_memory_qualification)

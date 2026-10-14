@@ -549,7 +549,8 @@ slot reuse faults, or incomplete cleanup after bounded pool exhaustion.
 **Verification:** Test
 
 Tests shall inject allocation failure at every adapter-owned allocation edge
-during context, graph-guard, node, and user guard-condition creation. Each
+during context, graph-guard, node, user guard-condition, and publisher
+creation. Each
 failed operation shall leave the destination zero or null, restore the prior
 allocation balance and bounded-slot availability, and permit a subsequent
 valid operation.
@@ -658,6 +659,49 @@ failure.
 
 **Rationale:** Publisher and subscription construction must know its complete
 storage obligation before it can reserve a bounded endpoint slot atomically.
+
+### ORT-RMW-045 — Bounded publisher construction and publish commit
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration, Inspection
+
+The adapter shall create at most eight publisher handles per context; validate
+the parent node, topic, direct Jazzy introspection type support, publisher
+options, and supported QoS before ownership commit; derive one stable RTPS
+writer GUID and `rmw_gid_t`; construct a parseable SEDP publication record;
+preallocate XCDR1 staging, unfragmented RTPS DATA, and KEEP_LAST history
+storage; and expose the normalized QoS. `rmw_publish` shall serialize one
+caller-owned message, construct one RTPS DATA packet, attach a positive source
+timestamp and monotonically increasing sequence, then atomically commit the
+packet and history metadata. A failed call shall not advance sequence or
+history state.
+
+This increment does not claim network transmission, discovery matching, graph
+publication, reliable repair, or end-to-end ROS application operation. Those
+remain part of ORT-RMW-004 and gate G4.2.
+
+**Rationale:** Separating deterministic endpoint ownership and packet commit
+from worker/discovery integration makes the publisher's memory and failure
+boundary independently reviewable.
+
+### ORT-RMW-046 — Publisher allocation and ownership atomicity
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+Publisher creation shall use only the context allocator and shall roll back
+the publisher handle, private state, topic copy, runtime byte storage, pool
+slot, and parent-node ownership count when any allocation or SEDP construction
+step fails. Publishing, GID lookup, actual-QoS lookup, match-count lookup, and
+diagnostic inspection shall allocate no memory. Node destruction and context
+finalization shall reject live publishers; publisher destruction shall remain
+available after context shutdown and shall restore the slot and every owned
+allocation.
+
+**Rationale:** A bounded slot is not deterministic if partial construction can
+leak allocator state, retain parent ownership, or prevent slot recovery.
 
 ## Authoritative upstream references
 

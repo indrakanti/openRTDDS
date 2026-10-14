@@ -9,7 +9,7 @@ it does not mean the corresponding `rmw` function is implemented.
 | Package discovery and selection | ament registration, loadable shared library, reviewed 95-symbol Jazzy proxy manifest, `RMW_IMPLEMENTATION` lifecycle smoke, and sanitizer qualification | semantic APIs beyond lifecycle | G4.1 passed |
 | Init/context/shutdown | fixed foundation context, ROS allocator wrapper, C ABI lifecycle state machine, 256-cycle stress, fault injection, and zero-balance accounting | transport workers and wait shutdown belong to G4.2 | G4.1 passed |
 | Nodes | bounded generation-checked slots, `rmw_node_t` wrapper, exhaustion rollback, and sanitizer stress | graph publication | G4.1 passed/G4.3 |
-| Publishers | typed static writer, CDR, UDP, reliability | type-erased handle, ROS mapping, QoS conversion, metadata | G4.2 |
+| Publishers | bounded `rmw_publisher_t`, ROS name/type/QoS mapping, stable GID, SEDP packet, XCDR1 staging, RTPS DATA, KEEP_LAST history, sequence/timestamp metadata | discovery/network worker, graph record, remote matching, reliable repair, and talker/listener evidence | G4.2 foundation through PR30 |
 | Subscriptions | typed static reader, bounded history | readiness/take contract, type-erased decode, metadata | G4.2 |
 | Type support | allocation-free Jazzy C/C++ introspection traversal, bounded XCDR1 size/alignment analysis, two-pass big/little-endian codec, and exact rejection errors | generic handle resolution, bounded staging ownership, and endpoint integration | G4.2 foundation through PR28 |
 | Topic/type names | fixed `rt/rq/rr` mapping, service suffixes, C/C++ DDS type identity, and 255-byte validation | publisher/subscription/service/client consumption and SEDP announcement | G4.2 foundation by PR27 |
@@ -39,14 +39,13 @@ it does not mean the corresponding `rmw` function is implemented.
 
 ## Remaining focused change plan
 
-After PR29, the planned initial ROS 2 scope has eight focused PRs remaining. A PR may split
+After PR30, the planned initial ROS 2 scope has seven focused PRs remaining. A PR may split
 if review or CI exposes an ownership boundary, but features shall not be merged
 into one oversized change.
 
 | PR | Planned change | Gate |
 |---:|---|---|
-| 29 | QoS normalization, compatibility, and endpoint resource plan (current) | G4.2 |
-| 30 | Publisher lifecycle, bounded staging, SEDP writer, and publish metadata | G4.2 |
+| 30 | Publisher lifecycle, bounded staging, SEDP writer, and publish metadata (current) | G4.2 |
 | 31 | Subscription lifecycle, reader history, take, and message metadata | G4.2 |
 | 32 | Wait-set readiness, guard integration, timeout, and shutdown wake | G4.2 |
 | 33 | C/C++ ROS talker-listener qualification and G4.2 closure | G4.2 |

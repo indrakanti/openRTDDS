@@ -1,5 +1,6 @@
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 
 #include "rcutils/allocator.h"
@@ -7,9 +8,13 @@
 #include "rmw/error_handling.h"
 #include "rmw/init.h"
 #include "rmw/init_options.h"
+#include "rmw/qos_profiles.h"
 #include "rmw/rmw.h"
+#include "rosidl_typesupport_introspection_c/field_types.h"
+#include "rosidl_typesupport_introspection_c/identifier.h"
+#include "rosidl_typesupport_introspection_c/message_introspection.h"
 
-// Verifies: ORT-RMW-037, ORT-RMW-038, ORT-RMW-039
+// Verifies: ORT-RMW-037, ORT-RMW-038, ORT-RMW-039, ORT-RMW-046
 namespace {
 
 constexpr std::size_t kNodeCapacity = 8U;
@@ -21,6 +26,30 @@ struct AllocationState final {
   std::size_t outstanding{0U};
   std::size_t fail_on_attempt{0U};
   bool accounting_error{false};
+};
+
+struct PublisherMessage final {
+  std::uint32_t value{0U};
+};
+
+struct PublisherType final {
+  rosidl_typesupport_introspection_c__MessageMember field{};
+  rosidl_typesupport_introspection_c__MessageMembers members{};
+  rosidl_message_type_support_t handle{};
+
+  PublisherType() {
+    field.name_ = "value";
+    field.type_id_ = rosidl_typesupport_introspection_c__ROS_TYPE_UINT32;
+    field.offset_ = offsetof(PublisherMessage, value);
+    members.message_namespace_ = "openrtdds_memory__msg";
+    members.message_name_ = "Value";
+    members.member_count_ = 1U;
+    members.size_of_ = sizeof(PublisherMessage);
+    members.members_ = &field;
+    handle.typesupport_identifier =
+        rosidl_typesupport_introspection_c__identifier;
+    handle.data = &members;
+  }
 };
 
 [[nodiscard]] bool should_fail(AllocationState& state) noexcept {
@@ -298,6 +327,45 @@ void* tracked_zero_allocate(const std::size_t count,
     if (state.outstanding != baseline) {
       return fail(309);
     }
+  }
+
+  rmw_node_t* publisher_node =
+      rmw_create_node(&context, "publisher_failure", "/openrtdds");
+  if (publisher_node == nullptr) {
+    return fail(313);
+  }
+  PublisherType publisher_type{};
+  const auto publisher_options = rmw_get_default_publisher_options();
+  const auto qos = rmw_qos_profile_default;
+  const std::size_t publisher_baseline = state.outstanding;
+  for (std::size_t offset = 1U; offset <= 4U; ++offset) {
+    state.fail_on_attempt = state.attempts + offset;
+    if (rmw_create_publisher(publisher_node, &publisher_type.handle,
+                             "/failure", &qos,
+                             &publisher_options) != nullptr) {
+      return fail(314);
+    }
+    state.fail_on_attempt = 0U;
+    rmw_reset_error();
+    if (state.outstanding != publisher_baseline) {
+      return fail(315);
+    }
+    rmw_publisher_t* recovery = rmw_create_publisher(
+        publisher_node, &publisher_type.handle, "/recovery", &qos,
+        &publisher_options);
+    if ((recovery == nullptr) ||
+        (rmw_destroy_publisher(publisher_node, recovery) != RMW_RET_OK)) {
+      return fail(316);
+    }
+    if (state.outstanding != publisher_baseline) {
+      return fail(317);
+    }
+  }
+  if (rmw_destroy_node(publisher_node) != RMW_RET_OK) {
+    return fail(318);
+  }
+  if (state.outstanding != baseline) {
+    return fail(319);
   }
 
   if (!finish_context(context)) {

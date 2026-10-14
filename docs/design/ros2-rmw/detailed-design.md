@@ -1,9 +1,10 @@
 # ROS 2 RMW adapter detailed design
 
 **Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
-surface, lifecycle semantics, G4.1 memory-safety qualification, and bounded
-type/name/codec foundations; Planned for endpoint communication semantics and the
-remaining G4.2 through G4.5 evidence
+surface, lifecycle semantics, G4.1 memory-safety qualification, bounded
+type/name/codec/QoS foundations, and publisher packet/ownership foundation;
+Planned for networked endpoint semantics and the remaining G4.2 through G4.5
+evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -34,6 +35,8 @@ remaining G4.2 through G4.5 evidence
 **Requirements:** ORT-RMW-042
 
 **Requirements:** ORT-RMW-043, ORT-RMW-044
+
+**Requirements:** ORT-RMW-045, ORT-RMW-046
 
 ## Status and scope
 
@@ -254,6 +257,164 @@ Passing these checks qualifies ORT-RMW-029 through ORT-RMW-039 and closes
 G4.1. This proves that the documented lifecycle scaffold loads and survives
 the tested memory and fault paths; it does not qualify endpoint, wait-set,
 graph, service, client, executor, or general ROS application behavior.
+
+## Current bounded publisher foundation
+
+PR30 implements the publisher ownership and packet-production half of
+ORT-RMW-004. It verifies ORT-RMW-045 and ORT-RMW-046 but deliberately leaves
+ORT-RMW-004 Draft: no worker sends the SEDP or DATA buffers, the matched count
+is therefore truthfully zero, and the graph has no publisher record yet. The
+subscription, wait/readiness, discovery-worker, and real ROS talker/listener
+integration are assigned to PR31 through PR33.
+
+### API and interface surface
+
+| Interface | Current behavior |
+|---|---|
+| `rmw_create_publisher` | validates all inputs, claims one of eight context slots, allocates complete bounded storage, builds SEDP, and commits the handle |
+| `rmw_destroy_publisher` | validates exact parent ownership, releases all storage, returns the slot, and decrements the node count; allowed after shutdown |
+| `rmw_publish` | synchronously serializes XCDR1, builds one unfragmented RTPS DATA message, timestamps, and commits KEEP_LAST history |
+| `rmw_get_gid_for_publisher` | copies the immutable 16-byte RTPS writer GUID into caller storage |
+| `rmw_publisher_get_actual_qos` | returns the PR29 normalized profile used by SEDP and storage planning |
+| `rmw_publisher_count_matched_subscriptions` | returns zero until the discovery match table is integrated |
+| `inspect_publisher` | returns a locked diagnostic snapshot and borrowed packet views for qualification; it is not an `rmw` ABI entry point |
+
+Loaned messages, serialized-message publishing, publisher events, liveliness
+assertion, allocation objects, acknowledgment waiting, and unique network-flow
+guarantees remain explicitly unsupported. A strictly-required unique network
+flow is rejected during creation; optional or system-default requests do not
+claim that guarantee.
+
+### Classes and ownership
+
+| Type | Responsibility | Ownership/lifetime |
+|---|---|---|
+| `PublisherSlot` | bounded context registry entry with nonzero reuse generation | fixed array of eight in `rmw_context_impl_t` |
+| `PublisherData` | type metadata, mapped names, resource plan, GUID, packet/history storage, sequence state, and mutex | context allocator; one per committed `rmw_publisher_t` |
+| `PublisherSampleMetadata` | sequence, source timestamp, and exact serialized byte count | fixed 1,024-entry array; active depth is normalized KEEP_LAST depth |
+| `PublisherSnapshot` | coherent qualification view of endpoint and last commit | caller-owned copy; packet pointers remain publisher-owned |
+| `NodeData::publisher_count` | prevents parent release while a child publisher exists | updated only at publisher commit/destruction |
+
+The `rmw_publisher_t`, private `PublisherData`, copied topic string, and one
+contiguous runtime byte region are the four allocator-owned construction
+edges. The runtime region is partitioned once:
+
+```text
+[maximum XCDR1 staging]
+[RTPS DATA construction buffer = sample + 44 bytes]
+[committed RTPS DATA datagram = sample + 44 bytes]
+[KEEP_LAST depth × maximum XCDR1 sample]
+```
+
+The maximum analyzed XCDR1 sample is 65,000 bytes. This keeps an unfragmented
+DATA packet below the 65,507-byte UDP payload ceiling. History depth is at
+most 1,024 and total history storage is at most 64 MiB under the PR29 resource
+plan. No runtime resize or fragmentation fallback exists.
+
+### Creation behavior
+
+```mermaid
+sequenceDiagram
+    participant R as ROS caller
+    participant A as RMW publisher API
+    participant P as Context pool
+    participant C as Type/QoS codecs
+    participant D as SEDP builder
+    R->>A: create(node, type, topic, qos, options)
+    A->>C: analyze type, map names, plan resources
+    C-->>A: finite maximum and normalized QoS
+    A->>P: reserve one slot generation
+    A->>A: allocate handle, state, topic, byte region
+    A->>D: build publication announcement
+    D-->>A: parseable bounded SEDP packet
+    A->>P: commit state pointer and parent count
+    A-->>R: publisher handle
+```
+
+Validation and resource planning occur before slot reservation. Allocation or
+SEDP failure destroys every completed object, returns every allocation, and
+advances/releases the reserved slot generation. Only the final assignment of
+the slot data pointer and node ownership count makes the publisher visible.
+Publisher creation/destruction and node/context finalization are lifecycle
+operations and are not permitted concurrently.
+
+The participant GUID prefix contains the OpenRTDDS identity marker, domain,
+and context instance ID; the final four GID bytes are the user-writer EntityId
+derived from the bounded publisher slot. Reusing a slot may reuse its EntityId
+within one context only after the old publisher is destroyed; applications
+must not retain destroyed endpoint identities.
+
+### Publish behavior and commit point
+
+```mermaid
+sequenceDiagram
+    participant R as ROS caller
+    participant P as PublisherData
+    participant X as XCDR1 codec
+    participant D as RTPS DATA builder
+    R->>P: rmw_publish(message)
+    P->>P: lock publisher mutex
+    P->>X: serialize into fixed staging
+    X-->>P: exact payload bytes
+    P->>D: build DATA with current sequence
+    D-->>P: complete datagram
+    P->>P: read realtime source timestamp
+    P->>P: commit history, metadata, packet size
+    P->>P: increment sequence and unlock
+    P-->>R: RMW_RET_OK
+```
+
+Serialization, DATA construction, sequence-range checking, and timestamp
+acquisition all precede the commit point. DATA is built into a private
+construction buffer and copied to the visible packet only at commit. Any
+failure returns without changing history indices, visible packet bytes/size,
+last-sample metadata, or next sequence.
+Successful KEEP_LAST insertion overwrites the oldest slot after the configured
+depth is full. The current DATA builder does not emit `INFO_TS`; the timestamp
+is retained as local RMW metadata for the later subscription/message-info
+path. Network transmission will consume the committed datagram in PR33.
+
+All operations on one live publisher except finalization serialize through its
+mutex, matching the Jazzy publisher thread-safety contract. Calls do not wait
+for discovery, acknowledgments, or network events. Mutex acquisition is the
+only blocking operation and remains subject to scheduler starvation; no
+internal thread or callback is created in this increment.
+
+### Error and fault behavior
+
+| Failure | RMW result | State effect | Fault mapping |
+|---|---|---|---|
+| null/invalid argument or wrong parent | `RMW_RET_INVALID_ARGUMENT` | none | integration error |
+| foreign implementation identifier | `RMW_RET_INCORRECT_RMW_IMPLEMENTATION` | none | `ORT-FLT-RMW-001` |
+| exhausted publisher pool/allocation | null from create | reservation fully rolled back | `ORT-FLT-RMW-002` |
+| unsupported/unbounded type | null from create | no slot retained | `ORT-FLT-RMW-003` |
+| unsupported QoS | null from create | no slot retained | `ORT-FLT-RMW-006` |
+| XCDR1 bound/serialization failure | `RMW_RET_ERROR` | no publish commit | `ORT-FLT-SER-001` or codec mapping |
+| RTPS DATA construction/sequence failure | `RMW_RET_ERROR` | no publish commit | `ORT-FLT-RTPS-003` or local configuration defect |
+| realtime clock failure | `RMW_RET_ERROR` | no publish commit | `ORT-FLT-TIME-001` |
+| publish after shutdown | `RMW_RET_ERROR` | none | `ORT-FLT-RMW-001` |
+| node/context release with live publisher | error/invalid argument | parent remains valid | `ORT-FLT-RMW-001` |
+
+Every public failure sets the bounded `rcutils` diagnostic. The fault codes
+remain classifications for application/health-monitor integration; this PR
+does not emit an asynchronous fault event.
+
+### Verification and known boundary
+
+`test_publisher.cpp` parses the constructed SEDP and RTPS DATA packets, checks
+ROS-to-DDS names, endpoint identity, normalized QoS, source timestamp,
+sequence progression, XCDR1 payload recovery, KEEP_LAST accounting, pool
+exhaustion, wrong-parent rejection, shutdown behavior, and state preservation
+after a failed publish. `test_rmw_memory_qualification.cpp` injects failure at
+each of the four publisher allocations, checks exact allocation balance and
+slot recovery, and then creates and destroys a valid publisher. The sanitizer
+job runs both tests. `publisher_pipeline.cpp` demonstrates the direct C ABI
+creation/publish/inspection lifecycle.
+
+This evidence verifies packet production and ownership only. A packet present
+in `PublisherSnapshot` is not evidence that it was sent or matched. G4.2 still
+requires vendor-visible discovery/data transmission, subscription take,
+executor readiness, and a real Jazzy talker/listener pair.
 
 ## Architectural boundary
 
