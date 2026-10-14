@@ -37,6 +37,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.."
 set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(${PROJECT_NAME} SHARED
+  src/qos.cpp
   src/rmw_adapter.cpp
   src/rmw_unsupported.cpp
   src/type_support.cpp
@@ -59,11 +60,21 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 configure_rmw_library(${PROJECT_NAME})
 
+add_executable(openrtdds_rmw_qos_plan examples/qos_resource_plan.cpp)
+target_compile_features(openrtdds_rmw_qos_plan PRIVATE cxx_std_17)
+target_compile_options(openrtdds_rmw_qos_plan PRIVATE
+  -Wall -Wextra -Wpedantic -Werror)
+target_link_libraries(openrtdds_rmw_qos_plan PRIVATE
+  ${PROJECT_NAME}
+  rmw::rmw
+)
+
 # Register the implementation itself but deliberately register no type-support
 # backend until the publisher/subscription boundary is implemented and tested.
 register_rmw_implementation()
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(
+  rmw
   rosidl_typesupport_introspection_c
   rosidl_typesupport_introspection_cpp
 )
@@ -72,6 +83,9 @@ install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+install(TARGETS openrtdds_rmw_qos_plan
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 
@@ -122,6 +136,17 @@ if(BUILD_TESTING)
     rosidl_typesupport_introspection_cpp::rosidl_typesupport_introspection_cpp
   )
   add_test(NAME rmw_openrtdds_xcdr1_codec COMMAND test_rmw_xcdr1_codec)
+
+  add_executable(test_rmw_qos test/test_qos.cpp)
+  target_compile_features(test_rmw_qos PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_qos PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_qos PRIVATE
+    ${PROJECT_NAME}
+    rcutils::rcutils
+    rmw::rmw
+  )
+  add_test(NAME rmw_openrtdds_qos COMMAND test_rmw_qos)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)

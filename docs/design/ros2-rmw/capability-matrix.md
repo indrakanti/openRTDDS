@@ -39,13 +39,13 @@ it does not mean the corresponding `rmw` function is implemented.
 
 ## Remaining focused change plan
 
-After PR28, the planned initial ROS 2 scope is nine focused PRs. A PR may split
+After PR29, the planned initial ROS 2 scope has eight focused PRs remaining. A PR may split
 if review or CI exposes an ownership boundary, but features shall not be merged
 into one oversized change.
 
 | PR | Planned change | Gate |
 |---:|---|---|
-| 29 | QoS normalization, compatibility, and endpoint resource plan | G4.2 |
+| 29 | QoS normalization, compatibility, and endpoint resource plan (current) | G4.2 |
 | 30 | Publisher lifecycle, bounded staging, SEDP writer, and publish metadata | G4.2 |
 | 31 | Subscription lifecycle, reader history, take, and message metadata | G4.2 |
 | 32 | Wait-set readiness, guard integration, timeout, and shutdown wake | G4.2 |

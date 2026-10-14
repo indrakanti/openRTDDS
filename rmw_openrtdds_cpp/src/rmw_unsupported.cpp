@@ -451,16 +451,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
     rmw_topic_endpoint_info_array_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_qos_profile_check_compatible,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  5, ARG_TYPES(
-    const rmw_qos_profile_t,
-    const rmw_qos_profile_t,
-    rmw_qos_compatibility_type_t *,
-    char *,
-    size_t))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_publisher_get_network_flow_endpoints,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(

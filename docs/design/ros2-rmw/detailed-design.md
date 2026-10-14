@@ -33,6 +33,8 @@ remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-042
 
+**Requirements:** ORT-RMW-043, ORT-RMW-044
+
 ## Status and scope
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
@@ -513,12 +515,17 @@ mapping and announce the resulting identities through SEDP.
 
 ## QoS contract
 
+The implemented normalization, compatibility, resource-planning behavior, and
+error decisions are owned by
+[the RMW QoS detailed design](../rmw-qos/detailed-design.md). Endpoint creation
+will consume that object in PR30 and PR31; it shall not reinterpret raw QoS.
+
 | ROS policy | Initial mapping | Unsupported behavior |
 |---|---|---|
-| reliability | best effort / reliable | unknown resolved by documented default |
+| reliability | best effort / reliable; system default becomes reliable | unknown and best available rejected |
 | durability | volatile | transient local rejected until bounded durable history exists |
 | history | KEEP_LAST | KEEP_ALL rejected |
-| depth | fixed positive history depth | zero/overflow rejected or resolved per pinned ABI |
+| depth | fixed positive history depth; system-default history uses configured default | explicit zero/overflow rejected |
 | deadline | planned OpenRTDDS deadline monitor | unsupported until monitor evidence exists |
 | lifespan | planned receive/write expiry | unsupported until expiry evidence exists |
 | liveliness | automatic first | manual modes rejected initially |

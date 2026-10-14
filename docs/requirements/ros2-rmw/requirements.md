@@ -116,8 +116,8 @@ names or type identities differ.
 
 The adapter shall map supported ROS reliability, durability, history, depth,
 deadline, lifespan, liveliness, and lease-duration policies to explicit
-OpenRTDDS values; resolve system-default and unknown policies predictably;
-report unsupported policies; and return the same compatibility result used by
+OpenRTDDS values; resolve system-default policies predictably; reject unknown
+or unsupported policies; and return the same compatibility result used by
 endpoint matching.
 
 **Rationale:** Silent QoS reduction can produce communication loss and invalid
@@ -624,6 +624,40 @@ error; and preserve the destination when validation fails.
 **Rationale:** Type analysis becomes usable by the publisher and subscription
 paths only when type-erased ROS storage can be converted to and from bounded DDS
 wire bytes without adding an unbounded allocation or partial-message failure.
+
+### ORT-RMW-043 — Deterministic QoS normalization and compatibility
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+The adapter shall normalize Jazzy system-default history, depth, reliability,
+durability, deadline, lifespan, liveliness, and lease duration to one explicit
+profile; preserve best-effort/reliable and ROS namespace behavior; reject
+unknown, best-available, KEEP_ALL, transient-local, finite timing, and manual
+liveliness policies until their bounded behavior exists; implement the
+allocation-free `rmw_qos_profile_check_compatible` requested/offered check;
+and leave normalization output unchanged on failure.
+
+**Rationale:** One reviewed policy decision must drive endpoint resources,
+discovery, matching, and actual-QoS reporting without discovery races or silent
+feature reduction.
+
+### ORT-RMW-044 — Bounded endpoint resource plan
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+Before endpoint creation, the adapter shall combine normalized QoS, endpoint
+role, and the analyzed maximum serialized sample size into fixed history-slot,
+history-byte, and reliable-writer repair-slot reservations; reject invalid
+limits, zero or oversized samples, depth and byte-limit violations, and
+arithmetic overflow; allocate no memory; and leave the prior plan unchanged on
+failure.
+
+**Rationale:** Publisher and subscription construction must know its complete
+storage obligation before it can reserve a bounded endpoint slot atomically.
 
 ## Authoritative upstream references
 

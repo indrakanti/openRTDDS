@@ -27,7 +27,7 @@ deadline or retry bound is exceeded.
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
-| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`; future mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, and future endpoint/wait/graph failure |
+| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`, `QosError`; selected mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, QoS/resource planning, and future endpoint/wait/graph failure |
 
 Error enums are symbolic API values. Their implicit integer representation is
 not a stable fault code.
@@ -66,6 +66,7 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-RMW-003` (Planned) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
 | `ORT-FLT-RMW-004` (Planned) | Warning/Error | invalid or over-bound ROS graph update | discovery/context owner |
 | `ORT-FLT-RMW-005` (Planned) | Error/Fatal by context | wait registry or wake primitive failure | context owner |
+| `ORT-FLT-RMW-006` | Fatal at endpoint creation | unsupported, invalid, or over-bound QoS/resource plan | application/configuration owner |
 
 Severity is deployment-configurable except where the selected deterministic
 profile cannot satisfy its assumptions. The component detecting an API error
@@ -84,6 +85,20 @@ Current RMW codec mappings are:
 The codec returns errors only; the future endpoint owner maps them to
 `rmw_ret_t` and diagnostic events. No codec error triggers allocation, hidden
 retry, destination resizing, or partial receive commit.
+
+Current QoS/resource-plan mappings are:
+
+| `QosError` | Fault code / policy |
+|---|---|
+| `invalid_argument`, `invalid_policy` | `ORT-FLT-RMW-006`; reject endpoint configuration |
+| `unsupported_best_available`, `unsupported_history`, `unsupported_durability` | `ORT-FLT-RMW-006`; choose an implemented deterministic policy |
+| `unsupported_deadline`, `unsupported_lifespan`, `unsupported_liveliness`, `unsupported_lease_duration` | `ORT-FLT-RMW-006`; feature remains outside the current profile |
+| `depth_out_of_range`, `sample_size_out_of_range`, `history_bytes_out_of_range`, `arithmetic_overflow` | `ORT-FLT-RMW-002` and `ORT-FLT-RMW-006`; correct configured bounds before activation |
+
+Normalization and planning return errors only and preserve their prior output.
+The compatibility query returns `OK`, `WARNING`, or `ERROR` as data; only an
+invalid API argument sets the RMW error state. No QoS result emits a fault event
+in this increment.
 
 Current reliability-control mappings are:
 
