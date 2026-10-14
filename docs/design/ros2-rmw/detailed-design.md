@@ -2,9 +2,9 @@
 
 **Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
 surface, lifecycle semantics, G4.1 memory-safety qualification, bounded
-type/name/codec/QoS foundations, and publisher packet/ownership foundation;
-Planned for networked endpoint semantics and the remaining G4.2 through G4.5
-evidence
+type/name/codec/QoS foundations, publisher packet/ownership, and subscription
+ingress/history/take foundations; Planned for wait and networked endpoint
+semantics and the remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -38,6 +38,8 @@ evidence
 
 **Requirements:** ORT-RMW-045, ORT-RMW-046
 
+**Requirements:** ORT-RMW-047, ORT-RMW-048
+
 ## Status and scope
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
@@ -70,8 +72,9 @@ headers. The separate `rmw_openrtdds_cpp` ament package registers and exports a
 loadable shared library with the complete reviewed Jazzy proxy symbol surface,
 but it deliberately registers an empty type-support set. The current adapter
 can complete its lifecycle through the standard runtime-selection proxy; it
-cannot yet run a ROS publisher, subscription, service, client, or executor end
-to end.
+also has bounded synchronous publisher and subscription foundations, but
+cannot yet run a networked ROS publisher, subscription, service, client, or
+executor end to end.
 
 ### Current types and ownership
 
@@ -155,9 +158,11 @@ The proxy reference is `ros2/rmw_implementation` Jazzy commit
 manifest diff, header compatibility review, and CI evidence before acceptance.
 
 The ament resource index contains `rmw_openrtdds_cpp`, but its registered type
-support list is empty. Publisher, subscription, wait-set, graph-cache, service,
-client, event, serialization, and take APIs are not implemented by this PR.
-All optional features return `false` from `rmw_feature_supported`.
+support list is empty. Bounded publisher and subscription APIs are now
+implemented in their dedicated sections below; wait-set, graph-cache,
+service, client, event, generic serialization, and remaining endpoint APIs
+retain the unsupported contract. All optional features return `false` from
+`rmw_feature_supported`.
 
 ### Unsupported-entry-point contract
 
@@ -264,8 +269,9 @@ PR30 implements the publisher ownership and packet-production half of
 ORT-RMW-004. It verifies ORT-RMW-045 and ORT-RMW-046 but deliberately leaves
 ORT-RMW-004 Draft: no worker sends the SEDP or DATA buffers, the matched count
 is therefore truthfully zero, and the graph has no publisher record yet. The
-subscription, wait/readiness, discovery-worker, and real ROS talker/listener
-integration are assigned to PR31 through PR33.
+subscription foundation is implemented below; wait/readiness,
+discovery-worker, and real ROS talker/listener integration are assigned to
+PR32 and PR33.
 
 ### API and interface surface
 
@@ -415,6 +421,204 @@ This evidence verifies packet production and ownership only. A packet present
 in `PublisherSnapshot` is not evidence that it was sent or matched. G4.2 still
 requires vendor-visible discovery/data transmission, subscription take,
 executor readiness, and a real Jazzy talker/listener pair.
+
+## Current bounded subscription foundation
+
+PR31 implements the reader ownership, accepted-DATA history, and caller-driven
+take half of ORT-RMW-005. It verifies ORT-RMW-047 and ORT-RMW-048 while leaving
+ORT-RMW-005 Draft: no context worker receives UDP, no wait set observes
+readiness, and no discovery table computes matches. The public
+`receive_data_message` function is the narrow transport-ingress boundary used
+by qualification and by the later context receive worker.
+
+### Subscription API and interface surface
+
+| Interface | Current behavior |
+|---|---|
+| `rmw_create_subscription` | validates inputs, reserves one of eight context slots, allocates complete history, builds the SEDP reader announcement, then commits ownership |
+| `rmw_destroy_subscription` | requires the exact parent node, releases all storage and the pool slot, and remains valid after shutdown |
+| `receive_data_message` | parses one complete RTPS DATA message, applies reader/writer/time/size filters, suppresses duplicates, and commits KEEP_LAST payload plus metadata |
+| `rmw_take` | nonblocking XCDR1 decode of the oldest accepted sample into caller storage |
+| `rmw_take_with_info` | performs the same take and supplies source/receive time, writer GID, publication sequence, and reception sequence |
+| `rmw_take_sequence` | decodes up to the requested count into caller-provided message pointers and metadata storage, then consumes the batch atomically |
+| `rmw_subscription_get_actual_qos` | returns the normalized profile used for resource planning and SEDP |
+| `rmw_subscription_count_matched_publishers` | returns zero until remote discovery matching exists |
+| `inspect_subscription` | returns a locked diagnostic snapshot plus a borrowed SEDP packet view; it is not an `rmw` ABI entry point |
+
+Serialized takes, loaned takes, content filtering, events, network-flow
+guarantees, discovery matching, fragmentation/reassembly, and reliable repair
+remain unsupported. Strictly required unique network flows and content-filter
+options are rejected during creation. `can_loan_messages` and
+`is_cft_enabled` are false.
+
+### Subscription classes and fixed ownership
+
+| Type | Responsibility | Bound/lifetime |
+|---|---|---|
+| `SubscriptionSlot` | registry entry and nonzero reuse generation | fixed array of eight in `rmw_context_impl_t` |
+| `SubscriptionData` | parent/type identity, resource plan, reader GUID, history, writer states, counters, SEDP, and mutex | context allocator; one per committed handle |
+| `SubscriptionSampleMetadata` | writer GID, publication/reception sequences, timestamps, and serialized size | fixed array of 1,024 records; active depth is the normalized KEEP_LAST depth |
+| `WriterState` | last accepted sequence for one writer GUID | fixed table of 16 writers per subscription |
+| `SubscriptionReceiveResult` | exact synchronous ingress outcome and sequence metadata | caller-owned output; overwritten on every ingress call |
+| `SubscriptionSnapshot` | coherent diagnostic state and borrowed SEDP view | caller-owned copy; SEDP pointer remains subscription-owned |
+| `NodeData::subscription_count` | prevents parent release with live child readers | incremented only at commit and decremented at destruction |
+
+The four allocator-owned construction edges are the public
+`rmw_subscription_t`, placement-constructed private state, copied topic name,
+and one contiguous history region sized as normalized depth multiplied by the
+maximum analyzed XCDR1 sample size.
+
+The analyzed sample maximum is 65,000 bytes, history depth is at most 1,024,
+and planned history is capped at 64 MiB by the shared QoS resource planner.
+Metadata and the 16-entry writer table are inline in `SubscriptionData`; they
+cannot grow. Lifecycle creation/destruction is serialized by the context
+subscription-registry mutex. Ingress, take, query, and inspection on one live
+subscription serialize through its entity mutex.
+
+### Subscription creation and rollback
+
+```mermaid
+sequenceDiagram
+    participant R as ROS caller
+    participant A as Subscription API
+    participant C as Type and QoS plan
+    participant P as Context pool
+    participant D as SEDP builder
+    R->>A: create(node, type, topic, qos, options)
+    A->>C: analyze, map, normalize, size
+    C-->>A: finite resource plan
+    A->>P: reserve slot generation
+    A->>A: allocate handle, state, name, history
+    A->>D: build subscription announcement
+    D-->>A: bounded reader SEDP
+    A->>P: commit pointer and parent count
+    A-->>R: subscription handle
+```
+
+Validation and planning occur before slot reservation. On allocation or SEDP
+failure, all completed objects are destroyed in reverse ownership order, the
+slot is released with an advanced generation, and the node count is never
+incremented. The allocation-failure qualification test injects failure at all
+four edges and requires the allocator balance and subsequent creation to
+recover each time.
+
+The reader GUID uses the same participant prefix as PR30 publishers. Its
+EntityId is derived from the bounded slot and uses RTPS no-key reader kind
+`0x04`. SEDP addresses the built-in subscriptions reader and advertises the
+mapped name, type, normalized reliability, volatile durability, and bounded
+loopback locator. Reusing a slot after destruction may reuse the EntityId;
+the previous handle is invalid because its slot generation no longer matches.
+
+### DATA acceptance and history commit
+
+```mermaid
+sequenceDiagram
+    participant T as Transport boundary
+    participant S as SubscriptionData
+    participant P as RTPS parser
+    participant H as KEEP_LAST history
+    T->>S: DATA bytes and receive time
+    S->>P: parse complete datagram
+    P-->>S: prefix, reader, writer, sequence, payload
+    S->>S: validate route, writer, size, time
+    S->>S: filter local and duplicate samples
+    S->>H: copy payload and metadata
+    S->>S: advance writer and reception sequence
+    S-->>T: accepted result
+```
+
+Ingress accepts DATA addressed to this reader or to the RTPS unknown-reader
+EntityId. When `INFO_DST` is present, its participant prefix must also match
+the local participant. The writer prefix must be nonzero and the EntityId must
+be a valid user writer (`0x02` keyed or `0x03` no-key). Payload must be
+nonempty and at most the analyzed XCDR1 maximum. Receive time must be positive
+and representable by `rmw_time_point_value_t`; source time comes from the caller
+when nonzero, otherwise a valid nonnegative `INFO_TS` is converted to
+nanoseconds.
+
+When `ignore_local_publications` is enabled, a writer with the context's local
+participant prefix is reported as ignored and does not consume writer/history
+state. Each observed writer uses one fixed state entry. A sequence less than
+or equal to that writer's last accepted sequence is reported as duplicate or
+stale and is not committed. Exhausting the 16-writer table rejects a new
+writer without evicting an existing state.
+
+The commit point begins only after every rejection condition is cleared. If
+history is not full, the sample is appended at the ring tail. If full, the
+oldest record is overwritten, the head advances, and `dropped_samples`
+increments. The payload copy and its complete metadata precede publication of
+the writer's new last sequence, reception sequence advance, and accepted
+counter. The ingress function performs no allocation, callback, I/O, or wait.
+
+### Take behavior and metadata
+
+```mermaid
+sequenceDiagram
+    participant E as Executor caller
+    participant S as SubscriptionData
+    participant X as XCDR1 decoder
+    E->>S: take(caller message storage)
+    S->>S: lock and inspect oldest sample
+    S->>X: validate and decode XCDR1
+    alt decode succeeds
+        X-->>S: complete ROS message
+        S->>S: consume history record
+        S-->>E: taken plus optional metadata
+    else decode fails
+        X-->>S: exact codec error
+        S-->>E: error; sample remains queued
+    end
+```
+
+An empty history returns `RMW_RET_OK` with `taken=false` (or zero sequence
+size) and does not modify message or message-info storage. Decode uses the
+PR28 two-pass XCDR1 path, so an invalid or undersized destination remains
+unchanged. Only a successful decode advances the ring head. Batch take first
+decodes every requested available record; if any decode fails, no history
+record is consumed. It then commits both sequence sizes and the consumed count.
+
+`rmw_message_info_t` contains the RTPS writer GUID as `publisher_gid`, the
+wire DATA sequence as `publication_sequence_number`, the local monotonically
+increasing accepted-sample sequence as `reception_sequence_number`, resolved
+source time, supplied receive time, and `from_intra_process=false`. The latter
+is deliberate because this boundary models DDS wire delivery rather than an
+intra-process optimization.
+
+### Subscription errors and fault containment
+
+| Condition | API result | State effect / fault mapping |
+|---|---|---|
+| null, malformed, wrong-parent, or stale handle | null or `RMW_RET_INVALID_ARGUMENT` | no commit; `ORT-FLT-RMW-001` for stale lifecycle state |
+| foreign implementation | `RMW_RET_INCORRECT_RMW_IMPLEMENTATION` | no state change |
+| unsupported option, QoS, type, or name | null with exact diagnostic | no slot claim; `ORT-FLT-RMW-003` or `ORT-FLT-RMW-006` |
+| slot/allocation/history bound exhausted | null | complete rollback; `ORT-FLT-RMW-002` |
+| inactive context | ingress `inactive_context`; take `RMW_RET_ERROR` | history retained for orderly destruction; `ORT-FLT-RMW-001` |
+| invalid time, reader, writer, payload, or RTPS syntax | exact `SubscriptionReceiveError`; false | no history or writer-state change |
+| duplicate/stale or ignored-local DATA | true with outcome flag, `accepted=false` | deliberate filtered outcome; no fault and no commit |
+| writer table full or reception sequence exhausted | exact ingress error; false | existing history/states preserved; `ORT-FLT-RMW-002` |
+| empty take | `RMW_RET_OK`, not taken | caller message/info unchanged |
+| XCDR1 destination/decode failure | `RMW_RET_ERROR` | sample remains queued; codec fault mapping applies |
+| non-null allocation object | `RMW_RET_UNSUPPORTED` | no state change |
+
+`SubscriptionReceiveError` is an internal synchronous vocabulary rather than
+an asynchronous ROS status event. `rtps_parse_failed` additionally carries the
+exact `RtpsError`. The later transport worker shall translate or count these
+outcomes without calling user code while holding the subscription mutex.
+
+### Verification and known boundary
+
+`test_subscription.cpp` checks reader SEDP parsing, actual QoS, empty take,
+accepted metadata, duplicate suppression, local-publication filtering,
+KEEP_LAST overflow, ordered batch take, eight-slot exhaustion, ownership,
+shutdown behavior, and cleanup. `test_rmw_memory_qualification.cpp` covers all
+subscription allocation failures and recovery. The subscription pipeline
+example connects the PR30 committed DATA buffer directly to ingress and takes
+one typed sample with metadata.
+
+This evidence proves the bounded synchronous interface, not a networked ROS
+subscription. PR32 owns wait/readiness wake semantics. PR33 owns context UDP
+receive integration, discovery matching, and real C/C++ talker/listener
+qualification required to close G4.2.
 
 ## Architectural boundary
 

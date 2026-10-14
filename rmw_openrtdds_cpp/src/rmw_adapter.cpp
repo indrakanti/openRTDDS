@@ -385,6 +385,10 @@ rmw_ret_t rmw_context_fini(rmw_context_t* context) {
     RMW_SET_ERROR_MSG("context still owns publishers");
     return RMW_RET_INVALID_ARGUMENT;
   }
+  if (rmw_openrtdds_cpp::detail::context_has_subscriptions(context)) {
+    RMW_SET_ERROR_MSG("context still owns subscriptions");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   const auto foundation_result = context->impl->foundation.finalize();
   if (foundation_result != openrtdds::rmw::AdapterError::none) {
     RMW_SET_ERROR_MSG("context still owns nodes or guard conditions");
@@ -503,8 +507,9 @@ rmw_ret_t rmw_destroy_node(rmw_node_t* node) {
   }
 
   auto* data = static_cast<NodeData*>(node->data);
-  if (data->publisher_count != 0U) {
-    RMW_SET_ERROR_MSG("node still owns publishers");
+  if ((data->publisher_count != 0U) ||
+      (data->subscription_count != 0U)) {
+    RMW_SET_ERROR_MSG("node still owns publishers or subscriptions");
     return RMW_RET_ERROR;
   }
   const auto error = context->impl->foundation.destroy_node(data->handle);

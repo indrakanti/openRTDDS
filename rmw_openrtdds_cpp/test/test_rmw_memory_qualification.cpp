@@ -15,6 +15,7 @@
 #include "rosidl_typesupport_introspection_c/message_introspection.h"
 
 // Verifies: ORT-RMW-037, ORT-RMW-038, ORT-RMW-039, ORT-RMW-046
+// Verifies: ORT-RMW-048
 namespace {
 
 constexpr std::size_t kNodeCapacity = 8U;
@@ -359,6 +360,31 @@ void* tracked_zero_allocate(const std::size_t count,
     }
     if (state.outstanding != publisher_baseline) {
       return fail(317);
+    }
+  }
+
+  const auto subscription_options = rmw_get_default_subscription_options();
+  for (std::size_t offset = 1U; offset <= 4U; ++offset) {
+    state.fail_on_attempt = state.attempts + offset;
+    if (rmw_create_subscription(publisher_node, &publisher_type.handle,
+                                "/failure", &qos,
+                                &subscription_options) != nullptr) {
+      return fail(320);
+    }
+    state.fail_on_attempt = 0U;
+    rmw_reset_error();
+    if (state.outstanding != publisher_baseline) {
+      return fail(321);
+    }
+    rmw_subscription_t* recovery = rmw_create_subscription(
+        publisher_node, &publisher_type.handle, "/recovery", &qos,
+        &subscription_options);
+    if ((recovery == nullptr) ||
+        (rmw_destroy_subscription(publisher_node, recovery) != RMW_RET_OK)) {
+      return fail(322);
+    }
+    if (state.outstanding != publisher_baseline) {
+      return fail(323);
     }
   }
   if (rmw_destroy_node(publisher_node) != RMW_RET_OK) {

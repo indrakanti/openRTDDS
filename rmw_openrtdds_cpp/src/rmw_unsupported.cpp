@@ -126,28 +126,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   1, ARG_TYPES(rmw_subscription_allocation_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_create_subscription,
-  rmw_subscription_t *, nullptr,
-  5, ARG_TYPES(
-    const rmw_node_t *, const rosidl_message_type_support_t *, const char *,
-    const rmw_qos_profile_t *, const rmw_subscription_options_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_destroy_subscription,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(rmw_node_t *, rmw_subscription_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_subscription_count_matched_publishers,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_subscription_t *, size_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_subscription_get_actual_qos,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_subscription_t *, rmw_qos_profile_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_subscription_event_init,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(rmw_event_t *, const rmw_subscription_t *, rmw_event_type_t))
@@ -164,26 +142,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   3, ARG_TYPES(
     const rmw_subscription_t *, rcutils_allocator_t *,
     rmw_subscription_content_filter_options_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_take,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  4, ARG_TYPES(const rmw_subscription_t *, void *, bool *, rmw_subscription_allocation_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_take_sequence,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  6, ARG_TYPES(
-    const rmw_subscription_t *, size_t, rmw_message_sequence_t *,
-    rmw_message_info_sequence_t *, size_t *, rmw_subscription_allocation_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_take_with_info,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  5,
-  ARG_TYPES(
-    const rmw_subscription_t *, void *, bool *, rmw_message_info_t *,
-    rmw_subscription_allocation_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_take_serialized_message,
