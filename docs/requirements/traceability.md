@@ -119,6 +119,8 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-042 | Verified | `rmw_openrtdds_cpp/xcdr1_codec.hpp`, `xcdr1_codec.cpp` | `test_xcdr1_codec.cpp`, Jazzy sanitizer CI | — |
 | ORT-RMW-043 | Verified | `rmw_openrtdds_cpp/qos.hpp`, `qos.cpp` | `test_qos.cpp`, Jazzy sanitizer CI | `qos_resource_plan.cpp` |
 | ORT-RMW-044 | Verified | `rmw_openrtdds_cpp/qos.hpp`, `qos.cpp` | `test_qos.cpp`, Jazzy sanitizer CI | `qos_resource_plan.cpp` |
+| ORT-RMW-045 | Verified | `rmw_openrtdds_cpp/publisher.hpp`, `publisher.cpp`, `rmw_adapter.cpp` | `test_publisher.cpp`, Jazzy sanitizer CI | `publisher_pipeline.cpp` |
+| ORT-RMW-046 | Verified | `rmw_openrtdds_cpp/src/internal.hpp`, `publisher.cpp`, `rmw_adapter.cpp` | `test_publisher.cpp`, `test_rmw_memory_qualification.cpp` allocation-failure sweep | `publisher_pipeline.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

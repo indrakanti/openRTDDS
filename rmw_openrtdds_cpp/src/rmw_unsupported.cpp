@@ -54,18 +54,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   1, ARG_TYPES(rmw_publisher_allocation_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_create_publisher,
-  rmw_publisher_t *, nullptr,
-  5, ARG_TYPES(
-    const rmw_node_t *, const rosidl_message_type_support_t *, const char *,
-    const rmw_qos_profile_t *, const rmw_publisher_options_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_destroy_publisher,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(rmw_node_t *, rmw_publisher_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_borrow_loaned_message,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(
@@ -79,24 +67,9 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   2, ARG_TYPES(const rmw_publisher_t *, void *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_publish,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_publisher_t *, const void *, rmw_publisher_allocation_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_publish_loaned_message,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(const rmw_publisher_t *, void *, rmw_publisher_allocation_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_publisher_count_matched_subscriptions,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_publisher_t *, size_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_publisher_get_actual_qos,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_publisher_t *, rmw_qos_profile_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_publisher_event_init,
@@ -409,11 +382,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_get_gid_for_client,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   2, ARG_TYPES(const rmw_client_t *, rmw_gid_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_get_gid_for_publisher,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_publisher_t *, rmw_gid_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_compare_gids_equal,

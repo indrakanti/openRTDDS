@@ -125,6 +125,10 @@ def main() -> int:
     ).items():
         tests.setdefault(identifier, set()).update(paths)
     examples = collect_references("examples", "Demonstrates")
+    for identifier, paths in collect_references(
+        "rmw_openrtdds_cpp/examples", "Demonstrates"
+    ).items():
+        examples.setdefault(identifier, set()).update(paths)
     designs = collect_references(
         "docs/design", "Requirements", "detailed-design.md"
     )
