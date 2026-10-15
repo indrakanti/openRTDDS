@@ -41,6 +41,7 @@ add_library(${PROJECT_NAME} SHARED
   src/qos.cpp
   src/rmw_adapter.cpp
   src/rmw_unsupported.cpp
+  src/subscription.cpp
   src/type_support.cpp
   src/xcdr1_codec.cpp
 )
@@ -81,8 +82,19 @@ target_link_libraries(openrtdds_rmw_publisher_pipeline PRIVATE
   rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
 )
 
+add_executable(openrtdds_rmw_subscription_pipeline
+  examples/subscription_pipeline.cpp)
+target_compile_features(openrtdds_rmw_subscription_pipeline PRIVATE cxx_std_17)
+target_compile_options(openrtdds_rmw_subscription_pipeline PRIVATE
+  -Wall -Wextra -Wpedantic -Werror)
+target_link_libraries(openrtdds_rmw_subscription_pipeline PRIVATE
+  ${PROJECT_NAME}
+  rmw::rmw
+  rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+)
+
 # Register the implementation itself but deliberately register no type-support
-# backend until the publisher/subscription boundary is implemented and tested.
+# backend until networked pub/sub and the G4.2 talker/listener gate pass.
 register_rmw_implementation()
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(
@@ -96,7 +108,10 @@ install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
-install(TARGETS openrtdds_rmw_qos_plan openrtdds_rmw_publisher_pipeline
+install(TARGETS
+  openrtdds_rmw_qos_plan
+  openrtdds_rmw_publisher_pipeline
+  openrtdds_rmw_subscription_pipeline
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
@@ -172,6 +187,19 @@ if(BUILD_TESTING)
     rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
   )
   add_test(NAME rmw_openrtdds_publisher COMMAND test_rmw_publisher)
+
+  add_executable(test_rmw_subscription test/test_subscription.cpp)
+  target_compile_features(test_rmw_subscription PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_subscription PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_subscription PRIVATE
+    ${PROJECT_NAME}
+    OpenRTDDS::openrtdds
+    rcutils::rcutils
+    rmw::rmw
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+  )
+  add_test(NAME rmw_openrtdds_subscription COMMAND test_rmw_subscription)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)
