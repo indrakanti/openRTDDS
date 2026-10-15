@@ -4,11 +4,16 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "openrtdds/rtps/data_message.hpp"
 #include "rmw/rmw.h"
 #include "rmw_openrtdds_cpp/qos.hpp"
 #include "rmw_openrtdds_cpp/type_support.hpp"
 #include "rmw_openrtdds_cpp/visibility_control.h"
+
+namespace openrtdds::rtps {
+
+enum class RtpsError : std::uint8_t;
+
+}  // namespace openrtdds::rtps
 
 namespace rmw_openrtdds_cpp {
 
@@ -29,7 +34,7 @@ enum class SubscriptionReceiveError : std::uint8_t {
 struct SubscriptionReceiveResult final {
   SubscriptionReceiveError error{SubscriptionReceiveError::none};
   openrtdds::rtps::RtpsError rtps_error{
-      openrtdds::rtps::RtpsError::none};
+      static_cast<openrtdds::rtps::RtpsError>(0)};
   bool accepted{false};
   bool ignored_local{false};
   bool duplicate_or_stale{false};
