@@ -31,7 +31,10 @@ class NetworkRuntime final {
   [[nodiscard]] bool start() noexcept;
   void notify() noexcept;
   void shutdown() noexcept;
-  void drop_next_reliable_data_for_test(std::uint32_t count) noexcept;
+  void drop_next_reliable_data_for_test(
+      const std::uint32_t count) noexcept {
+    test_drop_reliable_data_.store(count);
+  }
 
  private:
   static constexpr std::size_t kRemoteParticipantCapacity = 16U;

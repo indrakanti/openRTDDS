@@ -177,12 +177,6 @@ void NetworkRuntime::shutdown() noexcept {
   multicast_socket_.close();
 }
 
-void NetworkRuntime::drop_next_reliable_data_for_test(
-    const std::uint32_t count) noexcept {
-  test_drop_reliable_data_.store(count);
-  notify();
-}
-
 bool NetworkRuntime::configure_sockets() noexcept {
   using openrtdds::rtps::SpdpPortConfig;
   std::uint16_t multicast_port = 0U;
@@ -1014,13 +1008,6 @@ const NetworkRuntime::RemoteEndpoint* NetworkRuntime::find_remote_reader(
 void notify_network(rmw_context_t* const context) noexcept {
   if (context_is_valid(context) && (context->impl->network != nullptr)) {
     context->impl->network->notify();
-  }
-}
-
-void network_test_drop_next_reliable_data(
-    rmw_context_t* const context, const std::uint32_t count) noexcept {
-  if (context_is_valid(context) && (context->impl->network != nullptr)) {
-    context->impl->network->drop_next_reliable_data_for_test(count);
   }
 }
 

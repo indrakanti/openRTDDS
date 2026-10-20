@@ -195,7 +195,4 @@ void subscription_network_set_match_count(void* data,
 
 void notify_network(rmw_context_t* context) noexcept;
 
-void network_test_drop_next_reliable_data(rmw_context_t* context,
-                                          std::uint32_t count) noexcept;
-
 }  // namespace rmw_openrtdds_cpp::detail

@@ -15,6 +15,7 @@
 #include "rosidl_typesupport_introspection_c/message_introspection.h"
 
 #include "../src/internal.hpp"
+#include "../src/network_runtime.hpp"
 
 // Verifies: ORT-RMW-004, ORT-RMW-005, ORT-RMW-009, ORT-RMW-016
 // Verifies: ORT-RMW-051, ORT-RMW-052
@@ -187,8 +188,7 @@ int main() {
     return fail(11);
   }
 
-  rmw_openrtdds_cpp::detail::network_test_drop_next_reliable_data(
-      &writer_peer.context, 1U);
+  writer_peer.context.impl->network->drop_next_reliable_data_for_test(1U);
   const Message reliable_input{84U};
   if (rmw_publish(reliable_publisher, &reliable_input, nullptr) != RMW_RET_OK) {
     return fail(12);

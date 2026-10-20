@@ -1038,7 +1038,7 @@ The network layer calls only these private, allocation-free endpoint adapters:
 | `subscription_network_receive` | applies one matched DATA datagram through the normal ingress commit path |
 | `subscription_network_set_match_count` | replaces the observed remote-writer count |
 | `notify_network` | advances the worker wake generation without performing network I/O on the caller thread |
-| `network_test_drop_next_reliable_data` | internal qualification hook; atomically suppresses a bounded count of initial reliable DATA sends, never control or repair sends |
+| `NetworkRuntime::drop_next_reliable_data_for_test` | internal qualification hook; atomically suppresses a bounded count of initial reliable DATA sends, never control or repair sends |
 
 The reliability wire/state interfaces are the existing
 `ReliableWriter::write/on_acknack/on_timer/fill_heartbeat`,
