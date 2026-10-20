@@ -384,6 +384,45 @@ const char* to_string(const TypeSupportError error) noexcept {
   return "unknown";
 }
 
+// Requirements: ORT-RMW-052
+const rosidl_message_type_support_t* resolve_type_support(
+    const rosidl_message_type_support_t* const type_support,
+    TypeSupportError& error) noexcept {
+  if ((type_support == nullptr) ||
+      (type_support->typesupport_identifier == nullptr)) {
+    error = TypeSupportError::invalid_argument;
+    return nullptr;
+  }
+  TypeSupportLanguage language{};
+  if (identifier_language(type_support->typesupport_identifier, language)) {
+    if (type_support->data == nullptr) {
+      error = TypeSupportError::invalid_argument;
+      return nullptr;
+    }
+    error = TypeSupportError::none;
+    return type_support;
+  }
+  if (type_support->func == nullptr) {
+    error = TypeSupportError::unsupported_identifier;
+    return nullptr;
+  }
+  const auto* resolved_c = get_message_typesupport_handle(
+      type_support, rosidl_typesupport_introspection_c__identifier);
+  if ((resolved_c != nullptr) && (resolved_c->data != nullptr)) {
+    error = TypeSupportError::none;
+    return resolved_c;
+  }
+  const auto* resolved_cpp = get_message_typesupport_handle(
+      type_support,
+      rosidl_typesupport_introspection_cpp::typesupport_identifier);
+  if ((resolved_cpp != nullptr) && (resolved_cpp->data != nullptr)) {
+    error = TypeSupportError::none;
+    return resolved_cpp;
+  }
+  error = TypeSupportError::unsupported_identifier;
+  return nullptr;
+}
+
 bool analyze_type_support(
     const rosidl_message_type_support_t* type_support,
     const std::size_t maximum_sample_size, TypeSupportInfo& output,

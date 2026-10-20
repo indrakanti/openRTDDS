@@ -11,10 +11,13 @@
 
   <depend>rcutils</depend>
   <depend version_gte="7.3.3" version_lt="7.4.0">rmw</depend>
+  <depend>rosidl_runtime_c</depend>
   <depend>rosidl_typesupport_introspection_c</depend>
   <depend>rosidl_typesupport_introspection_cpp</depend>
 
   <test_depend>rmw_implementation</test_depend>
+  <test_depend>rclcpp</test_depend>
+  <test_depend>std_msgs</test_depend>
 
   <member_of_group>rmw_implementation_packages</member_of_group>
 

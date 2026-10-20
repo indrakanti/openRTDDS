@@ -789,6 +789,62 @@ context finalization shall reject every live wait set.
 **Rationale:** A fixed pool is insufficient if state can change between the
 readiness check and block, or shutdown can strand an executor thread.
 
+### ORT-RMW-051 — Bounded context network runtime and discovery
+
+**Status:** Verified
+
+**Verification:** Test, Analysis, Inspection
+
+Each active adapter context shall own exactly one joinable network worker and
+three nonblocking UDPv4 sockets for SPDP multicast, metatraffic unicast, and
+user-data unicast. Initialization shall select one collision-free DDSI
+participant identifier and corresponding unicast ports before activation,
+construct a stable participant GUID prefix, advertise bounded SPDP and SEDP
+records, and fail atomically when socket, port, locator, worker, or fixed-table
+resources cannot be established. The worker shall maintain at most 16 remote
+participants and 32 remote endpoints; expire a participant and its endpoints,
+or an individually stale endpoint, after the five-second lease; recompute match counts after discovery changes;
+and stop and join before context shutdown releases any owned resource.
+
+The worker shall use fixed receive and transmit datagrams, fixed remote tables,
+fixed per-publisher progress records, a maximum of 32 receives per socket and
+32 samples per publisher pass, and no endpoint-specific thread. Malformed,
+foreign-domain, self-originated, unknown-writer, unmatched, or over-capacity
+input shall not mutate a local endpoint. This requirement does not claim
+reliable HEARTBEAT/ACKNACK repair or ROS graph-cache semantics.
+
+**Rationale:** A ROS endpoint cannot provide deterministic network behavior if
+discovery, port ownership, receive work, or shutdown grows with traffic or
+creates unbounded per-endpoint execution resources.
+
+### ORT-RMW-052 — Best-effort ROS topic exchange qualification
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration, Inspection
+
+For compatible volatile KEEP_LAST best-effort publishers and subscriptions,
+the network worker shall announce each local endpoint to every live discovered
+participant, match only equal DDS topic and type names with compatible QoS,
+send each retained publication sequence at most once per publisher progress
+record to every matched reader locator, accept DATA only from a discovered and
+matched writer, commit it through the bounded subscription ingress path, and
+wake `rmw_wait` after the sample becomes visible. Match-count APIs shall report
+the current number of compatible remote endpoints.
+
+Publisher and subscription creation shall resolve a normal ROS-generated
+message type-support dispatch handle to the registered Jazzy introspection C
+or C++ backend before schema analysis and codec use. CI shall run both a
+two-context UDP exchange and a standard `rclcpp` fixed-message talker/listener
+in separate processes through runtime selection of `rmw_openrtdds_cpp`, and
+shall observe the expected value and publication/reception metadata. This
+requirement does not claim reliable topic semantics; reliable exchange and the
+full G4.2 gate remain separate work.
+
+**Rationale:** Direct RMW unit tests alone do not prove that generated ROS type
+support, dynamic RMW selection, executor wait, discovery, UDP delivery, and
+take compose into an application-visible ROS 2 topic exchange.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)

@@ -56,6 +56,14 @@ struct DdsNames final {
 [[nodiscard]] RMW_OPENRTDDS_CPP_PUBLIC const char* to_string(
     TypeSupportError error) noexcept;
 
+// Resolves a generated generic ROS type-support dispatch handle to one of the
+// two bounded Jazzy introspection backends accepted by this adapter. Direct
+// introspection handles are returned unchanged and no allocation occurs.
+[[nodiscard]] RMW_OPENRTDDS_CPP_PUBLIC
+const rosidl_message_type_support_t* resolve_type_support(
+    const rosidl_message_type_support_t* type_support,
+    TypeSupportError& error) noexcept;
+
 // Computes the maximum XCDR1 PLAIN_CDR wire size, including the four-byte
 // encapsulation header. The initial profile accepts bounded strings,
 // fixed arrays, bounded sequences, supported scalar kinds, and nested messages.

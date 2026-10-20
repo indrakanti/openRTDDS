@@ -27,7 +27,7 @@ deadline or retry bound is exceeded.
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
-| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`, `QosError`, `SubscriptionReceiveError`; selected mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, QoS/resource planning, publisher/subscription failure, and future wait/graph failure |
+| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`, `QosError`, `SubscriptionReceiveError`; selected mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, QoS/resource planning, endpoint/wait failure, and network-worker containment |
 
 Error enums are symbolic API values. Their implicit integer representation is
 not a stable fault code.
@@ -113,9 +113,9 @@ Current publisher mappings are:
 | RTPS DATA/sequence failure | applicable `ORT-FLT-RTPS-*`; do not advance history or sequence |
 | source clock failure | `ORT-FLT-TIME-001`; do not commit the sample |
 
-Publisher faults set the synchronous RMW error state only. No asynchronous
-event is emitted, and no hidden retry, send, allocation, or graph mutation is
-performed by `rmw_publish` in this increment.
+Publisher faults set the synchronous RMW error state only. `rmw_publish` does
+not perform network I/O or graph mutation; after a successful history commit
+it wakes the bounded worker, which applies the asynchronous send policy below.
 
 Current subscription mappings are:
 
@@ -131,9 +131,23 @@ Current subscription mappings are:
 | XCDR1 take failure | existing `CodecError` mapping; preserve the queued sample and caller destination |
 
 `SubscriptionReceiveError` communicates the exact synchronous ingress result.
-It does not emit an asynchronous event, retry, allocate, wake an executor, or
-mutate the graph. The context receive worker and bounded counters are planned
-for later increments.
+It does not emit an asynchronous event, retry, allocate, or mutate the graph.
+An accepted commit wakes the executor; the context network worker invokes this
+boundary only after discovery and endpoint matching.
+
+Current network-worker mappings are:
+
+| Network condition | Fault code / policy |
+|---|---|
+| socket, bind, membership, locator, SPDP, or worker-start failure | `ORT-FLT-UDP-001`, `ORT-FLT-DISC-002`, or `ORT-FLT-RMW-001`; fail context initialization and roll back |
+| malformed discovery or DATA | `ORT-FLT-DISC-003` or `ORT-FLT-RTPS-001`; discard without local endpoint mutation |
+| fixed participant/endpoint table exhaustion | `ORT-FLT-RMW-002`; preserve existing records and discard the new record |
+| unknown or incompatible remote endpoint | optional `ORT-FLT-DDS-002`; normal discard in the current profile |
+| DATA send fails | `ORT-FLT-UDP-002`; advance best-effort progress and do not retry |
+| lease expiry or nonblocking `would_block` | normal transition/result; no fault |
+
+These asynchronous results currently have no public counter or event. Fault
+event publication and waitable status conditions remain G4.5 work.
 
 Current reliability-control mappings are:
 
