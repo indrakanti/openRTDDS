@@ -125,6 +125,8 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-048 | Verified | `rmw_openrtdds_cpp/src/internal.hpp`, `subscription.cpp`, `rmw_adapter.cpp` | `test_subscription.cpp`, `test_rmw_memory_qualification.cpp` allocation-failure sweep | `subscription_pipeline.cpp` |
 | ORT-RMW-049 | Verified | `rmw_openrtdds_cpp/src/wait.cpp`, `subscription.cpp`, `rmw_adapter.cpp` | `test_wait.cpp`, `test_subscription.cpp`, Jazzy sanitizer CI | `subscription_pipeline.cpp` |
 | ORT-RMW-050 | Verified | `rmw_openrtdds_cpp/src/internal.hpp`, `wait.cpp`, `subscription.cpp`, `rmw_adapter.cpp` | `test_wait.cpp`, `test_rmw_memory_qualification.cpp` allocation-failure sweep | `subscription_pipeline.cpp` |
+| ORT-RMW-051 | Verified | `rmw_openrtdds_cpp/src/network_runtime.hpp`, `network_runtime.cpp`, `internal.hpp`, `rmw_adapter.cpp`, `publisher.cpp`, `subscription.cpp` | `test_network_runtime.cpp`, Jazzy sanitizer CI | `ros2_best_effort_talker_listener.cpp` |
+| ORT-RMW-052 | Verified | `rmw_openrtdds_cpp/src/network_runtime.cpp`, `type_support.cpp`, `publisher.cpp`, `subscription.cpp`, `wait.cpp` | `test_network_runtime.cpp`, `run_ros2_talker_listener.py`, Jazzy CI | `ros2_best_effort_talker_listener.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

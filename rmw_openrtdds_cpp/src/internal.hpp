@@ -9,9 +9,12 @@
 #include <mutex>
 
 #include "openrtdds/rmw/foundation.hpp"
+#include "openrtdds/rtps/sedp.hpp"
 #include "rmw/rmw.h"
 
 namespace rmw_openrtdds_cpp::detail {
+
+class NetworkRuntime;
 
 // Requirements: ORT-RMW-030, ORT-RMW-031, ORT-RMW-032, ORT-RMW-033
 // Requirements: ORT-RMW-045, ORT-RMW-046, ORT-RMW-047, ORT-RMW-048
@@ -35,6 +38,18 @@ struct GuardConditionData final {
   openrtdds::rmw::GuardConditionHandle handle{};
   rmw_context_t* context{nullptr};
   std::uint64_t last_observed_generation{0U};
+};
+
+struct NetworkEndpointView final {
+  openrtdds::rtps::LocalEndpointDescriptor descriptor{};
+  openrtdds::rtps::EntityId entity_id{};
+  const std::uint8_t* sedp{nullptr};
+  std::size_t sedp_size{0U};
+};
+
+struct NetworkSample final {
+  std::uint64_t sequence_number{0U};
+  std::size_t packet_size{0U};
 };
 
 struct PublisherSlot final {
@@ -67,6 +82,11 @@ struct WaitSetSlot final {
 // This is the implementation-owned definition promised by rmw/init.h.
 struct rmw_context_impl_s final {
   rmw_openrtdds_cpp::detail::Foundation foundation{};
+  rmw_openrtdds_cpp::detail::NetworkRuntime* network{nullptr};
+  openrtdds::rtps::GuidPrefix participant_prefix{};
+  std::uint32_t participant_id{0U};
+  std::uint16_t metadata_port{0U};
+  std::uint16_t user_port{0U};
   rmw_guard_condition_t* graph_guard_condition{nullptr};
   std::array<rmw_openrtdds_cpp::detail::PublisherSlot,
              rmw_openrtdds_cpp::detail::kPublisherCapacity>
@@ -152,5 +172,27 @@ inline void notify_waiters(rmw_context_t* const context) noexcept {
     const void* data, const rmw_context_t* context) noexcept;
 
 [[nodiscard]] bool subscription_wait_ready(const void* data) noexcept;
+
+[[nodiscard]] bool publisher_network_view(
+    void* data, NetworkEndpointView& view) noexcept;
+
+[[nodiscard]] bool publisher_network_copy_next(
+    void* data, std::uint64_t after_sequence, std::uint8_t* packet,
+    std::size_t capacity, NetworkSample& sample) noexcept;
+
+void publisher_network_set_match_count(void* data,
+                                       std::size_t count) noexcept;
+
+[[nodiscard]] bool subscription_network_view(
+    void* data, NetworkEndpointView& view) noexcept;
+
+[[nodiscard]] bool subscription_network_receive(
+    void* data, const std::uint8_t* packet, std::size_t packet_size,
+    std::uint64_t received_timestamp_ns) noexcept;
+
+void subscription_network_set_match_count(void* data,
+                                          std::size_t count) noexcept;
+
+void notify_network(rmw_context_t* context) noexcept;
 
 }  // namespace rmw_openrtdds_cpp::detail

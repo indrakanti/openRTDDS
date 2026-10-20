@@ -10,7 +10,7 @@
 #include "rosidl_typesupport_introspection_cpp/identifier.hpp"
 #include "rosidl_typesupport_introspection_cpp/message_introspection.hpp"
 
-// Verifies: ORT-RMW-040, ORT-RMW-041
+// Verifies: ORT-RMW-040, ORT-RMW-041, ORT-RMW-052
 namespace {
 
 using rmw_openrtdds_cpp::DdsNames;
@@ -139,6 +139,37 @@ struct CppFixture final {
       (std::strcmp(cpp_info.dds_type_name.data(),
                    c_info.dds_type_name.data()) != 0)) {
     return 4;
+  }
+  return 0;
+}
+
+[[nodiscard]] int test_dispatch_resolution() {
+  CFixture fixture{};
+  rosidl_message_type_support_t generic{};
+  generic.typesupport_identifier = "rosidl_typesupport_c";
+  generic.data = &fixture.handle;
+  generic.func = [](const rosidl_message_type_support_t* const handle,
+                    const char* const identifier)
+      -> const rosidl_message_type_support_t* {
+    if ((handle == nullptr) || (handle->data == nullptr) ||
+        (identifier == nullptr) ||
+        (std::strcmp(identifier,
+                     rosidl_typesupport_introspection_c__identifier) != 0)) {
+      return nullptr;
+    }
+    return static_cast<const rosidl_message_type_support_t*>(handle->data);
+  };
+
+  TypeSupportError error = TypeSupportError::invalid_argument;
+  if (rmw_openrtdds_cpp::resolve_type_support(&generic, error) !=
+          &fixture.handle ||
+      (error != TypeSupportError::none)) {
+    return 5;
+  }
+  generic.func = nullptr;
+  if ((rmw_openrtdds_cpp::resolve_type_support(&generic, error) != nullptr) ||
+      (error != TypeSupportError::unsupported_identifier)) {
+    return 6;
   }
   return 0;
 }
@@ -349,6 +380,10 @@ struct CppFixture final {
 
 int main() {
   int result = test_bounded_c_and_cpp();
+  if (result != 0) {
+    return result;
+  }
+  result = test_dispatch_resolution();
   if (result != 0) {
     return result;
   }

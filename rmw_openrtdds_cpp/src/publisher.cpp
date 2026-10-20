@@ -60,6 +60,7 @@ struct PublisherData final {
   std::size_t history_size{0U};
   std::size_t history_next{0U};
   std::uint64_t next_sequence{1U};
+  std::size_t matched_subscriptions{0U};
   PublisherSampleMetadata last_sample{};
   std::mutex mutex{};
 };
@@ -76,18 +77,7 @@ struct PublisherData final {
 
 [[nodiscard]] openrtdds::rtps::GuidPrefix participant_prefix(
     const rmw_context_t& context) noexcept {
-  openrtdds::rtps::GuidPrefix result{};
-  result.value = {{0x4FU, 0x52U, 0x54U,
-                   static_cast<std::uint8_t>(context.actual_domain_id),
-                   static_cast<std::uint8_t>(context.instance_id >> 56U),
-                   static_cast<std::uint8_t>(context.instance_id >> 48U),
-                   static_cast<std::uint8_t>(context.instance_id >> 40U),
-                   static_cast<std::uint8_t>(context.instance_id >> 32U),
-                   static_cast<std::uint8_t>(context.instance_id >> 24U),
-                   static_cast<std::uint8_t>(context.instance_id >> 16U),
-                   static_cast<std::uint8_t>(context.instance_id >> 8U),
-                   static_cast<std::uint8_t>(context.instance_id)}};
-  return result;
+  return context.impl->participant_prefix;
 }
 
 [[nodiscard]] openrtdds::rtps::EntityId writer_id(
@@ -174,18 +164,10 @@ void release_slot(detail::PublisherSlot& slot) noexcept {
   config.endpoint.durability =
       openrtdds::rtps::DurabilityKind::volatile_durability;
 
-  openrtdds::rtps::SpdpPortConfig ports{};
-  std::uint16_t metadata_port = 0U;
-  if (!openrtdds::rtps::spdp_unicast_port(
-          static_cast<std::uint32_t>(context.actual_domain_id), 0U, ports,
-          metadata_port) ||
-      (metadata_port == std::numeric_limits<std::uint16_t>::max())) {
-    return false;
-  }
   openrtdds::rtps::Locator locator{};
   if (!openrtdds::rtps::make_udp_v4_locator(
           {{127U, 0U, 0U, 1U}},
-          static_cast<std::uint16_t>(metadata_port + 1U), locator) ||
+          context.impl->user_port, locator) ||
       !config.endpoint.unicast_locators.push_back(locator)) {
     return false;
   }
@@ -237,6 +219,103 @@ bool inspect_publisher(const rmw_publisher_t* const publisher,
   snapshot = candidate;
   return true;
 }
+
+namespace detail {
+
+// Requirements: ORT-RMW-004, ORT-RMW-051, ORT-RMW-052
+bool publisher_network_view(void* const opaque,
+                            NetworkEndpointView& view) noexcept {
+  if (opaque == nullptr) {
+    return false;
+  }
+  auto* data = static_cast<PublisherData*>(opaque);
+  std::lock_guard<std::mutex> lock(data->mutex);
+  NetworkEndpointView candidate{};
+  candidate.descriptor.kind = openrtdds::rtps::EndpointKind::writer;
+  candidate.descriptor.topic_name = data->names.topic_name.data();
+  candidate.descriptor.topic_name_size =
+      std::strlen(data->names.topic_name.data());
+  candidate.descriptor.type_name = data->names.type_name.data();
+  candidate.descriptor.type_name_size =
+      std::strlen(data->names.type_name.data());
+  candidate.descriptor.reliability =
+      data->resources.qos.profile.reliability ==
+              RMW_QOS_POLICY_RELIABILITY_RELIABLE
+          ? openrtdds::rtps::ReliabilityKind::reliable
+          : openrtdds::rtps::ReliabilityKind::best_effort;
+  candidate.descriptor.durability =
+      openrtdds::rtps::DurabilityKind::volatile_durability;
+  candidate.entity_id = data->writer_id;
+  candidate.sedp = data->sedp.data();
+  candidate.sedp_size = data->sedp_size;
+  view = candidate;
+  return true;
+}
+
+bool publisher_network_copy_next(
+    void* const opaque, const std::uint64_t after_sequence,
+    std::uint8_t* const packet, const std::size_t capacity,
+    NetworkSample& sample) noexcept {
+  if ((opaque == nullptr) || (packet == nullptr)) {
+    return false;
+  }
+  auto* data = static_cast<PublisherData*>(opaque);
+  std::lock_guard<std::mutex> lock(data->mutex);
+  if (data->history_size == 0U) {
+    return false;
+  }
+  const std::size_t history_capacity = data->resources.history_sample_slots;
+  const std::size_t oldest =
+      (data->history_next + history_capacity - data->history_size) %
+      history_capacity;
+  std::size_t selected = history_capacity;
+  std::uint64_t selected_sequence =
+      std::numeric_limits<std::uint64_t>::max();
+  for (std::size_t offset = 0U; offset < data->history_size; ++offset) {
+    const std::size_t index = (oldest + offset) % history_capacity;
+    const std::uint64_t sequence =
+        data->history_metadata[index].sequence_number;
+    if ((sequence > after_sequence) && (sequence < selected_sequence)) {
+      selected = index;
+      selected_sequence = sequence;
+    }
+  }
+  if (selected == history_capacity) {
+    return false;
+  }
+  const auto& metadata = data->history_metadata[selected];
+  openrtdds::rtps::DataMessageConfig config{};
+  config.version = kProtocol;
+  config.vendor_id = kVendor;
+  config.guid_prefix = data->participant_prefix;
+  config.reader_id = kUnknownReader;
+  config.writer_id = data->writer_id;
+  config.sequence_number = metadata.sequence_number;
+  config.submessage_byte_order =
+      openrtdds::serialization::ByteOrder::little_endian;
+  openrtdds::rtps::DataMessageBuilder builder(packet, capacity);
+  if (!builder.build(
+          config,
+          data->history +
+              (selected * data->type_info.maximum_serialized_size),
+          metadata.serialized_size)) {
+    return false;
+  }
+  sample = {metadata.sequence_number, builder.size()};
+  return true;
+}
+
+void publisher_network_set_match_count(void* const opaque,
+                                       const std::size_t count) noexcept {
+  if (opaque == nullptr) {
+    return;
+  }
+  auto* data = static_cast<PublisherData*>(opaque);
+  std::lock_guard<std::mutex> lock(data->mutex);
+  data->matched_subscriptions = count;
+}
+
+}  // namespace detail
 
 }  // namespace rmw_openrtdds_cpp
 
@@ -297,14 +376,17 @@ rmw_publisher_t* rmw_create_publisher(
 
   TypeSupportInfo type_info{};
   TypeSupportError type_error = TypeSupportError::none;
-  if (!analyze_type_support(type_support, kMaximumSampleSize, type_info,
+  const auto* resolved_type_support =
+      resolve_type_support(type_support, type_error);
+  if ((resolved_type_support == nullptr) ||
+      !analyze_type_support(resolved_type_support, kMaximumSampleSize, type_info,
                             type_error)) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("publisher type rejected: %s",
                                          to_string(type_error));
     return nullptr;
   }
   DdsNames names{};
-  if (!map_ros_to_dds_names(type_support, RosChannel::topic, topic_name,
+  if (!map_ros_to_dds_names(resolved_type_support, RosChannel::topic, topic_name,
                             qos_profile->avoid_ros_namespace_conventions,
                             names, type_error)) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("publisher name mapping failed: %s",
@@ -385,7 +467,7 @@ rmw_publisher_t* rmw_create_publisher(
   }
 
   data->node = node;
-  data->type_support = type_support;
+  data->type_support = resolved_type_support;
   data->slot_index = slot_index;
   data->slot_generation = slot.generation;
   data->type_info = type_info;
@@ -421,6 +503,7 @@ rmw_publisher_t* rmw_create_publisher(
   slot.data = data;
   auto* node_data = static_cast<detail::NodeData*>(node->data);
   ++node_data->publisher_count;
+  detail::notify_network(context);
   return publisher;
 }
 
@@ -487,7 +570,7 @@ rmw_ret_t rmw_publish(const rmw_publisher_t* publisher,
     return RMW_RET_ERROR;
   }
 
-  std::lock_guard<std::mutex> lock(data->mutex);
+  std::unique_lock<std::mutex> lock(data->mutex);
   CodecResult codec{};
   if (!serialize_xcdr1(data->type_support, ros_message, data->staging,
                        data->type_info.maximum_serialized_size,
@@ -541,6 +624,9 @@ rmw_ret_t rmw_publish(const rmw_publisher_t* publisher,
   data->last_sample = metadata;
   data->data_message_size = builder.size();
   ++data->next_sequence;
+  rmw_context_t* const context = data->node->context;
+  lock.unlock();
+  detail::notify_network(context);
   return RMW_RET_OK;
 }
 
@@ -556,7 +642,7 @@ rmw_ret_t rmw_publisher_count_matched_subscriptions(
     return invalid_publisher_error(publisher);
   }
   std::lock_guard<std::mutex> lock(data->mutex);
-  *subscription_count = 0U;
+  *subscription_count = data->matched_subscriptions;
   return RMW_RET_OK;
 }
 

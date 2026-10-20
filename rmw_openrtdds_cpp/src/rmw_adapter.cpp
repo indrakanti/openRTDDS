@@ -4,6 +4,7 @@
 #include <new>
 
 #include "internal.hpp"
+#include "network_runtime.hpp"
 
 #include "rcutils/allocator.h"
 #include "rcutils/strdup.h"
@@ -337,8 +338,41 @@ rmw_ret_t rmw_init(const rmw_init_options_t* options, rmw_context_t* context) {
   }
 
   *context = value;
+  void* network_storage = allocator.zero_allocate(
+      1U, sizeof(rmw_openrtdds_cpp::detail::NetworkRuntime), allocator.state);
+  if (network_storage == nullptr) {
+    static_cast<void>(context->impl->foundation.shutdown());
+    static_cast<void>(context->impl->foundation.finalize());
+    context->impl->~rmw_context_impl_t();
+    allocator.deallocate(context->impl, allocator.state);
+    [[maybe_unused]] const rmw_ret_t cleanup_result =
+        rmw_init_options_fini(&context->options);
+    *context = rmw_get_zero_initialized_context();
+    RMW_SET_ERROR_MSG("unable to allocate bounded network runtime");
+    return RMW_RET_BAD_ALLOC;
+  }
+  context->impl->network =
+      new (network_storage) rmw_openrtdds_cpp::detail::NetworkRuntime{};
+  if (!context->impl->network->initialize(context)) {
+    context->impl->network->~NetworkRuntime();
+    allocator.deallocate(context->impl->network, allocator.state);
+    context->impl->network = nullptr;
+    static_cast<void>(context->impl->foundation.shutdown());
+    static_cast<void>(context->impl->foundation.finalize());
+    context->impl->~rmw_context_impl_t();
+    allocator.deallocate(context->impl, allocator.state);
+    [[maybe_unused]] const rmw_ret_t cleanup_result =
+        rmw_init_options_fini(&context->options);
+    *context = rmw_get_zero_initialized_context();
+    RMW_SET_ERROR_MSG("unable to initialize bounded network runtime");
+    return RMW_RET_ERROR;
+  }
   context->impl->graph_guard_condition = create_guard_condition_handle(context);
   if (context->impl->graph_guard_condition == nullptr) {
+    context->impl->network->shutdown();
+    context->impl->network->~NetworkRuntime();
+    allocator.deallocate(context->impl->network, allocator.state);
+    context->impl->network = nullptr;
     static_cast<void>(context->impl->foundation.shutdown());
     static_cast<void>(context->impl->foundation.finalize());
     context->impl->~rmw_context_impl_t();
@@ -347,6 +381,24 @@ rmw_ret_t rmw_init(const rmw_init_options_t* options, rmw_context_t* context) {
         rmw_init_options_fini(&context->options);
     *context = rmw_get_zero_initialized_context();
     return RMW_RET_BAD_ALLOC;
+  }
+  if (!context->impl->network->start()) {
+    rmw_guard_condition_t* graph_guard = context->impl->graph_guard_condition;
+    context->impl->graph_guard_condition = nullptr;
+    static_cast<void>(destroy_guard_condition_handle(graph_guard));
+    context->impl->network->shutdown();
+    context->impl->network->~NetworkRuntime();
+    allocator.deallocate(context->impl->network, allocator.state);
+    context->impl->network = nullptr;
+    static_cast<void>(context->impl->foundation.shutdown());
+    static_cast<void>(context->impl->foundation.finalize());
+    context->impl->~rmw_context_impl_t();
+    allocator.deallocate(context->impl, allocator.state);
+    [[maybe_unused]] const rmw_ret_t cleanup_result =
+        rmw_init_options_fini(&context->options);
+    *context = rmw_get_zero_initialized_context();
+    RMW_SET_ERROR_MSG("unable to start bounded network worker");
+    return RMW_RET_ERROR;
   }
   return RMW_RET_OK;
 }
@@ -358,6 +410,10 @@ rmw_ret_t rmw_shutdown(rmw_context_t* context) {
   }
   if (context->impl->shutdown) {
     return RMW_RET_OK;
+  }
+
+  if (context->impl->network != nullptr) {
+    context->impl->network->shutdown();
   }
 
   {
@@ -409,6 +465,11 @@ rmw_ret_t rmw_context_fini(rmw_context_t* context) {
   }
 
   const auto allocator = context->options.allocator;
+  if (context->impl->network != nullptr) {
+    context->impl->network->~NetworkRuntime();
+    allocator.deallocate(context->impl->network, allocator.state);
+    context->impl->network = nullptr;
+  }
   context->impl->~rmw_context_impl_t();
   allocator.deallocate(context->impl, allocator.state);
   const rmw_ret_t result = rmw_init_options_fini(&context->options);

@@ -18,6 +18,7 @@ find_package(ament_cmake REQUIRED)
 find_package(Threads REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw 7.3 REQUIRED)
+find_package(rosidl_runtime_c REQUIRED)
 find_package(rosidl_typesupport_introspection_c REQUIRED)
 find_package(rosidl_typesupport_introspection_cpp REQUIRED)
 if(rmw_VERSION VERSION_LESS "7.3.3" OR
@@ -38,6 +39,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.."
 set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(${PROJECT_NAME} SHARED
+  src/network_runtime.cpp
   src/publisher.cpp
   src/qos.cpp
   src/rmw_adapter.cpp
@@ -60,6 +62,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
   Threads::Threads
   rcutils::rcutils
   rmw::rmw
+  rosidl_runtime_c::rosidl_runtime_c
   rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
   rosidl_typesupport_introspection_cpp::rosidl_typesupport_introspection_cpp
 )
@@ -96,12 +99,15 @@ target_link_libraries(openrtdds_rmw_subscription_pipeline PRIVATE
   rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
 )
 
-# Register the implementation itself but deliberately register no type-support
-# backend until networked pub/sub and the G4.2 talker/listener gate pass.
-register_rmw_implementation()
+# Register both bounded introspection backends used by the networked pub/sub
+# path.  Generic ROS-generated handles are resolved to one of these backends.
+register_rmw_implementation(
+  "c:rosidl_typesupport_introspection_c"
+  "cpp:rosidl_typesupport_introspection_cpp")
 ament_export_libraries(${PROJECT_NAME})
 ament_export_dependencies(
   rmw
+  rosidl_runtime_c
   rosidl_typesupport_introspection_c
   rosidl_typesupport_introspection_cpp
 )
@@ -121,7 +127,10 @@ install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   enable_testing()
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  find_package(rclcpp REQUIRED)
   find_package(rmw_implementation REQUIRED)
+  find_package(std_msgs REQUIRED)
 
   add_executable(test_rmw_lifecycle test/test_rmw_lifecycle.cpp)
   target_compile_features(test_rmw_lifecycle PRIVATE cxx_std_17)
@@ -215,6 +224,36 @@ if(BUILD_TESTING)
     rmw::rmw
   )
   add_test(NAME rmw_openrtdds_wait COMMAND test_rmw_wait)
+
+  add_executable(test_rmw_network_runtime test/test_network_runtime.cpp)
+  target_compile_features(test_rmw_network_runtime PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_network_runtime PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_network_runtime PRIVATE
+    ${PROJECT_NAME}
+    Threads::Threads
+    rcutils::rcutils
+    rmw::rmw
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+  )
+  add_test(NAME rmw_openrtdds_network_runtime
+    COMMAND test_rmw_network_runtime)
+  set_tests_properties(rmw_openrtdds_network_runtime PROPERTIES TIMEOUT 10)
+
+  add_executable(openrtdds_ros2_best_effort_talker_listener
+    examples/ros2_best_effort_talker_listener.cpp)
+  target_compile_features(openrtdds_ros2_best_effort_talker_listener
+    PRIVATE cxx_std_17)
+  target_compile_options(openrtdds_ros2_best_effort_talker_listener PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  ament_target_dependencies(openrtdds_ros2_best_effort_talker_listener
+    rclcpp std_msgs)
+  add_test(NAME rmw_openrtdds_ros2_best_effort_talker_listener
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/test/run_ros2_talker_listener.py"
+      "$<TARGET_FILE:openrtdds_ros2_best_effort_talker_listener>")
+  set_tests_properties(rmw_openrtdds_ros2_best_effort_talker_listener
+    PROPERTIES TIMEOUT 20)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)

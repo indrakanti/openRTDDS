@@ -51,6 +51,7 @@ struct WriterState final {
 };
 
 struct SubscriptionData final {
+  rmw_subscription_t* handle{nullptr};
   const rmw_node_t* node{nullptr};
   const rosidl_message_type_support_t* type_support{nullptr};
   std::size_t slot_index{0U};
@@ -74,23 +75,13 @@ struct SubscriptionData final {
   std::uint64_t next_reception_sequence{1U};
   std::uint64_t accepted_samples{0U};
   std::uint64_t dropped_samples{0U};
+  std::size_t matched_publishers{0U};
   std::mutex mutex{};
 };
 
 [[nodiscard]] openrtdds::rtps::GuidPrefix participant_prefix(
     const rmw_context_t& context) noexcept {
-  openrtdds::rtps::GuidPrefix result{};
-  result.value = {{0x4FU, 0x52U, 0x54U,
-                   static_cast<std::uint8_t>(context.actual_domain_id),
-                   static_cast<std::uint8_t>(context.instance_id >> 56U),
-                   static_cast<std::uint8_t>(context.instance_id >> 48U),
-                   static_cast<std::uint8_t>(context.instance_id >> 40U),
-                   static_cast<std::uint8_t>(context.instance_id >> 32U),
-                   static_cast<std::uint8_t>(context.instance_id >> 24U),
-                   static_cast<std::uint8_t>(context.instance_id >> 16U),
-                   static_cast<std::uint8_t>(context.instance_id >> 8U),
-                   static_cast<std::uint8_t>(context.instance_id)}};
-  return result;
+  return context.impl->participant_prefix;
 }
 
 [[nodiscard]] openrtdds::rtps::EntityId reader_id(
@@ -190,18 +181,10 @@ void release_slot(detail::SubscriptionSlot& slot) noexcept {
   config.endpoint.durability =
       openrtdds::rtps::DurabilityKind::volatile_durability;
 
-  openrtdds::rtps::SpdpPortConfig ports{};
-  std::uint16_t metadata_port = 0U;
-  if (!openrtdds::rtps::spdp_unicast_port(
-          static_cast<std::uint32_t>(context.actual_domain_id), 0U, ports,
-          metadata_port) ||
-      (metadata_port == std::numeric_limits<std::uint16_t>::max())) {
-    return false;
-  }
   openrtdds::rtps::Locator locator{};
   if (!openrtdds::rtps::make_udp_v4_locator(
           {{127U, 0U, 0U, 1U}},
-          static_cast<std::uint16_t>(metadata_port + 1U), locator) ||
+          context.impl->user_port, locator) ||
       !config.endpoint.unicast_locators.push_back(locator)) {
     return false;
   }
@@ -510,6 +493,62 @@ bool subscription_wait_ready(const void* const opaque) noexcept {
   return data->history_size != 0U;
 }
 
+// Requirements: ORT-RMW-005, ORT-RMW-051, ORT-RMW-052
+bool subscription_network_view(void* const opaque,
+                               NetworkEndpointView& view) noexcept {
+  if (opaque == nullptr) {
+    return false;
+  }
+  auto* data = static_cast<SubscriptionData*>(opaque);
+  std::lock_guard<std::mutex> lock(data->mutex);
+  NetworkEndpointView candidate{};
+  candidate.descriptor.kind = openrtdds::rtps::EndpointKind::reader;
+  candidate.descriptor.topic_name = data->names.topic_name.data();
+  candidate.descriptor.topic_name_size =
+      std::strlen(data->names.topic_name.data());
+  candidate.descriptor.type_name = data->names.type_name.data();
+  candidate.descriptor.type_name_size =
+      std::strlen(data->names.type_name.data());
+  candidate.descriptor.reliability =
+      data->resources.qos.profile.reliability ==
+              RMW_QOS_POLICY_RELIABILITY_RELIABLE
+          ? openrtdds::rtps::ReliabilityKind::reliable
+          : openrtdds::rtps::ReliabilityKind::best_effort;
+  candidate.descriptor.durability =
+      openrtdds::rtps::DurabilityKind::volatile_durability;
+  candidate.entity_id = data->reader_id;
+  candidate.sedp = data->sedp.data();
+  candidate.sedp_size = data->sedp_size;
+  view = candidate;
+  return true;
+}
+
+bool subscription_network_receive(
+    void* const opaque, const std::uint8_t* const packet,
+    const std::size_t packet_size,
+    const std::uint64_t received_timestamp_ns) noexcept {
+  if (opaque == nullptr) {
+    return false;
+  }
+  auto* data = static_cast<SubscriptionData*>(opaque);
+  SubscriptionReceiveResult result{};
+  return receive_data_message(data->handle, packet, packet_size,
+                              received_timestamp_ns,
+                              received_timestamp_ns, result) &&
+         (result.accepted || result.duplicate_or_stale ||
+          result.ignored_local);
+}
+
+void subscription_network_set_match_count(void* const opaque,
+                                          const std::size_t count) noexcept {
+  if (opaque == nullptr) {
+    return;
+  }
+  auto* data = static_cast<SubscriptionData*>(opaque);
+  std::lock_guard<std::mutex> lock(data->mutex);
+  data->matched_publishers = count;
+}
+
 }  // namespace detail
 
 bool inspect_subscription(
@@ -604,14 +643,17 @@ rmw_subscription_t* rmw_create_subscription(
 
   TypeSupportInfo type_info{};
   TypeSupportError type_error = TypeSupportError::none;
-  if (!analyze_type_support(type_support, kMaximumSampleSize, type_info,
+  const auto* resolved_type_support =
+      resolve_type_support(type_support, type_error);
+  if ((resolved_type_support == nullptr) ||
+      !analyze_type_support(resolved_type_support, kMaximumSampleSize, type_info,
                             type_error)) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("subscription type rejected: %s",
                                          to_string(type_error));
     return nullptr;
   }
   DdsNames names{};
-  if (!map_ros_to_dds_names(type_support, RosChannel::topic, topic_name,
+  if (!map_ros_to_dds_names(resolved_type_support, RosChannel::topic, topic_name,
                             qos_profile->avoid_ros_namespace_conventions,
                             names, type_error)) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -679,7 +721,8 @@ rmw_subscription_t* rmw_create_subscription(
   }
 
   data->node = node;
-  data->type_support = type_support;
+  data->handle = subscription;
+  data->type_support = resolved_type_support;
   data->slot_index = slot_index;
   data->slot_generation = slot.generation;
   data->type_info = type_info;
@@ -711,6 +754,7 @@ rmw_subscription_t* rmw_create_subscription(
   slot.data = data;
   auto* node_data = static_cast<detail::NodeData*>(node->data);
   ++node_data->subscription_count;
+  detail::notify_network(context);
   return subscription;
 }
 
@@ -855,7 +899,7 @@ rmw_ret_t rmw_subscription_count_matched_publishers(
     return invalid_subscription_error(subscription);
   }
   std::lock_guard<std::mutex> lock(data->mutex);
-  *publisher_count = 0U;
+  *publisher_count = data->matched_publishers;
   return RMW_RET_OK;
 }
 

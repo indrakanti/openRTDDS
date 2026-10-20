@@ -3,8 +3,9 @@
 **Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
 surface, lifecycle semantics, G4.1 memory-safety qualification, bounded
 type/name/codec/QoS foundations, publisher packet/ownership, subscription
-ingress/history/take, and executor-facing wait semantics; Planned for
-networked endpoint semantics and the remaining G4.2 through G4.5 evidence
+ingress/history/take, executor-facing wait semantics, generic type-support
+resolution, and same-host best-effort networked topics; Planned for reliable
+topic repair and the remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -42,6 +43,8 @@ networked endpoint semantics and the remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-049, ORT-RMW-050
 
+**Requirements:** ORT-RMW-051, ORT-RMW-052
+
 ## Status and scope
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
@@ -71,12 +74,12 @@ upstream selection evidence is recorded in `rmw_openrtdds_cpp/BASELINE.md`.
 
 The foundation is compiled into `OpenRTDDS::openrtdds`; it includes no ROS
 headers. The separate `rmw_openrtdds_cpp` ament package registers and exports a
-loadable shared library with the complete reviewed Jazzy proxy symbol surface,
-but it deliberately registers an empty type-support set. The current adapter
-can complete its lifecycle through the standard runtime-selection proxy; it
-also has bounded synchronous publisher and subscription foundations, but
-cannot yet run a networked ROS publisher, subscription, service, client, or
-executor end to end.
+loadable shared library with the complete reviewed Jazzy proxy symbol surface
+and the C/C++ introspection type-support backends. The current adapter can
+complete lifecycle and same-host volatile KEEP_LAST best-effort topic exchange
+through standard runtime selection. Reliable topic repair, distributed ROS
+graph queries, services/clients, and general executor compatibility are not
+yet claimed.
 
 ### Current types and ownership
 
@@ -145,12 +148,11 @@ families shall reuse the same mapping rather than invent local return policy.
 
 ## Current Jazzy C ABI and lifecycle scaffold
 
-`rmw_openrtdds_cpp/src/rmw_adapter.cpp` owns all ROS ABI objects and wraps the
-bounded foundation. The implemented entry points are limited to identity,
-serialization-format declaration, conservative feature reporting, init
-options, context lifecycle, node lifecycle, and guard-condition lifecycle.
+`rmw_openrtdds_cpp/src/rmw_adapter.cpp` owns ROS context, node, and guard ABI
+objects and wraps the bounded foundation. Dedicated sources own publisher,
+subscription, wait, type-support, codec, QoS, and network behavior.
 `rmw_openrtdds_cpp/src/rmw_unsupported.cpp` supplies type-correct definitions
-for every other function required by the pinned Jazzy proxy. The reviewed
+for every remaining function required by the pinned Jazzy proxy. The reviewed
 `rmw_openrtdds_cpp/abi_symbols.txt` manifest contains all 95 exports: 94
 macro-routed proxy functions plus the separately dispatched `rmw_init`.
 
@@ -159,10 +161,10 @@ The proxy reference is `ros2/rmw_implementation` Jazzy commit
 `6201e037b7997bea8f66c552f2075887a62adf92`. Any baseline change requires a
 manifest diff, header compatibility review, and CI evidence before acceptance.
 
-The ament resource index contains `rmw_openrtdds_cpp`, but its registered type
-support list is empty. Bounded publisher and subscription APIs are now
-implemented in their dedicated sections below; wait-set, graph-cache,
-service, client, event, generic serialization, and remaining endpoint APIs
+The ament resource index contains `rmw_openrtdds_cpp` and registers Jazzy C and
+C++ introspection. Bounded publisher, subscription, wait/take, and best-effort
+network APIs are implemented in their dedicated sections below. Graph-cache,
+service, client, event, generic serialization, and remaining optional APIs
 retain the unsupported contract. All optional features return `false` from
 `rmw_feature_supported`.
 
@@ -267,13 +269,11 @@ graph, service, client, executor, or general ROS application behavior.
 
 ## Current bounded publisher foundation
 
-PR30 implements the publisher ownership and packet-production half of
-ORT-RMW-004. It verifies ORT-RMW-045 and ORT-RMW-046 but deliberately leaves
-ORT-RMW-004 Draft: no worker sends the SEDP or DATA buffers, the matched count
-is therefore truthfully zero, and the graph has no publisher record yet. The
-subscription foundation is implemented below; wait/readiness,
-discovery-worker, and real ROS talker/listener integration are assigned to
-PR32 and PR33.
+PR30 established publisher ownership and packet production. PR33 connects that
+state to the bounded best-effort worker, so SEDP and DATA are now transmitted
+and the matched count reflects compatible discovered readers. ORT-RMW-004
+remains Draft because reliable repair and the full G4.2 C/C++ evidence are not
+complete; the ROS graph still has no logical publisher record.
 
 ### API and interface surface
 
@@ -284,7 +284,7 @@ PR32 and PR33.
 | `rmw_publish` | synchronously serializes XCDR1, builds one unfragmented RTPS DATA message, timestamps, and commits KEEP_LAST history |
 | `rmw_get_gid_for_publisher` | copies the immutable 16-byte RTPS writer GUID into caller storage |
 | `rmw_publisher_get_actual_qos` | returns the PR29 normalized profile used by SEDP and storage planning |
-| `rmw_publisher_count_matched_subscriptions` | returns zero until the discovery match table is integrated |
+| `rmw_publisher_count_matched_subscriptions` | returns the worker cache's current compatible remote-reader count |
 | `inspect_publisher` | returns a locked diagnostic snapshot and borrowed packet views for qualification; it is not an `rmw` ABI entry point |
 
 Loaned messages, serialized-message publishing, publisher events, liveliness
@@ -419,19 +419,17 @@ slot recovery, and then creates and destroys a valid publisher. The sanitizer
 job runs both tests. `publisher_pipeline.cpp` demonstrates the direct C ABI
 creation/publish/inspection lifecycle.
 
-This evidence verifies packet production and ownership only. A packet present
-in `PublisherSnapshot` is not evidence that it was sent or matched. G4.2 still
-requires vendor-visible discovery/data transmission, subscription take,
-executor readiness, and a real Jazzy talker/listener pair.
+The direct publisher evidence verifies packet production and ownership. PR33's
+network and rclcpp tests additionally verify best-effort transmission and
+matching. G4.2 still requires reliable repair and the full C/C++ application
+matrix.
 
 ## Current bounded subscription foundation
 
-PR31 implements the reader ownership, accepted-DATA history, and caller-driven
-take half of ORT-RMW-005. It verifies ORT-RMW-047 and ORT-RMW-048 while leaving
-ORT-RMW-005 Draft: no context worker receives UDP, no wait set observes
-readiness, and no discovery table computes matches. The public
-`receive_data_message` function is the narrow transport-ingress boundary used
-by qualification and by the later context receive worker.
+PR31 established reader ownership, accepted-DATA history, and caller-driven
+take. PR32 added wait readiness and PR33 connects a context UDP worker plus
+discovery matching to the same ingress boundary. ORT-RMW-005 remains Draft
+until reliable receive/repair and complete G4.2 evidence exist.
 
 ### Subscription API and interface surface
 
@@ -827,14 +825,201 @@ claim is rejected. Destruction is available after shutdown, and context
 finalization rejects an occupied wait-set slot. Allocation-failure tests cover
 both wait-set allocations and verify slot recovery.
 
+## Current bounded best-effort network runtime
+
+Each initialized context owns one `NetworkRuntime` allocated with the context
+allocator. It is constructed only after the ROS-independent foundation is
+active and is started only after the reserved graph guard condition exists.
+The reverse order is mandatory during rollback and shutdown: stop and join the
+worker, release the graph guard, finalize foundation ownership, then destroy
+the runtime and context storage.
+
+```mermaid
+classDiagram
+    class ContextImpl {
+      +participant_prefix
+      +participant_id
+      +metadata_port
+      +user_port
+      +publisher_slots[8]
+      +subscription_slots[8]
+      +network
+    }
+    class NetworkRuntime {
+      +initialize(context) bool
+      +start() bool
+      +notify()
+      +shutdown()
+      -participants[16]
+      -endpoints[32]
+      -last_sent_sequence[8]
+      -worker
+    }
+    class UdpSocket {
+      +send_to()
+      +receive_from()
+    }
+    ContextImpl *-- NetworkRuntime
+    NetworkRuntime *-- UdpSocket
+```
+
+`NetworkRuntime` owns exactly three nonblocking sockets:
+
+| Socket | Bind/destination | Responsibility |
+|---|---|---|
+| SPDP multicast | DDSI domain multicast port / `239.255.0.1` | receive participant announcements |
+| metatraffic unicast | first free DDSI participant metadata port | send SPDP and exchange SEDP |
+| user-data unicast | metadata port plus one | send and receive unfragmented DATA |
+
+Initialization scans participant identifiers 0 through 119 and commits the
+first metadata/user port pair for which both sockets bind. The participant
+GUID prefix contains the OpenRTDDS marker, domain discriminator, selected
+participant identifier, and process identifier. The current locator policy
+advertises `127.0.0.1`; PR33 therefore qualifies separate processes on one
+Linux host, not communication between hosts. A configured interface/address
+policy is required before a multi-host deployment claim.
+
+The fixed runtime storage consists of one 2,048-byte SPDP packet, one
+65,507-byte receive datagram, one 65,507-byte transmit datagram, 16 participant
+records, 32 endpoint records, and one progress/generation pair for each of the
+eight publisher slots. Runtime discovery does not allocate an endpoint object,
+grow a container, or create an endpoint-specific thread.
+
+### Worker behavior and bounds
+
+One worker executes the following fair bounded pass and then waits for at most
+five milliseconds or until local endpoint/publication notification:
+
+1. every 250 ms, multicast the local SPDP record and unicast every occupied
+   publisher/subscription SEDP record to each known participant;
+2. receive at most 32 datagrams from each discovery socket;
+3. receive at most 32 user datagrams;
+4. send at most 32 retained samples for each occupied publisher;
+5. expire participant state whose five-second lease elapsed;
+6. sleep on the context-owned worker condition variable.
+
+SPDP is accepted only for the context domain and a nonlocal GUID prefix. SEDP
+is accepted only after its participant exists. A participant refresh replaces
+its value record; an endpoint refresh replaces the record with the same GUID.
+When no free fixed slot exists the new remote record is discarded and existing
+state remains unchanged. Participant expiry atomically clears every endpoint
+with that participant prefix; an endpoint that is not refreshed is also
+removed after five seconds even while its participant remains live. Match
+counts are recomputed after either transition.
+
+Matching delegates to the common RTPS endpoint matcher. Topic name, type name,
+opposite endpoint kind, reliability compatibility, and volatile durability
+must match. Each match recomputation writes the current count under the local
+endpoint mutex. These counts are observations of the worker cache and may lag
+a just-received discovery packet by one worker pass.
+
+### Publication and receive sequence
+
+```mermaid
+sequenceDiagram
+    participant APP as rclcpp talker
+    participant PUB as RMW publisher
+    participant NET as network worker
+    participant SUB as remote subscription
+    participant WAIT as executor wait
+    APP->>PUB: publish(message)
+    PUB->>PUB: serialize and commit KEEP_LAST
+    PUB->>NET: advance wake generation
+    NET->>NET: select matched readers
+    NET->>SUB: UDP RTPS DATA
+    SUB->>SUB: validate writer and commit history
+    SUB->>WAIT: advance wait generation
+    WAIT-->>APP: ready, take(message, info)
+```
+
+The publisher worker walks retained samples in ascending sequence order after
+the slot's last-sent sequence. It rebuilds DATA into the fixed transmit buffer
+and attempts one send to every matched reader locator. Progress then advances
+regardless of the best-effort send result. When no reader matches, it advances
+without sending so volatile QoS does not replay pre-match history to a late
+joiner. Progress is per local writer, not per reader, and no hidden retry or
+HEARTBEAT/ACKNACK repair runs in this increment.
+
+The receive worker parses one complete DATA datagram, requires a discovered
+writer GUID, then applies the same endpoint matcher against each local reader.
+Accepted input enters `receive_data_message`, which enforces participant,
+reader, writer, payload, duplicate/stale, local-publication, history, and
+metadata rules before waking waiters. The current DATA builder does not emit
+`INFO_TS`; the receive clock is used for both source and received timestamps so
+the RMW metadata remains positive. Precise remote source time requires the
+planned timestamp submessage support.
+
+### Network interfaces and synchronization
+
+The network layer calls only these private, allocation-free endpoint adapters:
+
+| Interface | Ownership and effect |
+|---|---|
+| `publisher_network_view` | copies matching identity and borrows immutable SEDP bytes while the publisher registry owns the endpoint |
+| `publisher_network_copy_next` | copies/rebuilds the first retained sequence after a supplied value into caller storage |
+| `publisher_network_set_match_count` | replaces the observed remote-reader count |
+| `subscription_network_view` | copies matching identity and borrows immutable SEDP bytes while the subscription registry owns the endpoint |
+| `subscription_network_receive` | applies one matched DATA datagram through the normal ingress commit path |
+| `subscription_network_set_match_count` | replaces the observed remote-writer count |
+| `notify_network` | advances the worker wake generation without performing network I/O on the caller thread |
+
+Registry mutexes prevent endpoint destruction while the worker borrows private
+state. The lock order is registry then endpoint. `rmw_publish` and take APIs
+hold only the endpoint lock and release it before notifying a worker or wait
+condition. The worker never acquires the wait mutex while retaining an
+endpoint lock, invokes no user callback, and performs no serialization from a
+user-owned ROS object.
+
+### Network errors, faults, and recovery
+
+There is no public `NetworkError` enum in PR33. Startup maps failures to the
+existing RMW return contract; asynchronous traffic failures are contained at
+the worker boundary:
+
+| Condition | Observable result / state effect | Fault mapping |
+|---|---|---|
+| multicast socket, membership, port pair, locator, or SPDP construction fails | `rmw_init` returns `RMW_RET_ERROR`; all context/runtime allocations and sockets roll back | `ORT-FLT-UDP-001` or `ORT-FLT-DISC-002` |
+| worker thread cannot start | `rmw_init` returns `RMW_RET_ERROR`; graph guard and runtime roll back | `ORT-FLT-RMW-001` |
+| nonblocking receive has no packet | normal `would_block`; end current receive pass | none |
+| malformed SPDP, SEDP, or DATA | discard datagram; preserve all local endpoint state | `ORT-FLT-DISC-003` or `ORT-FLT-RTPS-001` |
+| unknown participant/writer or incompatible endpoint | discard datagram; no history/wait mutation | `ORT-FLT-DDS-002` when policy promotes the diagnostic |
+| participant/endpoint table full | discard new remote record; preserve existing cache | `ORT-FLT-RMW-002` |
+| DATA send fails for a matched reader | advance best-effort writer progress; no retry | `ORT-FLT-UDP-002` |
+| five-second lease expires | remove participant/endpoints and recompute counts | normal discovery transition |
+| shutdown requested | wake, stop, join, then close all three sockets | none |
+
+The fault codes above define containment ownership; the current worker does not
+yet expose asynchronous status counters or RMW events. Adding those counters
+belongs to G4.5. No asynchronous failure is reported retroactively from a
+successful `rmw_publish` call.
+
+### Generic ROS type support and application qualification
+
+Endpoint creation first accepts direct C/C++ introspection metadata or resolves
+a generated ROS dispatch handle with `get_message_typesupport_handle`. It asks
+only for the two registered Jazzy introspection identifiers and stores the
+resolved handle used by schema analysis and XCDR1 conversion. A null dispatch
+function or absent supported backend is `TypeSupportError::unsupported_identifier`
+and leaves no claimed endpoint slot.
+
+`test_network_runtime.cpp` proves discovery, bidirectional match observation,
+UDP DATA, wait wake, take, and sequence/timestamp metadata between independent
+contexts. `ros2_best_effort_talker_listener.cpp` and its process harness prove
+generated `std_msgs/msg/UInt32` type support, dynamic RMW selection, rclcpp
+publisher/subscription creation, executor wait/take, and application-visible
+value 42 in different processes. Both deliberately select best effort.
+Reliable C/C++ talker/listener evidence is still required to close G4.2.
+
 ## Current type-support analysis foundation
 
-`rmw_openrtdds_cpp/type_support.hpp` exposes an allocation-free analyzer for
-direct Jazzy C and C++ introspection handles. The output is a value-owned
-`TypeSupportInfo`; the input metadata remains owned by generated ROS code.
+`rmw_openrtdds_cpp/type_support.hpp` exposes allocation-free dispatch
+resolution and analysis for Jazzy C and C++ introspection handles. The output
+is a value-owned `TypeSupportInfo`; generated ROS code continues to own the
+input and resolved metadata.
 
 | API/type | Current contract |
 |---|---|
+| `resolve_type_support` | returns a direct supported handle or resolves a generated dispatch handle to registered introspection C/C++; otherwise returns an exact error |
 | `analyze_type_support` | atomically derives the DDS type name and maximum XCDR1 PLAIN_CDR size within a caller-provided sample ceiling |
 | `TypeSupportInfo` | language, maximum wire size including the four-byte encapsulation, maximum alignment, maximum nesting depth, and fixed DDS type name |
 | `TypeSupportError` | stable exact rejection category; output remains unchanged on failure |
@@ -849,7 +1034,7 @@ The analyzer rejects unbounded strings or sequences, wide strings/characters,
 long double, malformed member tables, mixed nested introspection languages,
 recursive schemas, excessive nesting, arithmetic overflow, and a result above
 the configured sample limit. These are schema-validation results, not runtime
-fault records; endpoint integration will map them to `ORT-FLT-RMW-003`.
+fault records; endpoint creation maps them to `ORT-FLT-RMW-003` policy.
 
 ```mermaid
 sequenceDiagram
@@ -899,14 +1084,15 @@ sequenceDiagram
 
 No generated resize callback is invoked. C strings require existing capacity;
 C++ strings may change length only within existing capacity; bounded sequences
-must already have the encoded element count. Endpoint creation will later
-reserve this storage from analyzed bounds. Serializer failure can leave partial
+must already have the encoded element count. Endpoint creation reserves
+publisher staging and subscription history from analyzed bounds. Serializer
+failure can leave partial
 bytes in the caller's output buffer, but it never publishes them and reports no
 successful size.
 
-ORT-RMW-006 remains Draft until publisher/subscription creation resolves the
-generic ROS dispatch handle, owns bounded staging storage, and consumes this
-codec end to end.
+ORT-RMW-006 remains Draft only because its full type matrix and reliable G4.2
+application evidence are not yet complete; generic ROS dispatch, bounded
+endpoint storage, and end-to-end best-effort codec use are current.
 
 ## Current name and DDS mapping foundation
 
@@ -932,8 +1118,8 @@ mapping and announce the resulting identities through SEDP.
 
 The implemented normalization, compatibility, resource-planning behavior, and
 error decisions are owned by
-[the RMW QoS detailed design](../rmw-qos/detailed-design.md). Endpoint creation
-will consume that object in PR30 and PR31; it shall not reinterpret raw QoS.
+[the RMW QoS detailed design](../rmw-qos/detailed-design.md). Publisher and
+subscription creation consume that object and do not reinterpret raw QoS.
 
 | ROS policy | Initial mapping | Unsupported behavior |
 |---|---|---|
@@ -1033,11 +1219,12 @@ visible in the owning type and failure contract.
 
 ## Concurrency and timing
 
-The initial planned topology is one receive/discovery worker and one wait
-wakeup primitive per context; application publishing and taking occur on
-caller/executor threads. Reliability timers run in the bounded context worker,
-not one thread per endpoint. The final priorities and affinities are startup
-configuration and are validated before context activation.
+The current topology is one receive/discovery worker and one wait wakeup
+primitive per context; application publishing and taking occur on
+caller/executor threads. Planned reliability timers run in that bounded
+context worker, not one thread per endpoint. Real-time priorities and
+affinities remain deployment configuration to be validated before a future
+Safety Profile activation claim.
 
 Lock order is context lifecycle, graph, entity pool, then individual entity.
 The receive worker never calls user code and never waits for an executor. CDR
@@ -1049,7 +1236,7 @@ discovery announcement, lease, wait, and shutdown join has a monotonic bound.
 | Gate | Required evidence | Claim enabled |
 |---|---|---|
 | G4.1 Build/load | Jazzy build/install, exact symbol/load test, runtime selection, failure injection, allocation balance, and init/node/shutdown ASan/LSan/UBSan stress | Passed by PR26: adapter lifecycle scaffold loads |
-| G4.2 Topics | C/C++ fixed-message best-effort and reliable talker/listener, QoS and metadata tests | bounded ROS topic exchange |
+| G4.2 Topics | C/C++ fixed-message best-effort and reliable talker/listener, QoS and metadata tests; same-host C++ best effort is current | bounded ROS topic exchange after reliable/C evidence completes |
 | G4.3 Graph | multi-process graph add/query/remove and lease-expiry tests | selected graph introspection |
 | G4.4 Services | concurrent request/reply correlation, wait readiness, invalid response test | bounded ROS services |
 | G4.5 Conformance | versioned upstream allowlist, exclusions, stress, sanitizers, determinism analysis | ROS 2 Jazzy readiness for documented profile |

@@ -15,7 +15,7 @@
 #include "rosidl_typesupport_introspection_c/message_introspection.h"
 
 // Verifies: ORT-RMW-037, ORT-RMW-038, ORT-RMW-039, ORT-RMW-046
-// Verifies: ORT-RMW-048, ORT-RMW-050
+// Verifies: ORT-RMW-048, ORT-RMW-050, ORT-RMW-051
 namespace {
 
 constexpr std::size_t kNodeCapacity = 8U;
@@ -240,7 +240,7 @@ void* tracked_zero_allocate(const std::size_t count,
 }
 
 [[nodiscard]] int run_init_failure_sweep() {
-  // Sweep beyond the current four adapter allocations so success and every
+  // Sweep beyond the current adapter-init allocations so success and every
   // rollback edge are both exercised without encoding helper internals.
   for (std::size_t offset = 1U; offset <= 8U; ++offset) {
     AllocationState state{};
