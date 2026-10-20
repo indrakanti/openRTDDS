@@ -138,22 +138,46 @@ int main(int argc, char** argv) {
   std_msgs__msg__UInt32__fini(&message);
 
 cleanup:
+  {
+  rcl_ret_t cleanup_result = RCL_RET_OK;
   if (rcl_wait_set_is_valid(&wait_set)) {
-    (void)rcl_wait_set_fini(&wait_set);
+    cleanup_result = rcl_wait_set_fini(&wait_set);
+    if ((cleanup_result != RCL_RET_OK) && (result == 0)) {
+      result = 1;
+    }
   }
   if (rcl_subscription_is_valid(&subscription)) {
-    (void)rcl_subscription_fini(&subscription, &node);
+    cleanup_result = rcl_subscription_fini(&subscription, &node);
+    if ((cleanup_result != RCL_RET_OK) && (result == 0)) {
+      result = 1;
+    }
   }
   if (rcl_publisher_is_valid(&publisher)) {
-    (void)rcl_publisher_fini(&publisher, &node);
+    cleanup_result = rcl_publisher_fini(&publisher, &node);
+    if ((cleanup_result != RCL_RET_OK) && (result == 0)) {
+      result = 1;
+    }
   }
   if (rcl_node_is_valid(&node)) {
-    (void)rcl_node_fini(&node);
+    cleanup_result = rcl_node_fini(&node);
+    if ((cleanup_result != RCL_RET_OK) && (result == 0)) {
+      result = 1;
+    }
   }
   if (rcl_context_is_valid(&context)) {
-    (void)rcl_shutdown(&context);
+    cleanup_result = rcl_shutdown(&context);
+    if ((cleanup_result != RCL_RET_OK) && (result == 0)) {
+      result = 1;
+    }
   }
-  (void)rcl_context_fini(&context);
-  (void)rcl_init_options_fini(&init_options);
+  cleanup_result = rcl_context_fini(&context);
+  if ((cleanup_result != RCL_RET_OK) && (result == 0)) {
+    result = 1;
+  }
+  cleanup_result = rcl_init_options_fini(&init_options);
+  if ((cleanup_result != RCL_RET_OK) && (result == 0)) {
+    result = 1;
+  }
   return result;
+  }
 }
