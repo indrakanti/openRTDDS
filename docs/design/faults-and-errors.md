@@ -27,7 +27,7 @@ deadline or retry bound is exceeded.
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
-| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`, `QosError`; selected mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, QoS/resource planning, and future endpoint/wait/graph failure |
+| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`, `QosError`, `SubscriptionReceiveError`; selected mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, QoS/resource planning, publisher/subscription failure, and future wait/graph failure |
 
 Error enums are symbolic API values. Their implicit integer representation is
 not a stable fault code.
@@ -61,9 +61,9 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-DISC-003` | Warning/Error | malformed or unsupported discovery announcement | discovery/application |
 | `ORT-FLT-DISC-004` | Warning/Error | unknown must-understand discovery parameter | compatibility owner |
 | `ORT-FLT-DEADLINE-001` | Error/Fatal by topic | planned delivery deadline exceeded | application safety monitor |
-| `ORT-FLT-RMW-001` (Current for lifecycle/publisher) | Error/Fatal by context | invalid adapter lifecycle or stale active handle | context owner |
-| `ORT-FLT-RMW-002` (Current for lifecycle/publisher) | Error | adapter pool, graph, table, or byte bound exhausted | system integrator |
-| `ORT-FLT-RMW-003` (Current for publisher) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
+| `ORT-FLT-RMW-001` (Current for lifecycle/endpoints) | Error/Fatal by context | invalid adapter lifecycle or stale active handle | context owner |
+| `ORT-FLT-RMW-002` (Current for lifecycle/endpoints) | Error | adapter pool, graph, table, or byte bound exhausted | system integrator |
+| `ORT-FLT-RMW-003` (Current for endpoints) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
 | `ORT-FLT-RMW-004` (Planned) | Warning/Error | invalid or over-bound ROS graph update | discovery/context owner |
 | `ORT-FLT-RMW-005` (Planned) | Error/Fatal by context | wait registry or wake primitive failure | context owner |
 | `ORT-FLT-RMW-006` | Fatal at endpoint creation | unsupported, invalid, or over-bound QoS/resource plan | application/configuration owner |
@@ -82,9 +82,10 @@ Current RMW codec mappings are:
 | `invalid_message_storage`, `destination_size_mismatch` | `ORT-FLT-RMW-002`; endpoint staging/configuration defect |
 | `invalid_argument`, `cdr_failure` | local integration defect; do not publish or accept sample |
 
-The codec returns errors only; the future endpoint owner maps them to
-`rmw_ret_t` and diagnostic events. No codec error triggers allocation, hidden
-retry, destination resizing, or partial receive commit.
+The codec returns errors only; the current publisher/subscription owners map
+them to `rmw_ret_t`, while diagnostic events remain planned. No codec error
+triggers allocation, hidden retry, destination resizing, or partial receive
+commit.
 
 Current QoS/resource-plan mappings are:
 
@@ -115,6 +116,24 @@ Current publisher mappings are:
 Publisher faults set the synchronous RMW error state only. No asynchronous
 event is emitted, and no hidden retry, send, allocation, or graph mutation is
 performed by `rmw_publish` in this increment.
+
+Current subscription mappings are:
+
+| Subscription failure | Fault code / policy |
+|---|---|
+| foreign, stale, shutdown, or parent-with-live-child lifecycle | `ORT-FLT-RMW-001`; reject while preserving ownership/history |
+| subscription slot, allocator, history, writer-table, or reception-sequence exhaustion | `ORT-FLT-RMW-002`; roll back construction or reject ingress without corrupting existing state |
+| unsupported, unbounded, malformed, or oversized type | `ORT-FLT-RMW-003`; reject before endpoint activation |
+| unsupported or over-bound QoS/resource plan | `ORT-FLT-RMW-006`; reject before allocation |
+| malformed RTPS DATA, invalid reader/writer, or invalid payload bound | `ORT-FLT-RTPS-001/002` or integration error; do not commit history |
+| invalid source/receive timestamp | `ORT-FLT-TIME-001` or transport integration error; do not commit history |
+| duplicate, stale, or ignored-local sample | normal filtered outcome; no fault and no history commit |
+| XCDR1 take failure | existing `CodecError` mapping; preserve the queued sample and caller destination |
+
+`SubscriptionReceiveError` communicates the exact synchronous ingress result.
+It does not emit an asynchronous event, retry, allocate, wake an executor, or
+mutate the graph. The context receive worker and bounded counters are planned
+for later increments.
 
 Current reliability-control mappings are:
 

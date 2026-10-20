@@ -1,8 +1,8 @@
 # RMW QoS normalization and endpoint resource-plan detailed design
 
 **Design status:** Current for deterministic normalization, requested/offered
-compatibility, and pre-creation resource planning; endpoint consumption is
-Planned in PR30 and PR31
+compatibility, pre-creation resource planning, and publisher/subscription
+endpoint consumption
 
 **Requirements:** ORT-RMW-043, ORT-RMW-044
 
@@ -149,5 +149,4 @@ pinned RMW ABI.
 - finite deadline/lifespan monitors and finite liveliness leases;
 - manual liveliness assertion;
 - BEST_AVAILABLE discovery-driven selection;
-- endpoint allocation and plan consumption (PR30/PR31);
 - incompatible-QoS event publication (later G4.5 work).

@@ -549,8 +549,8 @@ slot reuse faults, or incomplete cleanup after bounded pool exhaustion.
 **Verification:** Test
 
 Tests shall inject allocation failure at every adapter-owned allocation edge
-during context, graph-guard, node, user guard-condition, and publisher
-creation. Each
+during context, graph-guard, node, user guard-condition, publisher, and
+subscription creation. Each
 failed operation shall leave the destination zero or null, restore the prior
 allocation balance and bounded-slot availability, and permit a subsequent
 valid operation.
@@ -702,6 +702,52 @@ allocation.
 
 **Rationale:** A bounded slot is not deterministic if partial construction can
 leak allocator state, retain parent ownership, or prevent slot recovery.
+
+### ORT-RMW-047 — Bounded subscription construction, ingress, and take
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration, Inspection
+
+The adapter shall create at most eight subscription handles per context;
+validate the parent node, topic, direct Jazzy introspection type support,
+subscription options, and supported QoS before ownership commit; derive one
+stable RTPS reader GUID; construct a parseable SEDP subscription record; and
+preallocate KEEP_LAST history. The transport-ingress boundary shall accept
+only a complete, unfragmented RTPS DATA message addressed to the local
+participant when `INFO_DST` is present and to the reader or unknown reader,
+reject invalid writers and over-bound payloads, optionally ignore local
+publications, suppress duplicate or stale per-writer sequence numbers, and
+atomically commit payload and metadata. `rmw_take`,
+`rmw_take_with_info`, and `rmw_take_sequence` shall decode into caller storage
+without allocation and consume a sample only after successful decoding.
+
+This increment does not claim UDP receive workers, discovery matching,
+reliable repair, executor wakeup, graph publication, or end-to-end ROS
+application operation. Those remain part of ORT-RMW-005, ORT-RMW-009, and
+gate G4.2.
+
+**Rationale:** Freezing the reader's acceptance, history, and take commit
+contract before wait and transport integration makes corrupt, duplicate,
+stale, local, and over-bound input behavior independently reviewable.
+
+### ORT-RMW-048 — Subscription allocation and ownership atomicity
+
+**Status:** Verified
+
+**Verification:** Test, Analysis
+
+Subscription creation shall use only the context allocator and shall roll
+back the subscription handle, private state, topic copy, history storage, pool
+slot, and parent-node ownership count when any allocation or SEDP construction
+step fails. Ingress, take, actual-QoS lookup, match-count lookup, and diagnostic
+inspection shall allocate no memory. Node destruction and context
+finalization shall reject live subscriptions; subscription destruction shall
+remain available after context shutdown and shall restore the slot and every
+owned allocation.
+
+**Rationale:** A reader that leaks a partial history or consumes a bounded slot
+after failed construction cannot be restarted or qualified deterministically.
 
 ## Authoritative upstream references
 

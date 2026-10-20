@@ -12,10 +12,11 @@
 namespace rmw_openrtdds_cpp::detail {
 
 // Requirements: ORT-RMW-030, ORT-RMW-031, ORT-RMW-032, ORT-RMW-033
-// Requirements: ORT-RMW-045, ORT-RMW-046
+// Requirements: ORT-RMW-045, ORT-RMW-046, ORT-RMW-047, ORT-RMW-048
 constexpr std::size_t kNodeCapacity = 8U;
 constexpr std::size_t kGuardConditionCapacity = 16U;
 constexpr std::size_t kPublisherCapacity = 8U;
+constexpr std::size_t kSubscriptionCapacity = 8U;
 
 using Foundation = openrtdds::rmw::AdapterContext<
     kNodeCapacity, kGuardConditionCapacity>;
@@ -23,6 +24,7 @@ using Foundation = openrtdds::rmw::AdapterContext<
 struct NodeData final {
   openrtdds::rmw::NodeHandle handle{};
   std::size_t publisher_count{0U};
+  std::size_t subscription_count{0U};
 };
 
 struct GuardConditionData final {
@@ -30,6 +32,12 @@ struct GuardConditionData final {
 };
 
 struct PublisherSlot final {
+  void* data{nullptr};
+  std::uint32_t generation{1U};
+  bool occupied{false};
+};
+
+struct SubscriptionSlot final {
   void* data{nullptr};
   std::uint32_t generation{1U};
   bool occupied{false};
@@ -52,6 +60,10 @@ struct rmw_context_impl_s final {
              rmw_openrtdds_cpp::detail::kPublisherCapacity>
       publishers{};
   std::mutex publisher_registry_mutex{};
+  std::array<rmw_openrtdds_cpp::detail::SubscriptionSlot,
+             rmw_openrtdds_cpp::detail::kSubscriptionCapacity>
+      subscriptions{};
+  std::mutex subscription_registry_mutex{};
   bool shutdown{false};
 };
 
@@ -70,6 +82,19 @@ namespace rmw_openrtdds_cpp::detail {
     return false;
   }
   for (const auto& slot : context->impl->publishers) {
+    if (slot.occupied) {
+      return true;
+    }
+  }
+  return false;
+}
+
+[[nodiscard]] inline bool context_has_subscriptions(
+    const rmw_context_t* const context) noexcept {
+  if (!context_is_valid(context)) {
+    return false;
+  }
+  for (const auto& slot : context->impl->subscriptions) {
     if (slot.occupied) {
       return true;
     }
