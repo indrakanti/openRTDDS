@@ -11,7 +11,7 @@ green.
 | G1 — Compound message routing | INFO/PAD/unknown submessages plus DATA and reliability dispatch | Passed by PR13 |
 | G2 — Vendor packet corpus | Pinned Fast DDS and Cyclone DDS packet captures parsed in CI | Passed by PR17 |
 | G3 — Live DDS exchange | OpenRTDDS writer/reader exchanges discovery and data both ways with each vendor | Passed by PR21 for pinned best-effort and bounded reliable scope |
-| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; G4.1 passed, same-host G4.2 best effort through PR33 |
+| G4 — ROS 2 RMW | `rmw_openrtdds_cpp` passes staged Jazzy build, topic, graph, service, and selected conformance gates | In progress; G4.1 and same-host bounded G4.2 passed through PR34 |
 
 ## Vendor matrix qualified for G2 and bounded G3 scope
 
@@ -142,10 +142,12 @@ timeouts, guard generations, and shutdown wake.
 PR33 adds one bounded SPDP/SEDP/user-DATA worker per context, fixed remote
 participant/endpoint tables, best-effort matching and UDP routing, generated
 type-support dispatch resolution, and separate-process rclcpp
-`std_msgs/msg/UInt32` qualification on one Linux host. It enables a precise
-same-host volatile KEEP_LAST best-effort topic claim. It does not close G4.2:
-reliable worker repair, C and C++ application evidence, and multi-host
-interface configuration remain required.
+`std_msgs/msg/UInt32` qualification on one Linux host. PR34 adds fixed
+per-association reliable state, directed HEARTBEAT/ACKNACK repair, a forced
+first-DATA-loss test, and the complete C/C++ cross-language best-effort and
+reliable application matrix. Together they close G4.2 for the documented
+same-host volatile KEEP_LAST fixed-message profile. Multi-host interface
+configuration remains deployment work and is not part of that claim.
 
 ## Claim policy
 
@@ -164,8 +166,9 @@ reliable interoperability for the exact pinned versions and settings. They
 shall not generalize that evidence to arbitrary histories, payload sizes,
 vendor versions, drop-in DDS compatibility, or ROS 2 readiness.
 
-With ORT-RMW-051 and ORT-RMW-052 Verified, release notes may additionally claim
-same-host ROS 2 Jazzy C++ best-effort `UInt32` topic exchange through
-`rmw_openrtdds_cpp` using volatile KEEP_LAST QoS. They shall not describe that
-evidence as reliable topics, multi-host deployment, complete G4.2, general ROS
-2 readiness, or ROS graph/service support.
+With ORT-RMW-051 through ORT-RMW-054 Verified, release notes may additionally
+claim same-host ROS 2 Jazzy C/C++ best-effort and bounded reliable `UInt32`
+topic exchange through `rmw_openrtdds_cpp` using volatile KEEP_LAST QoS, plus
+G4.2 completion for that documented profile. They shall not describe that
+evidence as multi-host deployment, an arbitrary reliable throughput window,
+general ROS 2 readiness, or ROS graph/service support.

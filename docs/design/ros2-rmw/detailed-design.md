@@ -4,8 +4,8 @@
 surface, lifecycle semantics, G4.1 memory-safety qualification, bounded
 type/name/codec/QoS foundations, publisher packet/ownership, subscription
 ingress/history/take, executor-facing wait semantics, generic type-support
-resolution, and same-host best-effort networked topics; Planned for reliable
-topic repair and the remaining G4.2 through G4.5 evidence
+resolution, and same-host best-effort/reliable networked topics with G4.2
+qualification; Planned for G4.3 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -45,6 +45,8 @@ topic repair and the remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-051, ORT-RMW-052
 
+**Requirements:** ORT-RMW-053, ORT-RMW-054
+
 ## Status and scope
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
@@ -76,10 +78,10 @@ The foundation is compiled into `OpenRTDDS::openrtdds`; it includes no ROS
 headers. The separate `rmw_openrtdds_cpp` ament package registers and exports a
 loadable shared library with the complete reviewed Jazzy proxy symbol surface
 and the C/C++ introspection type-support backends. The current adapter can
-complete lifecycle and same-host volatile KEEP_LAST best-effort topic exchange
-through standard runtime selection. Reliable topic repair, distributed ROS
-graph queries, services/clients, and general executor compatibility are not
-yet claimed.
+complete lifecycle and same-host volatile KEEP_LAST best-effort and bounded
+reliable topic exchange through standard runtime selection. Distributed ROS
+graph queries, services/clients, and general executor compatibility are not yet
+claimed.
 
 ### Current types and ownership
 
@@ -853,6 +855,8 @@ classDiagram
       -participants[16]
       -endpoints[32]
       -last_sent_sequence[8]
+      -reliable_writers[32]
+      -reliable_readers[32]
       -worker
     }
     class UdpSocket {
@@ -880,10 +884,13 @@ Linux host, not communication between hosts. A configured interface/address
 policy is required before a multi-host deployment claim.
 
 The fixed runtime storage consists of one 2,048-byte SPDP packet, one
-65,507-byte receive datagram, one 65,507-byte transmit datagram, 16 participant
-records, 32 endpoint records, and one progress/generation pair for each of the
-eight publisher slots. Runtime discovery does not allocate an endpoint object,
-grow a container, or create an endpoint-specific thread.
+65,507-byte receive datagram, one 65,507-byte transmit datagram, two fixed
+control datagrams, 16 participant records, 32 endpoint records, one
+progress/generation pair for each of the eight publisher slots, 32 reliable
+writer links, and 32 reliable reader links. A writer link retains one complete
+in-flight DATA datagram; a reader link contains a 256-sequence bitmap. Runtime
+discovery and repair do not allocate an endpoint/association object, grow a
+container, or create an endpoint-specific thread.
 
 ### Worker behavior and bounds
 
@@ -894,9 +901,11 @@ five milliseconds or until local endpoint/publication notification:
    publisher/subscription SEDP record to each known participant;
 2. receive at most 32 datagrams from each discovery socket;
 3. receive at most 32 user datagrams;
-4. send at most 32 retained samples for each occupied publisher;
-5. expire participant state whose five-second lease elapsed;
-6. sleep on the context-owned worker condition variable.
+4. send at most 32 retained best-effort samples for each occupied publisher and
+   admit at most one in-flight sample per reliable writer link;
+5. run bounded reliable writer timers and one due HEARTBEAT per link;
+6. prune stale reliable associations and expire five-second participant state;
+7. sleep on the context-owned worker condition variable.
 
 SPDP is accepted only for the context domain and a nonlocal GUID prefix. SEDP
 is accepted only after its participant exists. A participant refresh replaces
@@ -937,8 +946,9 @@ the slot's last-sent sequence. It rebuilds DATA into the fixed transmit buffer
 and attempts one send to every matched reader locator. Progress then advances
 regardless of the best-effort send result. When no reader matches, it advances
 without sending so volatile QoS does not replay pre-match history to a late
-joiner. Progress is per local writer, not per reader, and no hidden retry or
-HEARTBEAT/ACKNACK repair runs in this increment.
+joiner. Progress is per local writer, not per reader, and no hidden retry runs
+for a best-effort association. A reliable reader is excluded from this path
+and uses the per-association state below.
 
 The receive worker parses one complete DATA datagram, requires a discovered
 writer GUID, then applies the same endpoint matcher against each local reader.
@@ -948,6 +958,72 @@ metadata rules before waking waiters. The current DATA builder does not emit
 `INFO_TS`; the receive clock is used for both source and received timestamps so
 the RMW metadata remains positive. Precise remote source time requires the
 planned timestamp submessage support.
+
+### Reliable association classes and sequence
+
+```mermaid
+classDiagram
+    class NetworkRuntime {
+      reliable_writers[32]
+      reliable_readers[32]
+      service_reliable_writers()
+      handle_heartbeat()
+      handle_acknack()
+    }
+    class ReliableWriterLink {
+      local slot and generation
+      remote reader GUID
+      one retained DATA
+    }
+    class ReliableReaderLink {
+      local slot and generation
+      remote writer GUID
+      256-sequence window
+    }
+    NetworkRuntime *-- ReliableWriterLink
+    NetworkRuntime *-- ReliableReaderLink
+```
+
+A link key is the local slot/generation and entity ID plus the remote
+participant prefix and entity ID. The generation prevents a destroyed and
+recreated local endpoint from inheriting prior reliability state. Discovery
+expiry or an absent remote endpoint prunes the link. Admission failure at the
+32-link bound leaves existing links unchanged; the untracked association gets
+no false reliable send.
+
+`ReliableWriterLink` embeds `ReliableWriter<1,65507>`. It accepts a new retained
+packet only while empty, permits two ACKNACK-requested retransmissions, and
+expires that packet after two seconds. While nonempty the worker emits a
+directed non-final HEARTBEAT every 100 milliseconds. ACKNACK is accepted only
+when source prefix, reader ID, writer ID, local generation, QoS, and discovery
+record all correlate.
+
+`ReliableReaderLink` embeds `ReliableReader<256>`. Its initial sequence is the
+first valid DATA sequence or HEARTBEAT first sequence observed after matching,
+which implements volatile late-join behavior. DATA updates the window before
+subscription ingress, so a retransmission cannot create a second history
+sample. HEARTBEAT is normalized from unknown-reader addressing to the matched
+local reader, then produces at most one ACKNACK action. Control packets include
+`INFO_DST` for the remote participant and use the discovered user locator.
+
+```mermaid
+sequenceDiagram
+    participant W as Writer worker
+    participant R as Reader worker
+    W->>R: DATA sequence N (may be lost)
+    W->>R: INFO_DST + HEARTBEAT range N
+    R->>W: INFO_DST + ACKNACK missing N
+    W->>R: retransmit DATA N
+    W->>R: INFO_DST + HEARTBEAT range N
+    R->>W: final ACKNACK base N+1
+    W->>W: release retained DATA
+```
+
+The single worker performs all state transitions. A successful `rmw_publish`
+means the publisher history accepted the sample; it does not wait for an
+ACKNACK. The current bounded reliable profile intentionally permits one
+in-flight sample per association. Higher-throughput windows require a future
+configured link-history design and are not implied by G4.2.
 
 ### Network interfaces and synchronization
 
@@ -962,6 +1038,13 @@ The network layer calls only these private, allocation-free endpoint adapters:
 | `subscription_network_receive` | applies one matched DATA datagram through the normal ingress commit path |
 | `subscription_network_set_match_count` | replaces the observed remote-writer count |
 | `notify_network` | advances the worker wake generation without performing network I/O on the caller thread |
+| `NetworkRuntime::drop_next_reliable_data_for_test` | internal qualification hook; atomically suppresses a bounded count of initial reliable DATA sends, never control or repair sends |
+
+The reliability wire/state interfaces are the existing
+`ReliableWriter::write/on_acknack/on_timer/fill_heartbeat`,
+`ReliableReader::on_data/on_heartbeat`, and
+`ReliabilityMessageBuilder`/parser APIs. The RMW layer translates their bounded
+actions into UDP sends; it does not duplicate their sequence or repair logic.
 
 Registry mutexes prevent endpoint destruction while the worker borrows private
 state. The lock order is registry then endpoint. `rmw_publish` and take APIs
@@ -981,10 +1064,14 @@ the worker boundary:
 | multicast socket, membership, port pair, locator, or SPDP construction fails | `rmw_init` returns `RMW_RET_ERROR`; all context/runtime allocations and sockets roll back | `ORT-FLT-UDP-001` or `ORT-FLT-DISC-002` |
 | worker thread cannot start | `rmw_init` returns `RMW_RET_ERROR`; graph guard and runtime roll back | `ORT-FLT-RMW-001` |
 | nonblocking receive has no packet | normal `would_block`; end current receive pass | none |
-| malformed SPDP, SEDP, or DATA | discard datagram; preserve all local endpoint state | `ORT-FLT-DISC-003` or `ORT-FLT-RTPS-001` |
+| malformed SPDP, SEDP, DATA, HEARTBEAT, or ACKNACK | discard datagram; preserve all local endpoint state | `ORT-FLT-DISC-003` or `ORT-FLT-RTPS-001` |
 | unknown participant/writer or incompatible endpoint | discard datagram; no history/wait mutation | `ORT-FLT-DDS-002` when policy promotes the diagnostic |
 | participant/endpoint table full | discard new remote record; preserve existing cache | `ORT-FLT-RMW-002` |
 | DATA send fails for a matched reader | advance best-effort writer progress; no retry | `ORT-FLT-UDP-002` |
+| reliable link table full | preserve admitted links; do not send the untracked association as reliable | `ORT-FLT-RMW-002` |
+| stale or foreign reliable control | discard without state change | `ORT-FLT-DDS-002` |
+| repair attempts/window exhausted or gap unrepairable | fail or contain the affected sample/link; preserve other associations | `ORT-FLT-REL-001` |
+| reliable DATA/control send fails | retain state until its timer/repair bound; never retry outside state-machine actions | `ORT-FLT-UDP-002` |
 | five-second lease expires | remove participant/endpoints and recompute counts | normal discovery transition |
 | shutdown requested | wake, stop, join, then close all three sockets | none |
 
@@ -1003,12 +1090,14 @@ function or absent supported backend is `TypeSupportError::unsupported_identifie
 and leaves no claimed endpoint slot.
 
 `test_network_runtime.cpp` proves discovery, bidirectional match observation,
-UDP DATA, wait wake, take, and sequence/timestamp metadata between independent
-contexts. `ros2_best_effort_talker_listener.cpp` and its process harness prove
-generated `std_msgs/msg/UInt32` type support, dynamic RMW selection, rclcpp
-publisher/subscription creation, executor wait/take, and application-visible
-value 42 in different processes. Both deliberately select best effort.
-Reliable C/C++ talker/listener evidence is still required to close G4.2.
+best-effort UDP DATA, reliable first-DATA loss and repair, wait wake, take, and
+sequence/timestamp metadata between independent contexts.
+`run_ros2_topic_matrix.py` selects the installed RMW and runs separate-process
+talker/listener pairs for C→C, C→C++, C++→C, and C++→C++ in both best-effort and
+reliable modes. `ros2_c_talker_listener.c` uses `rcl`; the C++ executable uses
+`rclcpp`; both use generated `std_msgs/msg/UInt32` type support and require
+application-visible value 42. This evidence closes G4.2 for the documented
+same-host bounded profile.
 
 ## Current type-support analysis foundation
 
@@ -1236,12 +1325,12 @@ discovery announcement, lease, wait, and shutdown join has a monotonic bound.
 | Gate | Required evidence | Claim enabled |
 |---|---|---|
 | G4.1 Build/load | Jazzy build/install, exact symbol/load test, runtime selection, failure injection, allocation balance, and init/node/shutdown ASan/LSan/UBSan stress | Passed by PR26: adapter lifecycle scaffold loads |
-| G4.2 Topics | C/C++ fixed-message best-effort and reliable talker/listener, QoS and metadata tests; same-host C++ best effort is current | bounded ROS topic exchange after reliable/C evidence completes |
+| G4.2 Topics | C/C++ fixed-message best-effort and reliable cross-language talker/listener matrix, forced-loss repair, QoS and metadata tests | Passed by PR34 for the documented same-host bounded profile |
 | G4.3 Graph | multi-process graph add/query/remove and lease-expiry tests | selected graph introspection |
 | G4.4 Services | concurrent request/reply correlation, wait readiness, invalid response test | bounded ROS services |
 | G4.5 Conformance | versioned upstream allowlist, exclusions, stress, sanitizers, determinism analysis | ROS 2 Jazzy readiness for documented profile |
 
-G4.1 is passed; G4 remains Planned until all five gates pass. Passing a lower
+G4.1 and G4.2 are passed; G4 remains Planned until all five gates pass. Passing a lower
 gate shall be claimed precisely and shall not be described as general ROS 2
 support.
 

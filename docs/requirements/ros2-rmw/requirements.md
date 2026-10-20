@@ -845,6 +845,60 @@ full G4.2 gate remain separate work.
 support, dynamic RMW selection, executor wait, discovery, UDP delivery, and
 take compose into an application-visible ROS 2 topic exchange.
 
+### ORT-RMW-053 — Bounded reliable ROS topic repair
+
+**Status:** Verified
+
+**Verification:** Test, Analysis, Demonstration
+
+For each compatible volatile KEEP_LAST reliable association admitted by the
+context's fixed 32-link writer and 32-link reader tables, the network worker
+shall retain at most one in-flight DATA datagram, emit a directed HEARTBEAT at
+most once per 100 milliseconds while that sample remains unacknowledged,
+process only identity-correlated ACKNACK state, and retransmit only a sequence
+explicitly requested by the matched reader. A writer shall permit at most two
+repairs within a two-second window. The reader shall track a 256-sequence
+window, accept each sequence into subscription history at most once, and emit
+a directed ACKNACK for a repairable gap or delivery advancement.
+
+Reliable control parsing, state transitions, construction, and send work shall
+run in the single context worker with fixed datagrams and no association thread
+or post-initialization allocation. Malformed, stale, foreign, unrepairable,
+over-capacity, expired, or send-failed control shall be contained to the
+affected association and shall not corrupt another endpoint. Reliable link
+state shall be released when either local generation or remote discovery record
+expires. A successful `rmw_publish` remains an enqueue result, not a synchronous
+network-delivery acknowledgment.
+
+**Rationale:** Advertising reliable QoS without bounded HEARTBEAT/ACKNACK state
+would create a false delivery claim and allow retries or per-peer resources to
+grow outside the deterministic context budget.
+
+### ORT-RMW-054 — ROS topic language and QoS qualification matrix
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration, Inspection
+
+Jazzy CI shall select `rmw_openrtdds_cpp` through the standard runtime mechanism
+and exchange a generated fixed `std_msgs/msg/UInt32` value in separate talker
+and listener processes for every combination of C and C++ client language in
+both best-effort and reliable modes. The C path shall use `rcl`; the C++ path
+shall use `rclcpp`; every listener shall observe value 42 through normal wait,
+take, generated type support, and XCDR1 conversion. A two-context direct RMW
+test shall additionally drop the first reliable DATA transmission and require
+HEARTBEAT, ACKNACK, retransmission, executor wake, and metadata-preserving take
+to complete within a fixed test deadline.
+
+Passing this requirement closes topic gate G4.2 only for the documented
+same-host, UDPv4, volatile KEEP_LAST, bounded fixed-message profile. It does not
+claim distributed ROS graph queries, services, all executors or message types,
+multi-host locator selection, security, or safety certification.
+
+**Rationale:** Language-local smoke tests and loss-free reliable delivery do not
+exercise the ABI, discovery, type identity, retry, and wait boundaries that a
+deployable ROS topic path must compose.
+
 ## Authoritative upstream references
 
 - [ROS 2 guide for creating an RMW implementation](https://github.com/ros2/ros2_documentation/blob/rolling/source/ROS-Framework/client-libraries/Working-with-Client-Libraries/Creating-An-RMW-Implementation.rst)

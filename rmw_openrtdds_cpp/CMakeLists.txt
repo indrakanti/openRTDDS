@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(rmw_openrtdds_cpp VERSION 0.1.0 LANGUAGES CXX)
+project(rmw_openrtdds_cpp VERSION 0.1.0 LANGUAGES C CXX)
 
 option(OPENRTDDS_RMW_ENABLE_SANITIZERS
   "Enable AddressSanitizer, LeakSanitizer, and UndefinedBehaviorSanitizer"
@@ -128,6 +128,7 @@ install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 if(BUILD_TESTING)
   enable_testing()
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  find_package(rcl REQUIRED)
   find_package(rclcpp REQUIRED)
   find_package(rmw_implementation REQUIRED)
   find_package(std_msgs REQUIRED)
@@ -231,6 +232,7 @@ if(BUILD_TESTING)
     -Wall -Wextra -Wpedantic -Werror)
   target_link_libraries(test_rmw_network_runtime PRIVATE
     ${PROJECT_NAME}
+    OpenRTDDS::openrtdds
     Threads::Threads
     rcutils::rcutils
     rmw::rmw
@@ -240,20 +242,28 @@ if(BUILD_TESTING)
     COMMAND test_rmw_network_runtime)
   set_tests_properties(rmw_openrtdds_network_runtime PROPERTIES TIMEOUT 10)
 
-  add_executable(openrtdds_ros2_best_effort_talker_listener
-    examples/ros2_best_effort_talker_listener.cpp)
-  target_compile_features(openrtdds_ros2_best_effort_talker_listener
+  add_executable(openrtdds_ros2_talker_listener
+    examples/ros2_talker_listener.cpp)
+  target_compile_features(openrtdds_ros2_talker_listener
     PRIVATE cxx_std_17)
-  target_compile_options(openrtdds_ros2_best_effort_talker_listener PRIVATE
+  target_compile_options(openrtdds_ros2_talker_listener PRIVATE
     -Wall -Wextra -Wpedantic -Werror)
-  ament_target_dependencies(openrtdds_ros2_best_effort_talker_listener
+  ament_target_dependencies(openrtdds_ros2_talker_listener
     rclcpp std_msgs)
-  add_test(NAME rmw_openrtdds_ros2_best_effort_talker_listener
+
+  add_executable(openrtdds_ros2_c_talker_listener
+    examples/ros2_c_talker_listener.c)
+  target_compile_features(openrtdds_ros2_c_talker_listener PRIVATE c_std_11)
+  target_compile_options(openrtdds_ros2_c_talker_listener PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  ament_target_dependencies(openrtdds_ros2_c_talker_listener rcl std_msgs)
+
+  add_test(NAME rmw_openrtdds_ros2_topic_matrix
     COMMAND "${Python3_EXECUTABLE}"
-      "${CMAKE_CURRENT_SOURCE_DIR}/test/run_ros2_talker_listener.py"
-      "$<TARGET_FILE:openrtdds_ros2_best_effort_talker_listener>")
-  set_tests_properties(rmw_openrtdds_ros2_best_effort_talker_listener
-    PROPERTIES TIMEOUT 20)
+      "${CMAKE_CURRENT_SOURCE_DIR}/test/run_ros2_topic_matrix.py"
+      "$<TARGET_FILE:openrtdds_ros2_talker_listener>"
+      "$<TARGET_FILE:openrtdds_ros2_c_talker_listener>")
+  set_tests_properties(rmw_openrtdds_ros2_topic_matrix PROPERTIES TIMEOUT 110)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)
