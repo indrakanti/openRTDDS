@@ -140,10 +140,14 @@ Current network-worker mappings are:
 | Network condition | Fault code / policy |
 |---|---|
 | socket, bind, membership, locator, SPDP, or worker-start failure | `ORT-FLT-UDP-001`, `ORT-FLT-DISC-002`, or `ORT-FLT-RMW-001`; fail context initialization and roll back |
-| malformed discovery or DATA | `ORT-FLT-DISC-003` or `ORT-FLT-RTPS-001`; discard without local endpoint mutation |
+| malformed discovery, DATA, HEARTBEAT, or ACKNACK | `ORT-FLT-DISC-003` or `ORT-FLT-RTPS-001`; discard without local endpoint mutation |
 | fixed participant/endpoint table exhaustion | `ORT-FLT-RMW-002`; preserve existing records and discard the new record |
 | unknown or incompatible remote endpoint | optional `ORT-FLT-DDS-002`; normal discard in the current profile |
 | DATA send fails | `ORT-FLT-UDP-002`; advance best-effort progress and do not retry |
+| reliable association table exhausted | `ORT-FLT-RMW-002`; preserve admitted links and do not degrade the new association to best effort |
+| stale, foreign, or identity-mismatched control | `ORT-FLT-DDS-002`; discard without reliability-state change |
+| reliable repair attempt/window exhausted or gap unrepairable | `ORT-FLT-REL-001`; contain the affected sample/association and preserve all others |
+| reliable DATA/control send fails | `ORT-FLT-UDP-002`; retain state only until its configured timer/repair bound |
 | lease expiry or nonblocking `would_block` | normal transition/result; no fault |
 
 These asynchronous results currently have no public counter or event. Fault

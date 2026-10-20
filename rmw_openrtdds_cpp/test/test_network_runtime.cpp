@@ -14,8 +14,11 @@
 #include "rosidl_typesupport_introspection_c/identifier.h"
 #include "rosidl_typesupport_introspection_c/message_introspection.h"
 
+#include "../src/internal.hpp"
+
 // Verifies: ORT-RMW-004, ORT-RMW-005, ORT-RMW-009, ORT-RMW-016
 // Verifies: ORT-RMW-051, ORT-RMW-052
+// Verifies: ORT-RMW-053, ORT-RMW-054
 namespace {
 
 struct Message final {
@@ -152,10 +155,71 @@ int main() {
     return fail(8);
   }
 
+  rmw_qos_profile_t reliable_qos = qos;
+  reliable_qos.reliability = RMW_QOS_POLICY_RELIABILITY_RELIABLE;
+  rmw_publisher_t* reliable_publisher = rmw_create_publisher(
+      writer_peer.node, &fixture.handle, "/reliable_network_counter",
+      &reliable_qos, &publisher_options);
+  rmw_subscription_t* reliable_subscription = rmw_create_subscription(
+      reader_peer.node, &fixture.handle, "/reliable_network_counter",
+      &reliable_qos, &subscription_options);
+  if ((reliable_publisher == nullptr) || (reliable_subscription == nullptr)) {
+    return fail(9);
+  }
+
+  publisher_matches = 0U;
+  subscription_matches = 0U;
+  const auto reliable_discovery_deadline =
+      std::chrono::steady_clock::now() + discovery_timeout;
+  while (std::chrono::steady_clock::now() < reliable_discovery_deadline) {
+    if ((rmw_publisher_count_matched_subscriptions(
+             reliable_publisher, &publisher_matches) != RMW_RET_OK) ||
+        (rmw_subscription_count_matched_publishers(
+             reliable_subscription, &subscription_matches) != RMW_RET_OK)) {
+      return fail(10);
+    }
+    if ((publisher_matches == 1U) && (subscription_matches == 1U)) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  if ((publisher_matches != 1U) || (subscription_matches != 1U)) {
+    return fail(11);
+  }
+
+  rmw_openrtdds_cpp::detail::network_test_drop_next_reliable_data(
+      &writer_peer.context, 1U);
+  const Message reliable_input{84U};
+  if (rmw_publish(reliable_publisher, &reliable_input, nullptr) != RMW_RET_OK) {
+    return fail(12);
+  }
+  void* reliable_subscription_data = reliable_subscription->data;
+  rmw_subscriptions_t reliable_subscriptions{
+      1U, &reliable_subscription_data};
+  if ((rmw_wait(&reliable_subscriptions, nullptr, nullptr, nullptr, nullptr,
+                wait_set, &receive_timeout) != RMW_RET_OK) ||
+      (reliable_subscription_data != reliable_subscription->data)) {
+    return fail(13);
+  }
+  Message reliable_output{};
+  info = {};
+  taken = false;
+  if ((rmw_take_with_info(reliable_subscription, &reliable_output, &taken,
+                          &info, nullptr) != RMW_RET_OK) ||
+      !taken || (reliable_output.value != reliable_input.value) ||
+      (info.publication_sequence_number != 1) ||
+      (info.reception_sequence_number != 1)) {
+    return fail(14);
+  }
+
   if ((rmw_shutdown(&writer_peer.context) != RMW_RET_OK) ||
       (rmw_shutdown(&reader_peer.context) != RMW_RET_OK) ||
       (rmw_destroy_wait_set(wait_set) != RMW_RET_OK) ||
+      (rmw_destroy_subscription(reader_peer.node, reliable_subscription) !=
+       RMW_RET_OK) ||
       (rmw_destroy_subscription(reader_peer.node, subscription) !=
+       RMW_RET_OK) ||
+      (rmw_destroy_publisher(writer_peer.node, reliable_publisher) !=
        RMW_RET_OK) ||
       (rmw_destroy_publisher(writer_peer.node, publisher) != RMW_RET_OK) ||
       (rmw_destroy_node(reader_peer.node) != RMW_RET_OK) ||
@@ -164,7 +228,7 @@ int main() {
       (rmw_context_fini(&writer_peer.context) != RMW_RET_OK) ||
       (rmw_init_options_fini(&reader_peer.options) != RMW_RET_OK) ||
       (rmw_init_options_fini(&writer_peer.options) != RMW_RET_OK)) {
-    return fail(9);
+    return fail(15);
   }
   return 0;
 }
