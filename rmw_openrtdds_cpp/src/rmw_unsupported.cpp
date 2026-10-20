@@ -246,23 +246,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   3, ARG_TYPES(const rmw_event_t *, void *, bool *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_create_wait_set,
-  rmw_wait_set_t *, nullptr,
-  2, ARG_TYPES(rmw_context_t *, size_t))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_destroy_wait_set,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  1, ARG_TYPES(rmw_wait_set_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_wait,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  7, ARG_TYPES(
-    rmw_subscriptions_t *, rmw_guard_conditions_t *, rmw_services_t *, rmw_clients_t *,
-    rmw_events_t *, rmw_wait_set_t *, const rmw_time_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_get_publisher_names_and_types_by_node,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   6, ARG_TYPES(

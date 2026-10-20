@@ -112,7 +112,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-035 | Verified | `rmw_unsupported.cpp` | `test_rmw_unsupported.cpp` | — |
 | ORT-RMW-036 | Verified | `rmw_openrtdds_cpp/CMakeLists.txt`, complete ABI sources | proxy-linked `test_rmw_lifecycle.cpp`, Jazzy CI | — |
 | ORT-RMW-037 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_memory_qualification.cpp` stress and allocation accounting | — |
-| ORT-RMW-038 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp` | `test_rmw_memory_qualification.cpp` allocation-failure sweep | — |
+| ORT-RMW-038 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp`, `publisher.cpp`, `subscription.cpp`, `wait.cpp` | `test_rmw_memory_qualification.cpp` allocation-failure sweep | — |
 | ORT-RMW-039 | Verified | `rmw_openrtdds_cpp/src/rmw_adapter.cpp`, sanitizer build option | Jazzy ASan/LSan/UBSan CI | — |
 | ORT-RMW-040 | Verified | `rmw_openrtdds_cpp/type_support.hpp`, `type_support.cpp` | `test_type_support.cpp`, Jazzy sanitizer CI | — |
 | ORT-RMW-041 | Verified | `rmw_openrtdds_cpp/type_support.hpp`, `type_support.cpp` | `test_type_support.cpp` golden mapping vectors | — |
@@ -123,6 +123,8 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-046 | Verified | `rmw_openrtdds_cpp/src/internal.hpp`, `publisher.cpp`, `rmw_adapter.cpp` | `test_publisher.cpp`, `test_rmw_memory_qualification.cpp` allocation-failure sweep | `publisher_pipeline.cpp` |
 | ORT-RMW-047 | Verified | `rmw_openrtdds_cpp/subscription.hpp`, `subscription.cpp`, `rmw_adapter.cpp` | `test_subscription.cpp`, Jazzy sanitizer CI | `subscription_pipeline.cpp` |
 | ORT-RMW-048 | Verified | `rmw_openrtdds_cpp/src/internal.hpp`, `subscription.cpp`, `rmw_adapter.cpp` | `test_subscription.cpp`, `test_rmw_memory_qualification.cpp` allocation-failure sweep | `subscription_pipeline.cpp` |
+| ORT-RMW-049 | Verified | `rmw_openrtdds_cpp/src/wait.cpp`, `subscription.cpp`, `rmw_adapter.cpp` | `test_wait.cpp`, `test_subscription.cpp`, Jazzy sanitizer CI | `subscription_pipeline.cpp` |
+| ORT-RMW-050 | Verified | `rmw_openrtdds_cpp/src/internal.hpp`, `wait.cpp`, `subscription.cpp`, `rmw_adapter.cpp` | `test_wait.cpp`, `test_rmw_memory_qualification.cpp` allocation-failure sweep | `subscription_pipeline.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

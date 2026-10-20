@@ -88,6 +88,7 @@ rmw_guard_condition_t* create_guard_condition_handle(
     return nullptr;
   }
   auto* data = new (data_storage) GuardConditionData{};
+  data->context = context;
 
   const auto error = context->impl->foundation.create_guard_condition(data->handle);
   if (error != openrtdds::rmw::AdapterError::none) {
@@ -359,11 +360,19 @@ rmw_ret_t rmw_shutdown(rmw_context_t* context) {
     return RMW_RET_OK;
   }
 
-  const auto error = context->impl->foundation.shutdown();
-  if (error != openrtdds::rmw::AdapterError::none) {
-    return set_adapter_error(error);
+  {
+    std::lock_guard<std::mutex> wait_lock(context->impl->wait_mutex);
+    const auto error = context->impl->foundation.shutdown();
+    if (error != openrtdds::rmw::AdapterError::none) {
+      return set_adapter_error(error);
+    }
+    context->impl->shutdown.store(true);
+    ++context->impl->wait_generation;
+    if (context->impl->wait_generation == 0U) {
+      context->impl->wait_generation = 1U;
+    }
   }
-  context->impl->shutdown = true;
+  context->impl->wait_condition.notify_all();
   rmw_guard_condition_t* graph_guard = context->impl->graph_guard_condition;
   context->impl->graph_guard_condition = nullptr;
   if (graph_guard != nullptr) {
@@ -387,6 +396,10 @@ rmw_ret_t rmw_context_fini(rmw_context_t* context) {
   }
   if (rmw_openrtdds_cpp::detail::context_has_subscriptions(context)) {
     RMW_SET_ERROR_MSG("context still owns subscriptions");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  if (rmw_openrtdds_cpp::detail::context_has_wait_sets(context)) {
+    RMW_SET_ERROR_MSG("context still owns wait sets");
     return RMW_RET_INVALID_ARGUMENT;
   }
   const auto foundation_result = context->impl->foundation.finalize();
@@ -564,11 +577,20 @@ rmw_ret_t rmw_trigger_guard_condition(
   }
   const auto* data =
       static_cast<const GuardConditionData*>(guard_condition->data);
-  const auto error =
-      context->impl->foundation.trigger_guard_condition(data->handle);
-  return error == openrtdds::rmw::AdapterError::none
-             ? RMW_RET_OK
-             : set_adapter_error(error);
+  {
+    std::lock_guard<std::mutex> wait_lock(context->impl->wait_mutex);
+    const auto error =
+        context->impl->foundation.trigger_guard_condition(data->handle);
+    if (error != openrtdds::rmw::AdapterError::none) {
+      return set_adapter_error(error);
+    }
+    ++context->impl->wait_generation;
+    if (context->impl->wait_generation == 0U) {
+      context->impl->wait_generation = 1U;
+    }
+  }
+  context->impl->wait_condition.notify_all();
+  return RMW_RET_OK;
 }
 
 }  // extern "C"

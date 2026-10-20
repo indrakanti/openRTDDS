@@ -19,7 +19,7 @@
 #include "rosidl_typesupport_introspection_c/message_introspection.h"
 
 // Verifies: ORT-RMW-005, ORT-RMW-012, ORT-RMW-014, ORT-RMW-015
-// Verifies: ORT-RMW-047, ORT-RMW-048
+// Verifies: ORT-RMW-047, ORT-RMW-048, ORT-RMW-049
 namespace {
 
 struct Message final {
@@ -107,6 +107,18 @@ int main() {
   if ((publisher == nullptr) || (subscription == nullptr)) {
     return fail(5);
   }
+  rmw_wait_set_t* wait_set = rmw_create_wait_set(&context, 1U);
+  if (wait_set == nullptr) {
+    return fail(26);
+  }
+  void* subscription_data = subscription->data;
+  rmw_subscriptions_t subscriptions{1U, &subscription_data};
+  const rmw_time_t immediate{0U, 0U};
+  if ((rmw_wait(&subscriptions, nullptr, nullptr, nullptr, nullptr, wait_set,
+                &immediate) != RMW_RET_TIMEOUT) ||
+      (subscription_data != nullptr)) {
+    return fail(27);
+  }
   if (rmw_destroy_subscription(other_node, subscription) !=
       RMW_RET_INVALID_ARGUMENT) {
     return fail(6);
@@ -161,6 +173,12 @@ int main() {
       !receive.accepted || (receive.publication_sequence_number != 1U) ||
       (receive.reception_sequence_number != 1U)) {
     return fail(12);
+  }
+  subscription_data = subscription->data;
+  if ((rmw_wait(&subscriptions, nullptr, nullptr, nullptr, nullptr, wait_set,
+                nullptr) != RMW_RET_OK) ||
+      (subscription_data != subscription->data)) {
+    return fail(28);
   }
   rmw_openrtdds_cpp::PublisherSnapshot publisher_snapshot{};
   if (!rmw_openrtdds_cpp::inspect_publisher(publisher, publisher_snapshot)) {
@@ -304,7 +322,8 @@ int main() {
     return fail(24);
   }
   rmw_reset_error();
-  if ((rmw_destroy_subscription(node, subscription) != RMW_RET_OK) ||
+  if ((rmw_destroy_wait_set(wait_set) != RMW_RET_OK) ||
+      (rmw_destroy_subscription(node, subscription) != RMW_RET_OK) ||
       (rmw_destroy_publisher(node, publisher) != RMW_RET_OK) ||
       (rmw_destroy_node(other_node) != RMW_RET_OK) ||
       (rmw_destroy_node(node) != RMW_RET_OK) ||

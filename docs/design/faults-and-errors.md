@@ -65,7 +65,7 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-RMW-002` (Current for lifecycle/endpoints) | Error | adapter pool, graph, table, or byte bound exhausted | system integrator |
 | `ORT-FLT-RMW-003` (Current for endpoints) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
 | `ORT-FLT-RMW-004` (Planned) | Warning/Error | invalid or over-bound ROS graph update | discovery/context owner |
-| `ORT-FLT-RMW-005` (Planned) | Error/Fatal by context | wait registry or wake primitive failure | context owner |
+| `ORT-FLT-RMW-005` (Current for wait) | Error/Fatal by context | wait ownership, observation, concurrent-use, or wake failure | context owner |
 | `ORT-FLT-RMW-006` | Fatal at endpoint creation | unsupported, invalid, or over-bound QoS/resource plan | application/configuration owner |
 
 Severity is deployment-configurable except where the selected deterministic

@@ -2,9 +2,9 @@
 
 **Design status:** Current for the bounded foundation, complete Jazzy proxy ABI
 surface, lifecycle semantics, G4.1 memory-safety qualification, bounded
-type/name/codec/QoS foundations, publisher packet/ownership, and subscription
-ingress/history/take foundations; Planned for wait and networked endpoint
-semantics and the remaining G4.2 through G4.5 evidence
+type/name/codec/QoS foundations, publisher packet/ownership, subscription
+ingress/history/take, and executor-facing wait semantics; Planned for
+networked endpoint semantics and the remaining G4.2 through G4.5 evidence
 
 **Requirements:** ORT-RMW-001, ORT-RMW-002, ORT-RMW-003, ORT-RMW-004
 
@@ -39,6 +39,8 @@ semantics and the remaining G4.2 through G4.5 evidence
 **Requirements:** ORT-RMW-045, ORT-RMW-046
 
 **Requirements:** ORT-RMW-047, ORT-RMW-048
+
+**Requirements:** ORT-RMW-049, ORT-RMW-050
 
 ## Status and scope
 
@@ -742,13 +744,13 @@ published sequence. A DDS write failure returns the exact mapped error; the
 reliability layer owns any already-committed sample according to its bounded
 history and repair policy. The adapter never loops until success.
 
-## Subscription and wait sequence
+## Current subscription and wait sequence
 
 ```mermaid
 sequenceDiagram
     participant EX as executor
     participant WS as wait set
-    participant RX as receive worker
+    participant RX as ingress boundary
     participant SUB as subscription
     EX->>WS: rmw_wait(entities, timeout)
     RX->>SUB: commit accepted sample
@@ -759,23 +761,71 @@ sequenceDiagram
     SUB-->>EX: taken plus message info
 ```
 
-The receive worker signals only after identity, QoS, RTPS, CDR framing, and
+The current ingress boundary signals only after identity, RTPS framing, and
 history acceptance succeed. `rmw_take` leaves the caller output logically
 unchanged when deserialization fails. Readiness is generation-based so a
 signal arriving between inspection and blocking cannot be lost.
 
-## Wait-set interface
+## Current wait-set interface and class ownership
+
+The Jazzy ABI passes implementation-private `subscription->data` and
+`guard_condition->data` pointers in caller-owned arrays. The implementation
+validates each pointer against the wait set's context and fixed registries
+before it can block. Eight `WaitSetSlot` records are embedded in each context;
+each successful handle owns one allocator-created `rmw_wait_set_t` and one
+`WaitSetData` object.
+
+| C API | Current interface contract |
+|---|---|
+| `rmw_create_wait_set(context, max_conditions)` | active OpenRTDDS context; returns one bounded handle or null with a diagnostic |
+| `rmw_destroy_wait_set(wait_set)` | releases an inactive owned handle, including after context shutdown |
+| `rmw_wait(subscriptions, guards, services, clients, events, wait_set, timeout)` | filters supported arrays in place and returns ready, timeout, unsupported, or exact validation/shutdown failure |
+| `rmw_trigger_guard_condition(guard)` | commits one trigger generation, advances the context wake generation, then broadcasts |
+
+| Type or member | Responsibility | Bound / synchronization |
+|---|---|---|
+| `WaitSetSlot` | generation-checks private wait-set ownership | 8 per context; registry mutex for create/destroy |
+| `WaitSetData` | context, slot identity, requested condition ceiling, active-wait claim | maximum 32 entries; one active `rmw_wait` |
+| `GuardConditionData` | foundation handle, owning context, last consumed trigger generation | serialized by the context wait mutex |
+| `wait_generation` | closes the inspect-to-block race | nonzero wrapping value under wait mutex |
+| `wait_condition` | blocks without retaining an entity lock | context-owned condition variable |
 
 Each context owns one wakeup primitive shared by a bounded readiness registry.
-Entities and guard conditions maintain atomic readiness generations. A wait
-call records generations, checks readiness, arms the registry, checks again,
-then blocks until a generation changes, shutdown begins, or the monotonic
-deadline expires. Spurious wakeups repeat only until that fixed deadline.
+Guard conditions maintain trigger generations and subscriptions expose
+nonempty accepted-sample history as level-triggered readiness. A wait call
+locks the context wake domain, checks all entries, records the wake generation,
+then blocks until it changes, shutdown begins, or the absolute monotonic
+deadline expires. Spurious wakeups recheck state without extending that
+deadline.
 
 The wait call does not allocate, invoke user callbacks, or hold an entity lock
 while blocking. It clears non-ready entries from the caller-provided arrays as
-required by the pinned `rmw` ABI. Destruction and shutdown wake affected waits
-before waiting for in-flight operations to leave their slots.
+required by the pinned `rmw` ABI. Subscription ingress releases its history
+lock before acquiring the context wake mutex, so the lock order is always
+`wait mutex -> subscription mutex` during inspection and never inverted during
+notification. Guard trigger and shutdown serialize their foundation state
+change with the same wait mutex before broadcasting.
+
+`rmw_create_wait_set(context, 0)` maps the generic unbounded request to the
+documented implementation ceiling of 32. Requests above 32 fail without
+claiming a slot. Services, clients, and events remain truthful unsupported
+conditions in this increment; zero-count containers are accepted.
+
+### Wait return and fault behavior
+
+| Condition | Return | Array effect |
+|---|---|---|
+| one or more supported entries ready | `RMW_RET_OK` | retain ready entries; clear non-ready entries |
+| monotonic deadline reached | `RMW_RET_TIMEOUT` | clear all supported entries |
+| context shutdown | `RMW_RET_ERROR` | clear all supported entries and set diagnostic |
+| invalid, foreign, stale, or over-capacity entry | `RMW_RET_INVALID_ARGUMENT` | reject before blocking |
+| nonempty service, client, or event set | `RMW_RET_UNSUPPORTED` | no fabricated readiness |
+| same wait set already active | `RMW_RET_ERROR` | preserve the active wait |
+
+Wait-set destruction is not concurrent with `rmw_wait`; an observed active
+claim is rejected. Destruction is available after shutdown, and context
+finalization rejects an occupied wait-set slot. Allocation-failure tests cover
+both wait-set allocations and verify slot recovery.
 
 ## Current type-support analysis foundation
 
@@ -963,11 +1013,10 @@ pool or limit. No C entry point permits a C++ exception to cross the ABI.
 | `ORT-FLT-RMW-002` | configured adapter pool/table/byte bound exhausted | reject creation or sample atomically; emit bounded resource event |
 | `ORT-FLT-RMW-003` | type-support identifier/schema/size violates profile | reject endpoint creation; no discovery advertisement |
 | `ORT-FLT-RMW-004` | graph update malformed, over-bound, stale, or inconsistent | discard update; preserve last valid graph; expire with participant lease |
-| `ORT-FLT-RMW-005` | wait registry generation or wake primitive failure | wake/abort affected wait; context enters degraded or shutdown state |
+| `ORT-FLT-RMW-005` | wait ownership, observation, concurrent-use, or wake failure | reject or abort affected wait; preserve other entities; shutdown on persistent internal failure |
 
-These codes are reserved by this design and recorded as Planned in the central
-fault catalog. They are not Current fault records until an owning
-implementation and verification evidence exist.
+Codes without an owning implementation remain Planned in the central fault
+catalog. `ORT-FLT-RMW-005` is Current for the bounded wait implementation.
 
 ## Resource model
 

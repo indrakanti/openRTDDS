@@ -15,6 +15,7 @@ if(OPENRTDDS_RMW_ENABLE_SANITIZERS)
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(Threads REQUIRED)
 find_package(rcutils REQUIRED)
 find_package(rmw 7.3 REQUIRED)
 find_package(rosidl_typesupport_introspection_c REQUIRED)
@@ -43,6 +44,7 @@ add_library(${PROJECT_NAME} SHARED
   src/rmw_unsupported.cpp
   src/subscription.cpp
   src/type_support.cpp
+  src/wait.cpp
   src/xcdr1_codec.cpp
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -55,6 +57,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
   OpenRTDDS::openrtdds
+  Threads::Threads
   rcutils::rcutils
   rmw::rmw
   rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
@@ -200,6 +203,18 @@ if(BUILD_TESTING)
     rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
   )
   add_test(NAME rmw_openrtdds_subscription COMMAND test_rmw_subscription)
+
+  add_executable(test_rmw_wait test/test_wait.cpp)
+  target_compile_features(test_rmw_wait PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_wait PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_wait PRIVATE
+    ${PROJECT_NAME}
+    Threads::Threads
+    rcutils::rcutils
+    rmw::rmw
+  )
+  add_test(NAME rmw_openrtdds_wait COMMAND test_rmw_wait)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)
