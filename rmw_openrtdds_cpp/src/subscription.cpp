@@ -396,7 +396,7 @@ bool receive_data_message(
     return false;
   }
 
-  std::lock_guard<std::mutex> lock(data->mutex);
+  std::unique_lock<std::mutex> lock(data->mutex);
   if (subscription->options.ignore_local_publications &&
       (view.guid_prefix.value == data->participant_prefix.value)) {
     candidate.ignored_local = true;
@@ -474,8 +474,43 @@ bool receive_data_message(
   candidate.publication_sequence_number = view.sequence_number;
   candidate.reception_sequence_number = reception_sequence;
   result = candidate;
+  rmw_context_t* const context = data->node->context;
+  lock.unlock();
+  detail::notify_waiters(context);
   return true;
 }
+
+namespace detail {
+
+// Requirements: ORT-RMW-049, ORT-RMW-050
+bool subscription_wait_data_valid(
+    const void* const opaque, const rmw_context_t* const context) noexcept {
+  if ((opaque == nullptr) || !context_is_valid(context)) {
+    return false;
+  }
+  auto* candidate = const_cast<SubscriptionData*>(
+      static_cast<const SubscriptionData*>(opaque));
+  if ((candidate->node == nullptr) ||
+      (candidate->node->context != context) ||
+      (candidate->slot_index >= kSubscriptionCapacity)) {
+    return false;
+  }
+  const auto& slot = context->impl->subscriptions[candidate->slot_index];
+  return slot.occupied && (slot.data == candidate) &&
+         (slot.generation == candidate->slot_generation);
+}
+
+bool subscription_wait_ready(const void* const opaque) noexcept {
+  if (opaque == nullptr) {
+    return false;
+  }
+  auto* data = const_cast<SubscriptionData*>(
+      static_cast<const SubscriptionData*>(opaque));
+  std::lock_guard<std::mutex> lock(data->mutex);
+  return data->history_size != 0U;
+}
+
+}  // namespace detail
 
 bool inspect_subscription(
     const rmw_subscription_t* const subscription,

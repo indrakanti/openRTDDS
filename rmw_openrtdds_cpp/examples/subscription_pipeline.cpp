@@ -14,7 +14,7 @@
 #include "rosidl_typesupport_introspection_c/identifier.h"
 #include "rosidl_typesupport_introspection_c/message_introspection.h"
 
-// Demonstrates: ORT-RMW-047, ORT-RMW-048
+// Demonstrates: ORT-RMW-047, ORT-RMW-048, ORT-RMW-049, ORT-RMW-050
 namespace {
 
 struct Counter final {
@@ -68,8 +68,10 @@ int main() {
       node, &type.handle, "/counter", &qos, &publisher_options);
   rmw_subscription_t* subscription = rmw_create_subscription(
       node, &type.handle, "/counter", &qos, &subscription_options);
+  rmw_wait_set_t* wait_set = rmw_create_wait_set(&context, 1U);
   Counter sent{31U};
   if ((publisher == nullptr) || (subscription == nullptr) ||
+      (wait_set == nullptr) ||
       (rmw_publish(publisher, &sent, nullptr) != RMW_RET_OK)) {
     return 2;
   }
@@ -86,6 +88,14 @@ int main() {
     return 3;
   }
 
+  void* subscription_data = subscription->data;
+  rmw_subscriptions_t subscriptions{1U, &subscription_data};
+  if ((rmw_wait(&subscriptions, nullptr, nullptr, nullptr, nullptr, wait_set,
+                nullptr) != RMW_RET_OK) ||
+      (subscription_data != subscription->data)) {
+    return 3;
+  }
+
   Counter taken_message{};
   rmw_message_info_t info{};
   bool taken = false;
@@ -99,7 +109,8 @@ int main() {
             << " reception_sequence=" << info.reception_sequence_number
             << '\n';
 
-  if ((rmw_destroy_subscription(node, subscription) != RMW_RET_OK) ||
+  if ((rmw_destroy_wait_set(wait_set) != RMW_RET_OK) ||
+      (rmw_destroy_subscription(node, subscription) != RMW_RET_OK) ||
       (rmw_destroy_publisher(node, publisher) != RMW_RET_OK) ||
       (rmw_destroy_node(node) != RMW_RET_OK) ||
       (rmw_shutdown(&context) != RMW_RET_OK) ||

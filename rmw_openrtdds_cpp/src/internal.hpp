@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <atomic>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -17,6 +19,8 @@ constexpr std::size_t kNodeCapacity = 8U;
 constexpr std::size_t kGuardConditionCapacity = 16U;
 constexpr std::size_t kPublisherCapacity = 8U;
 constexpr std::size_t kSubscriptionCapacity = 8U;
+constexpr std::size_t kWaitSetCapacity = 8U;
+constexpr std::size_t kWaitConditionCapacity = 32U;
 
 using Foundation = openrtdds::rmw::AdapterContext<
     kNodeCapacity, kGuardConditionCapacity>;
@@ -29,6 +33,8 @@ struct NodeData final {
 
 struct GuardConditionData final {
   openrtdds::rmw::GuardConditionHandle handle{};
+  rmw_context_t* context{nullptr};
+  std::uint64_t last_observed_generation{0U};
 };
 
 struct PublisherSlot final {
@@ -38,6 +44,12 @@ struct PublisherSlot final {
 };
 
 struct SubscriptionSlot final {
+  void* data{nullptr};
+  std::uint32_t generation{1U};
+  bool occupied{false};
+};
+
+struct WaitSetSlot final {
   void* data{nullptr};
   std::uint32_t generation{1U};
   bool occupied{false};
@@ -64,7 +76,14 @@ struct rmw_context_impl_s final {
              rmw_openrtdds_cpp::detail::kSubscriptionCapacity>
       subscriptions{};
   std::mutex subscription_registry_mutex{};
-  bool shutdown{false};
+  std::array<rmw_openrtdds_cpp::detail::WaitSetSlot,
+             rmw_openrtdds_cpp::detail::kWaitSetCapacity>
+      wait_sets{};
+  std::mutex wait_set_registry_mutex{};
+  std::mutex wait_mutex{};
+  std::condition_variable wait_condition{};
+  std::uint64_t wait_generation{1U};
+  std::atomic<bool> shutdown{false};
 };
 
 namespace rmw_openrtdds_cpp::detail {
@@ -101,5 +120,37 @@ namespace rmw_openrtdds_cpp::detail {
   }
   return false;
 }
+
+[[nodiscard]] inline bool context_has_wait_sets(
+    const rmw_context_t* const context) noexcept {
+  if (!context_is_valid(context)) {
+    return false;
+  }
+  for (const auto& slot : context->impl->wait_sets) {
+    if (slot.occupied) {
+      return true;
+    }
+  }
+  return false;
+}
+
+inline void notify_waiters(rmw_context_t* const context) noexcept {
+  if (!context_is_valid(context)) {
+    return;
+  }
+  {
+    std::lock_guard<std::mutex> lock(context->impl->wait_mutex);
+    ++context->impl->wait_generation;
+    if (context->impl->wait_generation == 0U) {
+      context->impl->wait_generation = 1U;
+    }
+  }
+  context->impl->wait_condition.notify_all();
+}
+
+[[nodiscard]] bool subscription_wait_data_valid(
+    const void* data, const rmw_context_t* context) noexcept;
+
+[[nodiscard]] bool subscription_wait_ready(const void* data) noexcept;
 
 }  // namespace rmw_openrtdds_cpp::detail

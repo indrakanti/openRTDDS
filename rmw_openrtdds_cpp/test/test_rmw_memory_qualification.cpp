@@ -15,7 +15,7 @@
 #include "rosidl_typesupport_introspection_c/message_introspection.h"
 
 // Verifies: ORT-RMW-037, ORT-RMW-038, ORT-RMW-039, ORT-RMW-046
-// Verifies: ORT-RMW-048
+// Verifies: ORT-RMW-048, ORT-RMW-050
 namespace {
 
 constexpr std::size_t kNodeCapacity = 8U;
@@ -327,6 +327,26 @@ void* tracked_zero_allocate(const std::size_t count,
     }
     if (state.outstanding != baseline) {
       return fail(309);
+    }
+  }
+
+  for (std::size_t offset = 1U; offset <= 2U; ++offset) {
+    state.fail_on_attempt = state.attempts + offset;
+    if (rmw_create_wait_set(&context, 1U) != nullptr) {
+      return fail(324);
+    }
+    state.fail_on_attempt = 0U;
+    rmw_reset_error();
+    if (state.outstanding != baseline) {
+      return fail(325);
+    }
+    rmw_wait_set_t* recovery = rmw_create_wait_set(&context, 1U);
+    if ((recovery == nullptr) ||
+        (rmw_destroy_wait_set(recovery) != RMW_RET_OK)) {
+      return fail(326);
+    }
+    if (state.outstanding != baseline) {
+      return fail(327);
     }
   }
 

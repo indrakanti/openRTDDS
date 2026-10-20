@@ -549,8 +549,8 @@ slot reuse faults, or incomplete cleanup after bounded pool exhaustion.
 **Verification:** Test
 
 Tests shall inject allocation failure at every adapter-owned allocation edge
-during context, graph-guard, node, user guard-condition, publisher, and
-subscription creation. Each
+during context, graph-guard, node, user guard-condition, publisher,
+subscription, and wait-set creation. Each
 failed operation shall leave the destination zero or null, restore the prior
 allocation balance and bounded-slot availability, and permit a subsequent
 valid operation.
@@ -748,6 +748,46 @@ owned allocation.
 
 **Rationale:** A reader that leaks a partial history or consumes a bounded slot
 after failed construction cannot be restarted or qualified deterministically.
+
+### ORT-RMW-049 — Bounded wait readiness and timeout contract
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration, Analysis
+
+The adapter shall own at most eight wait sets per context and at most 32
+subscription and guard-condition entries per wait set. `rmw_wait` shall
+validate type-erased entity ownership before blocking, report an accepted
+subscription sample or a newly triggered guard condition, clear every
+non-ready supported entry, use one absolute monotonic deadline, tolerate
+spurious wakeups, consume each guard generation once, allocate no memory, and
+return `RMW_RET_TIMEOUT` without an error diagnostic when the deadline expires.
+A zero `max_conditions` request shall select the implementation ceiling of 32;
+larger requests shall be rejected before allocation. Non-empty service,
+client, and event arrays shall return `RMW_RET_UNSUPPORTED` until their owning
+features are implemented.
+
+**Rationale:** Executor correctness depends on precise readiness filtering and
+lost-wakeup-free deadlines rather than polling or fabricated readiness.
+
+### ORT-RMW-050 — Wait ownership, wake, and shutdown atomicity
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration, Analysis
+
+Wait-set creation shall use only the context allocator and shall roll back its
+handle, private state, and fixed-pool slot after any allocation failure.
+Subscription commit, guard trigger, and shutdown shall advance one
+context-owned wake generation and notify blocked waits only after their state
+change is visible. The wait path shall hold no entity lock while blocked,
+shall reject concurrent calls on the same wait set, and shutdown shall wake an
+indefinite wait, which shall clear supported entries and return
+`RMW_RET_ERROR`. Wait-set destruction shall remain available after shutdown;
+context finalization shall reject every live wait set.
+
+**Rationale:** A fixed pool is insufficient if state can change between the
+readiness check and block, or shutdown can strand an executor thread.
 
 ## Authoritative upstream references
 
