@@ -27,7 +27,7 @@ deadline or retry bound is exceeded.
 | SPDP discovery | `SpdpError` + preserved `RtpsError` | discovery configuration, parsing, capacity, lease, or time failure |
 | SEDP discovery | `SedpError` + preserved `RtpsError` | endpoint record, ownership, capacity, removal, or parse failure |
 | UDP | `UdpError` + native errno/bytes | descriptor, endpoint, I/O, size, or availability result |
-| RMW foundation and ROS adapter | `AdapterError`, `TypeSupportError`, `CodecError`, `QosError`, `SubscriptionReceiveError`; selected mapping to `rmw_ret_t` | bounded lifecycle, schema/name validation, XCDR1 conversion, QoS/resource planning, endpoint/wait failure, and network-worker containment |
+| RMW foundation and ROS adapter | `AdapterError`, `GraphError`, `TypeSupportError`, `CodecError`, `QosError`, `SubscriptionReceiveError`; selected mapping to `rmw_ret_t` | bounded lifecycle, graph snapshot/cache, schema/name validation, XCDR1 conversion, QoS/resource planning, endpoint/wait failure, and network-worker containment |
 
 Error enums are symbolic API values. Their implicit integer representation is
 not a stable fault code.
@@ -64,7 +64,7 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-RMW-001` (Current for lifecycle/endpoints) | Error/Fatal by context | invalid adapter lifecycle or stale active handle | context owner |
 | `ORT-FLT-RMW-002` (Current for lifecycle/endpoints) | Error | adapter pool, graph, table, or byte bound exhausted | system integrator |
 | `ORT-FLT-RMW-003` (Current for endpoints) | Fatal at endpoint creation | unsupported or over-bound ROS type support | application/build owner |
-| `ORT-FLT-RMW-004` (Planned) | Warning/Error | invalid or over-bound ROS graph update | discovery/context owner |
+| `ORT-FLT-RMW-004` (Current) | Warning/Error | malformed, stale, duplicate, foreign, or over-bound ROS graph snapshot | discovery/context owner |
 | `ORT-FLT-RMW-005` (Current for wait) | Error/Fatal by context | wait ownership, observation, concurrent-use, or wake failure | context owner |
 | `ORT-FLT-RMW-006` | Fatal at endpoint creation | unsupported, invalid, or over-bound QoS/resource plan | application/configuration owner |
 

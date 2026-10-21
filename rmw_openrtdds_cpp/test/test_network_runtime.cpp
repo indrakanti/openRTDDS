@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <thread>
 
 #include "rcutils/allocator.h"
@@ -8,6 +9,7 @@
 #include "rmw/error_handling.h"
 #include "rmw/init.h"
 #include "rmw/init_options.h"
+#include "rmw/names_and_types.h"
 #include "rmw/qos_profiles.h"
 #include "rmw/rmw.h"
 #include "rosidl_typesupport_introspection_c/field_types.h"
@@ -19,7 +21,7 @@
 
 // Verifies: ORT-RMW-004, ORT-RMW-005, ORT-RMW-009, ORT-RMW-016
 // Verifies: ORT-RMW-051, ORT-RMW-052
-// Verifies: ORT-RMW-053, ORT-RMW-054
+// Verifies: ORT-RMW-053, ORT-RMW-054, ORT-RMW-055, ORT-RMW-056
 namespace {
 
 struct Message final {
@@ -73,6 +75,30 @@ struct Peer final {
 [[nodiscard]] int fail(const int code) {
   rmw_reset_error();
   return code;
+}
+
+[[nodiscard]] bool contains(
+    const rcutils_string_array_t& values, const char* const expected) {
+  for (std::size_t index = 0U; index < values.size; ++index) {
+    if ((values.data[index] != nullptr) &&
+        (std::strcmp(values.data[index], expected) == 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+[[nodiscard]] bool contains_topic(
+    const rmw_names_and_types_t& values, const char* const topic,
+    const char* const type) {
+  for (std::size_t index = 0U; index < values.names.size; ++index) {
+    if ((values.names.data[index] == nullptr) ||
+        (std::strcmp(values.names.data[index], topic) != 0)) {
+      continue;
+    }
+    return contains(values.types[index], type);
+  }
+  return false;
 }
 
 }  // namespace
@@ -212,8 +238,104 @@ int main() {
     return fail(14);
   }
 
-  if ((rmw_shutdown(&writer_peer.context) != RMW_RET_OK) ||
-      (rmw_shutdown(&reader_peer.context) != RMW_RET_OK) ||
+  const auto allocator = rcutils_get_default_allocator();
+  bool graph_ready = false;
+  const auto graph_deadline =
+      std::chrono::steady_clock::now() + discovery_timeout;
+  while (std::chrono::steady_clock::now() < graph_deadline) {
+    std::size_t graph_publishers = 0U;
+    std::size_t graph_subscribers = 0U;
+    if ((rmw_count_publishers(reader_peer.node, "/network_counter",
+                              &graph_publishers) != RMW_RET_OK) ||
+        (rmw_count_subscribers(reader_peer.node, "/network_counter",
+                               &graph_subscribers) != RMW_RET_OK)) {
+      return fail(15);
+    }
+    graph_ready = (graph_publishers == 1U) && (graph_subscribers == 1U);
+    if (graph_ready) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  if (!graph_ready) {
+    return fail(16);
+  }
+
+  rcutils_string_array_t node_names =
+      rcutils_get_zero_initialized_string_array();
+  rcutils_string_array_t node_namespaces =
+      rcutils_get_zero_initialized_string_array();
+  rcutils_string_array_t enclaves =
+      rcutils_get_zero_initialized_string_array();
+  if ((rmw_get_node_names_with_enclaves(
+           reader_peer.node, &node_names, &node_namespaces, &enclaves) !=
+       RMW_RET_OK) ||
+      !contains(node_names, "network_writer") ||
+      !contains(node_names, "network_reader") ||
+      !contains(node_namespaces, "/openrtdds") ||
+      !contains(enclaves, "/openrtdds/network_writer") ||
+      (rcutils_string_array_fini(&enclaves) != RCUTILS_RET_OK) ||
+      (rcutils_string_array_fini(&node_namespaces) != RCUTILS_RET_OK) ||
+      (rcutils_string_array_fini(&node_names) != RCUTILS_RET_OK)) {
+    return fail(17);
+  }
+
+  rmw_names_and_types_t topics =
+      rmw_get_zero_initialized_names_and_types();
+  auto allocator_copy = allocator;
+  if ((rmw_get_topic_names_and_types(reader_peer.node, &allocator_copy, false,
+                                     &topics) != RMW_RET_OK) ||
+      !contains_topic(topics, "/network_counter",
+                      "openrtdds_test_msgs/msg/Counter") ||
+      !contains_topic(topics, "/reliable_network_counter",
+                      "openrtdds_test_msgs/msg/Counter") ||
+      (rmw_names_and_types_fini(&topics) != RMW_RET_OK)) {
+    return fail(18);
+  }
+
+  rmw_names_and_types_t writer_topics =
+      rmw_get_zero_initialized_names_and_types();
+  if ((rmw_get_publisher_names_and_types_by_node(
+           reader_peer.node, &allocator_copy, "network_writer", "/openrtdds",
+           false, &writer_topics) != RMW_RET_OK) ||
+      !contains_topic(writer_topics, "/network_counter",
+                      "openrtdds_test_msgs/msg/Counter") ||
+      (rmw_names_and_types_fini(&writer_topics) != RMW_RET_OK)) {
+    return fail(19);
+  }
+
+  topics = rmw_get_zero_initialized_names_and_types();
+  if ((rmw_get_topic_names_and_types(reader_peer.node, &allocator_copy, true,
+                                     &topics) != RMW_RET_OK) ||
+      !contains_topic(topics, "rt/network_counter",
+                      "openrtdds_test_msgs::msg::dds_::Counter_") ||
+      (rmw_names_and_types_fini(&topics) != RMW_RET_OK)) {
+    return fail(20);
+  }
+
+  if (rmw_shutdown(&writer_peer.context) != RMW_RET_OK) {
+    return fail(21);
+  }
+  bool expired = false;
+  const auto expiry_deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(7);
+  while (std::chrono::steady_clock::now() < expiry_deadline) {
+    std::size_t graph_publishers = 1U;
+    if (rmw_count_publishers(reader_peer.node, "/network_counter",
+                             &graph_publishers) != RMW_RET_OK) {
+      return fail(22);
+    }
+    if (graph_publishers == 0U) {
+      expired = true;
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+  if (!expired) {
+    return fail(23);
+  }
+
+  if ((rmw_shutdown(&reader_peer.context) != RMW_RET_OK) ||
       (rmw_destroy_wait_set(wait_set) != RMW_RET_OK) ||
       (rmw_destroy_subscription(reader_peer.node, reliable_subscription) !=
        RMW_RET_OK) ||
@@ -228,7 +350,7 @@ int main() {
       (rmw_context_fini(&writer_peer.context) != RMW_RET_OK) ||
       (rmw_init_options_fini(&reader_peer.options) != RMW_RET_OK) ||
       (rmw_init_options_fini(&writer_peer.options) != RMW_RET_OK)) {
-    return fail(15);
+    return fail(24);
   }
   return 0;
 }

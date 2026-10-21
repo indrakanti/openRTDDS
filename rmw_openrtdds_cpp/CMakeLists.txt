@@ -39,6 +39,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.."
 set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(${PROJECT_NAME} SHARED
+  src/graph.cpp
   src/network_runtime.cpp
   src/publisher.cpp
   src/qos.cpp
@@ -226,6 +227,18 @@ if(BUILD_TESTING)
   )
   add_test(NAME rmw_openrtdds_wait COMMAND test_rmw_wait)
 
+  add_executable(test_rmw_graph test/test_graph.cpp)
+  target_compile_features(test_rmw_graph PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_graph PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_graph PRIVATE
+    ${PROJECT_NAME}
+    rcutils::rcutils
+    rmw::rmw
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+  )
+  add_test(NAME rmw_openrtdds_graph COMMAND test_rmw_graph)
+
   add_executable(test_rmw_network_runtime test/test_network_runtime.cpp)
   target_compile_features(test_rmw_network_runtime PRIVATE cxx_std_17)
   target_compile_options(test_rmw_network_runtime PRIVATE
@@ -240,7 +253,7 @@ if(BUILD_TESTING)
   )
   add_test(NAME rmw_openrtdds_network_runtime
     COMMAND test_rmw_network_runtime)
-  set_tests_properties(rmw_openrtdds_network_runtime PROPERTIES TIMEOUT 10)
+  set_tests_properties(rmw_openrtdds_network_runtime PROPERTIES TIMEOUT 20)
 
   add_executable(openrtdds_ros2_talker_listener
     examples/ros2_talker_listener.cpp)
@@ -264,6 +277,19 @@ if(BUILD_TESTING)
       "$<TARGET_FILE:openrtdds_ros2_talker_listener>"
       "$<TARGET_FILE:openrtdds_ros2_c_talker_listener>")
   set_tests_properties(rmw_openrtdds_ros2_topic_matrix PROPERTIES TIMEOUT 110)
+
+  add_executable(openrtdds_ros2_graph_probe
+    examples/ros2_graph_probe.cpp)
+  target_compile_features(openrtdds_ros2_graph_probe PRIVATE cxx_std_17)
+  target_compile_options(openrtdds_ros2_graph_probe PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  ament_target_dependencies(openrtdds_ros2_graph_probe rclcpp std_msgs)
+
+  add_test(NAME rmw_openrtdds_ros2_graph
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/test/run_ros2_graph.py"
+      "$<TARGET_FILE:openrtdds_ros2_graph_probe>")
+  set_tests_properties(rmw_openrtdds_ros2_graph PROPERTIES TIMEOUT 30)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)

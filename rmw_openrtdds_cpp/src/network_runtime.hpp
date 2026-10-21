@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "openrtdds/rtps/sedp.hpp"
+#include "openrtdds/rmw/graph_cache.hpp"
 #include "openrtdds/rtps/reliability_state.hpp"
 #include "openrtdds/rtps/spdp.hpp"
 #include "openrtdds/transport/udp_socket.hpp"
@@ -130,6 +131,10 @@ class NetworkRuntime final {
   openrtdds::transport::UdpEndpoint spdp_destination_{};
   std::array<std::uint8_t, 2'048U> spdp_{};
   std::size_t spdp_size_{0U};
+  std::array<std::uint8_t, openrtdds::rmw::graph_wire_capacity>
+      graph_payload_{};
+  std::array<std::uint8_t, openrtdds::rmw::graph_wire_capacity + 44U>
+      graph_message_{};
   std::array<std::uint8_t, kMaximumDatagramSize> receive_buffer_{};
   std::array<std::uint8_t, kMaximumDatagramSize> transmit_buffer_{};
   std::array<std::uint8_t, kControlDatagramSize> control_buffer_{};

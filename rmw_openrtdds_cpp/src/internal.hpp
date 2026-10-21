@@ -9,6 +9,7 @@
 #include <mutex>
 
 #include "openrtdds/rmw/foundation.hpp"
+#include "openrtdds/rmw/graph_cache.hpp"
 #include "openrtdds/rtps/sedp.hpp"
 #include "rmw/rmw.h"
 
@@ -30,6 +31,7 @@ using Foundation = openrtdds::rmw::AdapterContext<
 
 struct NodeData final {
   openrtdds::rmw::NodeHandle handle{};
+  std::uint64_t graph_id{0U};
   std::size_t publisher_count{0U};
   std::size_t subscription_count{0U};
 };
@@ -82,6 +84,8 @@ struct WaitSetSlot final {
 // This is the implementation-owned definition promised by rmw/init.h.
 struct rmw_context_impl_s final {
   rmw_openrtdds_cpp::detail::Foundation foundation{};
+  openrtdds::rmw::GraphCache graph{};
+  std::mutex graph_mutex{};
   rmw_openrtdds_cpp::detail::NetworkRuntime* network{nullptr};
   openrtdds::rtps::GuidPrefix participant_prefix{};
   std::uint32_t participant_id{0U};
@@ -194,5 +198,7 @@ void subscription_network_set_match_count(void* data,
                                           std::size_t count) noexcept;
 
 void notify_network(rmw_context_t* context) noexcept;
+
+void notify_graph_change(rmw_context_t* context) noexcept;
 
 }  // namespace rmw_openrtdds_cpp::detail

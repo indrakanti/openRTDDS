@@ -139,7 +139,7 @@ would break latency and shutdown behavior.
 
 ### ORT-RMW-010 — ROS graph cache and discovery propagation
 
-**Status:** Draft
+**Status:** Verified
 
 **Verification:** Test, Demonstration
 
@@ -284,7 +284,7 @@ and executor path.
 
 ### ORT-RMW-020 — ROS graph qualification gate
 
-**Status:** Draft
+**Status:** Verified
 
 **Verification:** Test, Demonstration
 
@@ -898,6 +898,64 @@ multi-host locator selection, security, or safety certification.
 **Rationale:** Language-local smoke tests and loss-free reliable delivery do not
 exercise the ABI, discovery, type identity, retry, and wait boundaries that a
 deployable ROS topic path must compose.
+
+### ORT-RMW-055 — Bounded graph snapshot protocol and cache
+
+**Status:** Verified
+
+**Verification:** Test, Analysis, Inspection
+
+Each context shall own one fixed graph cache containing at most eight local
+nodes, 16 local endpoints, 16 remote participant generations, 136 total node
+records, and 48 total endpoint records. A local node, publisher, subscription,
+or removal shall commit atomically, advance one nonzero graph generation, and
+trigger the reserved graph guard condition only after the new snapshot is
+queryable. The context worker shall serialize the complete local graph into at
+most 32,768 bytes, encapsulate it in a private RTPS DATA endpoint, and send it
+only to live SPDP-discovered OpenRTDDS peers.
+
+The receiver shall validate encapsulation, magic, version, reserved fields,
+counts, string bounds, node ownership, endpoint kind, entity uniqueness,
+payload exhaustion, participant identity, and monotonically increasing remote
+generation before replacing that participant's records atomically. A malformed,
+stale, foreign, duplicate, or over-capacity snapshot shall preserve the last
+valid cache. Participant lease expiry shall remove all of its node and endpoint
+records in one graph change. No graph mutation or wire operation shall allocate
+memory or create a thread.
+
+**Rationale:** ROS node identity is not present in SPDP/SEDP endpoint discovery;
+a bounded, versioned, atomic participant snapshot is required to expose graph
+semantics without partial updates or unbounded discovery state.
+
+### ORT-RMW-056 — Selected graph queries and G4.3 qualification
+
+**Status:** Verified
+
+**Verification:** Test, Demonstration, Analysis
+
+The adapter shall implement `rmw_get_node_names`,
+`rmw_get_node_names_with_enclaves`, `rmw_get_topic_names_and_types`, publisher
+and subscriber names/types by node, and publisher/subscriber count APIs from one
+consistent fixed-cache snapshot. Demangled results shall return ROS topic and
+type names; `no_demangle` results shall return the announced DDS identities.
+Duplicate topic/type pairs shall be coalesced. Invalid handles, names,
+allocators, nonzero outputs, absent nodes, and allocation failures shall return
+the pinned Jazzy error and leave caller outputs unchanged. Query-result
+allocation is permitted only through the caller-provided allocator and is not
+part of the deterministic worker path.
+
+Jazzy CI shall run a direct graph-guard/API test, a two-context discovery and
+lease-expiry test, and two separate-process `rclcpp` cases. The first process
+pair shall observe node, topic, type, publisher, and subscription addition and
+graceful removal. The second shall terminate the subject without cleanup and
+observe removal only after the five-second participant lease. Passing this
+requirement closes G4.3 for OpenRTDDS-to-OpenRTDDS same-host graph discovery;
+vendor-native ROS graph exchange, services, clients, endpoint-info arrays, and
+general ROS tooling conformance remain outside this gate.
+
+**Rationale:** A cache is useful to ROS only when standard APIs, graph guard
+wakeup, process isolation, cleanup, and failure-driven expiry are proven
+together through the selected runtime profile.
 
 ## Authoritative upstream references
 

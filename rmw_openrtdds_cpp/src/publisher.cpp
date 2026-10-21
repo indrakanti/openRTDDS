@@ -494,6 +494,29 @@ rmw_publisher_t* rmw_create_publisher(
     return nullptr;
   }
 
+  auto* node_data = static_cast<detail::NodeData*>(node->data);
+  {
+    std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
+    const auto graph_error = context->impl->graph.add_local_endpoint(
+        data->participant_prefix, data->writer_id, node_data->graph_id,
+        openrtdds::rmw::GraphEndpointKind::publisher, topic_name,
+        data->names.ros_type_name.data(), data->names.topic_name.data(),
+        data->names.type_name.data(),
+        !qos_profile->avoid_ros_namespace_conventions);
+    if (graph_error != openrtdds::rmw::GraphError::none) {
+      allocator.deallocate(storage, allocator.state);
+      allocator.deallocate(topic_copy, allocator.state);
+      data->~PublisherData();
+      allocator.deallocate(data, allocator.state);
+      allocator.deallocate(publisher, allocator.state);
+      release_slot(slot);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "unable to commit publisher graph record: %s",
+          openrtdds::rmw::to_string(graph_error));
+      return nullptr;
+    }
+  }
+
   publisher->implementation_identifier =
       openrtdds::rmw::kImplementationIdentifier;
   publisher->data = data;
@@ -501,9 +524,8 @@ rmw_publisher_t* rmw_create_publisher(
   publisher->options = *publisher_options;
   publisher->can_loan_messages = false;
   slot.data = data;
-  auto* node_data = static_cast<detail::NodeData*>(node->data);
   ++node_data->publisher_count;
-  detail::notify_network(context);
+  detail::notify_graph_change(context);
   return publisher;
 }
 
@@ -538,6 +560,18 @@ rmw_ret_t rmw_destroy_publisher(rmw_node_t* node,
     RMW_SET_ERROR_MSG("publisher ownership count is inconsistent");
     return RMW_RET_ERROR;
   }
+  bool graph_removed = false;
+  {
+    std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
+    const auto graph_error =
+        context->impl->graph.remove_local_endpoint(data->writer_id);
+    graph_removed = graph_error == openrtdds::rmw::GraphError::none;
+    if (!graph_removed) {
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "unable to remove publisher graph record: %s",
+          openrtdds::rmw::to_string(graph_error));
+    }
+  }
   --node_data->publisher_count;
   release_slot(slot);
   allocator.deallocate(data->storage, allocator.state);
@@ -546,7 +580,8 @@ rmw_ret_t rmw_destroy_publisher(rmw_node_t* node,
   data->~PublisherData();
   allocator.deallocate(data, allocator.state);
   allocator.deallocate(publisher, allocator.state);
-  return RMW_RET_OK;
+  detail::notify_graph_change(context);
+  return graph_removed ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
 rmw_ret_t rmw_publish(const rmw_publisher_t* publisher,

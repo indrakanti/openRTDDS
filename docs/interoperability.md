@@ -172,3 +172,11 @@ topic exchange through `rmw_openrtdds_cpp` using volatile KEEP_LAST QoS, plus
 G4.2 completion for that documented profile. They shall not describe that
 evidence as multi-host deployment, an arbitrary reliable throughput window,
 general ROS 2 readiness, or ROS graph/service support.
+
+With ORT-RMW-055 and ORT-RMW-056 Verified, release notes may additionally claim
+G4.3 selected graph discovery between same-host `rmw_openrtdds_cpp` processes:
+node, enclave, topic, type, publisher/subscription count, by-node query,
+graceful removal, graph-guard wake, and five-second lease-expiry removal. They
+shall not describe the private graph snapshot as vendor-native ROS graph
+interoperability, multi-host qualification, endpoint-info API completeness, or
+general ROS tooling conformance.
