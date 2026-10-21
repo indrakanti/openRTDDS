@@ -57,6 +57,16 @@ struct TopicAggregate final {
          (array->size == 0U);
 }
 
+void cleanup_names_and_types(rmw_names_and_types_t& value) noexcept {
+  [[maybe_unused]] const rmw_ret_t cleanup_result =
+      rmw_names_and_types_fini(&value);
+}
+
+void cleanup_string_array(rcutils_string_array_t& value) noexcept {
+  [[maybe_unused]] const rcutils_ret_t cleanup_result =
+      rcutils_string_array_fini(&value);
+}
+
 [[nodiscard]] bool snapshot_graph(rmw_context_t& context,
                                   GraphSnapshot& snapshot) noexcept {
   std::lock_guard<std::mutex> graph_lock(context.impl->graph_mutex);
@@ -169,14 +179,14 @@ struct TopicAggregate final {
     candidate.names.data[index] = rcutils_strdup(topics[index].name,
                                                   *allocator);
     if (candidate.names.data[index] == nullptr) {
-      static_cast<void>(rmw_names_and_types_fini(&candidate));
+      cleanup_names_and_types(candidate);
       RMW_SET_ERROR_MSG("unable to allocate graph topic name");
       return RMW_RET_BAD_ALLOC;
     }
     if (rcutils_string_array_init(&candidate.types[index],
                                   topics[index].type_count,
                                   allocator) != RCUTILS_RET_OK) {
-      static_cast<void>(rmw_names_and_types_fini(&candidate));
+      cleanup_names_and_types(candidate);
       RMW_SET_ERROR_MSG("unable to allocate graph type array");
       return RMW_RET_BAD_ALLOC;
     }
@@ -185,7 +195,7 @@ struct TopicAggregate final {
       candidate.types[index].data[type_index] =
           rcutils_strdup(topics[index].types[type_index], *allocator);
       if (candidate.types[index].data[type_index] == nullptr) {
-        static_cast<void>(rmw_names_and_types_fini(&candidate));
+        cleanup_names_and_types(candidate);
         RMW_SET_ERROR_MSG("unable to allocate graph type name");
         return RMW_RET_BAD_ALLOC;
       }
@@ -268,9 +278,9 @@ struct TopicAggregate final {
       ((enclaves != nullptr) &&
        (rcutils_string_array_init(&enclave_values, snapshot.node_count,
                                   &allocator) != RCUTILS_RET_OK))) {
-    static_cast<void>(rcutils_string_array_fini(&enclave_values));
-    static_cast<void>(rcutils_string_array_fini(&namespaces));
-    static_cast<void>(rcutils_string_array_fini(&names));
+    cleanup_string_array(enclave_values);
+    cleanup_string_array(namespaces);
+    cleanup_string_array(names);
     RMW_SET_ERROR_MSG("unable to allocate graph node arrays");
     return RMW_RET_BAD_ALLOC;
   }
@@ -287,9 +297,9 @@ struct TopicAggregate final {
         (namespaces.data[index] == nullptr) ||
         ((enclaves != nullptr) &&
          (enclave_values.data[index] == nullptr))) {
-      static_cast<void>(rcutils_string_array_fini(&enclave_values));
-      static_cast<void>(rcutils_string_array_fini(&namespaces));
-      static_cast<void>(rcutils_string_array_fini(&names));
+      cleanup_string_array(enclave_values);
+      cleanup_string_array(namespaces);
+      cleanup_string_array(names);
       RMW_SET_ERROR_MSG("unable to allocate graph node string");
       return RMW_RET_BAD_ALLOC;
     }
