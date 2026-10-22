@@ -556,12 +556,37 @@ rmw_node_t* rmw_create_node(rmw_context_t* context, const char* name,
     static_cast<void>(set_adapter_error(error));
     return nullptr;
   }
+  data->graph_id =
+      (static_cast<std::uint64_t>(data->handle.slot_generation) << 16U) |
+      (static_cast<std::uint64_t>(data->handle.slot) + 1U);
+  const char* const enclave = context->options.enclave == nullptr
+                                  ? "/"
+                                  : context->options.enclave;
+  {
+    std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
+    const auto graph_error = context->impl->graph.add_local_node(
+        context->impl->participant_prefix, data->graph_id, name, namespace_,
+        enclave);
+    if (graph_error != openrtdds::rmw::GraphError::none) {
+      static_cast<void>(context->impl->foundation.destroy_node(data->handle));
+      allocator.deallocate(namespace_copy, allocator.state);
+      allocator.deallocate(name_copy, allocator.state);
+      data->~NodeData();
+      allocator.deallocate(data, allocator.state);
+      allocator.deallocate(node, allocator.state);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "unable to commit node graph record: %s",
+          openrtdds::rmw::to_string(graph_error));
+      return nullptr;
+    }
+  }
 
   node->implementation_identifier = openrtdds::rmw::kImplementationIdentifier;
   node->data = data;
   node->name = name_copy;
   node->namespace_ = namespace_copy;
   node->context = context;
+  rmw_openrtdds_cpp::detail::notify_graph_change(context);
   return node;
 }
 
@@ -590,6 +615,18 @@ rmw_ret_t rmw_destroy_node(rmw_node_t* node) {
   if (error != openrtdds::rmw::AdapterError::none) {
     return set_adapter_error(error);
   }
+  bool graph_removed = false;
+  {
+    std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
+    const auto graph_error =
+        context->impl->graph.remove_local_node(data->graph_id);
+    graph_removed = graph_error == openrtdds::rmw::GraphError::none;
+    if (!graph_removed) {
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "unable to remove node graph record: %s",
+          openrtdds::rmw::to_string(graph_error));
+    }
+  }
 
   auto& allocator = context->options.allocator;
   allocator.deallocate(const_cast<char*>(node->namespace_), allocator.state);
@@ -597,7 +634,8 @@ rmw_ret_t rmw_destroy_node(rmw_node_t* node) {
   data->~NodeData();
   allocator.deallocate(data, allocator.state);
   allocator.deallocate(node, allocator.state);
-  return RMW_RET_OK;
+  rmw_openrtdds_cpp::detail::notify_graph_change(context);
+  return graph_removed ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
 const rmw_guard_condition_t* rmw_node_get_graph_guard_condition(

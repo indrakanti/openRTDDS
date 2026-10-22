@@ -744,6 +744,29 @@ rmw_subscription_t* rmw_create_subscription(
     return nullptr;
   }
 
+  auto* node_data = static_cast<detail::NodeData*>(node->data);
+  {
+    std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
+    const auto graph_error = context->impl->graph.add_local_endpoint(
+        data->participant_prefix, data->reader_id, node_data->graph_id,
+        openrtdds::rmw::GraphEndpointKind::subscription, topic_name,
+        data->names.ros_type_name.data(), data->names.topic_name.data(),
+        data->names.type_name.data(),
+        !qos_profile->avoid_ros_namespace_conventions);
+    if (graph_error != openrtdds::rmw::GraphError::none) {
+      allocator.deallocate(history, allocator.state);
+      allocator.deallocate(topic_copy, allocator.state);
+      data->~SubscriptionData();
+      allocator.deallocate(data, allocator.state);
+      allocator.deallocate(subscription, allocator.state);
+      release_slot(slot);
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "unable to commit subscription graph record: %s",
+          openrtdds::rmw::to_string(graph_error));
+      return nullptr;
+    }
+  }
+
   subscription->implementation_identifier =
       openrtdds::rmw::kImplementationIdentifier;
   subscription->data = data;
@@ -752,9 +775,8 @@ rmw_subscription_t* rmw_create_subscription(
   subscription->can_loan_messages = false;
   subscription->is_cft_enabled = false;
   slot.data = data;
-  auto* node_data = static_cast<detail::NodeData*>(node->data);
   ++node_data->subscription_count;
-  detail::notify_network(context);
+  detail::notify_graph_change(context);
   return subscription;
 }
 
@@ -789,6 +811,18 @@ rmw_ret_t rmw_destroy_subscription(rmw_node_t* node,
     RMW_SET_ERROR_MSG("subscription ownership count is inconsistent");
     return RMW_RET_ERROR;
   }
+  bool graph_removed = false;
+  {
+    std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
+    const auto graph_error =
+        context->impl->graph.remove_local_endpoint(data->reader_id);
+    graph_removed = graph_error == openrtdds::rmw::GraphError::none;
+    if (!graph_removed) {
+      RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+          "unable to remove subscription graph record: %s",
+          openrtdds::rmw::to_string(graph_error));
+    }
+  }
   --node_data->subscription_count;
   release_slot(slot);
   allocator.deallocate(data->history, allocator.state);
@@ -797,7 +831,8 @@ rmw_ret_t rmw_destroy_subscription(rmw_node_t* node,
   data->~SubscriptionData();
   allocator.deallocate(data, allocator.state);
   allocator.deallocate(subscription, allocator.state);
-  return RMW_RET_OK;
+  detail::notify_graph_change(context);
+  return graph_removed ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
 rmw_ret_t rmw_take(const rmw_subscription_t* subscription,

@@ -47,6 +47,8 @@ qualification; Planned for G4.3 through G4.5 evidence
 
 **Requirements:** ORT-RMW-053, ORT-RMW-054
 
+**Requirements:** ORT-RMW-055, ORT-RMW-056
+
 ## Status and scope
 
 `rmw_openrtdds_cpp` is a separate ROS-facing shared library layered over the
@@ -79,9 +81,10 @@ headers. The separate `rmw_openrtdds_cpp` ament package registers and exports a
 loadable shared library with the complete reviewed Jazzy proxy symbol surface
 and the C/C++ introspection type-support backends. The current adapter can
 complete lifecycle and same-host volatile KEEP_LAST best-effort and bounded
-reliable topic exchange through standard runtime selection. Distributed ROS
-graph queries, services/clients, and general executor compatibility are not yet
-claimed.
+reliable topic exchange through standard runtime selection. It also provides
+the selected bounded OpenRTDDS-to-OpenRTDDS graph discovery and query profile
+defined by G4.3. Vendor-native ROS graph exchange, services/clients, endpoint
+information arrays, and general executor compatibility are not yet claimed.
 
 ### Current types and ownership
 
@@ -1225,20 +1228,161 @@ The same normalized QoS object drives entity creation, SEDP advertisement,
 matching, `get_actual_qos`, and compatibility checks. No path independently
 reinterprets the caller profile.
 
-## Graph behavior
+## Current bounded graph behavior
 
-SPDP and SEDP provide participants and DDS endpoints but not logical ROS node
-membership. The adapter therefore maintains a context-level graph cache and a
-bounded graph-update channel. A local node/entity change is committed to the
-cache and announced as one ordered update. A remote update is accepted only
-from a live participant, validated against configured bounds, and committed
-atomically. Participant expiry removes its node and endpoint records in one
-graph generation and triggers the graph guard condition once.
+**Requirements:** ORT-RMW-010, ORT-RMW-020, ORT-RMW-055, ORT-RMW-056
 
-Queries copy a consistent snapshot into storage allocated with the caller's
-allocator as required by `rmw`. Runtime graph mutation remains bounded inside
-the adapter; query-result allocation is an explicit API boundary and is not a
-Safety Profile real-time path.
+SPDP identifies a participant and SEDP identifies DDS endpoints, but neither
+contains the logical ROS node that owns an endpoint. PR35 therefore adds a
+versioned OpenRTDDS graph snapshot carried as a private RTPS DATA endpoint. It
+is an internal OpenRTDDS-to-OpenRTDDS interface, not a claim of compatibility
+with the vendor-specific ROS graph protocols used by other RMWs.
+
+### Classes, records, and ownership
+
+| Type | Responsibility | Fixed bound / owner |
+|---|---|---|
+| `GraphCache` | owns local and remote committed graph state and nonzero generation | one inline member of `rmw_context_impl_s`; caller synchronizes with `graph_mutex` |
+| `GraphNodeRecord` | participant prefix, generation-derived node ID, ROS name, namespace, enclave, locality | 136 total; no pointer ownership |
+| `GraphEndpointRecord` | participant/entity identity, owning node ID, kind, ROS and DDS names, naming mode | 48 total; no pointer ownership |
+| `RemoteGeneration` | last accepted snapshot generation for one participant | 16 entries, matching remote participant capacity |
+| `GraphSnapshot` | dense value copy used by query code | caller stack; 136 nodes and 48 endpoints maximum |
+| graph payload/message buffers | serialized snapshot and enclosing RTPS DATA datagram | one 32,768-byte payload and one 32,812-byte message buffer in `NetworkRuntime` |
+
+Local limits are eight nodes and 16 endpoints. The total node capacity is 136
+(eight local plus eight nodes for each of 16 remote participants). The total
+endpoint capacity is 48 (16 local plus the existing 32 remote SEDP ceiling).
+Strings include their terminator in fixed storage: node name 64 bytes,
+namespace 128, enclave 256, and each topic/type identity 256.
+
+`NodeData::graph_id` combines the node slot generation and slot index. Endpoint
+records retain this ID and the RTPS entity ID, so slot reuse cannot silently
+reassign an old endpoint to a new node. A local record is inserted only after
+its ordinary RMW/DDS construction succeeds. If graph commit fails, creation
+rolls back and exposes no handle. Destruction requires child endpoints to be
+gone before its node record can be removed.
+
+### Wire interface
+
+The private graph writer entity ID is `00.00.F1.C2`; the reader ID is unknown.
+The RTPS writer sequence is the local graph generation. A separate cache
+generation advances for every local or remote commit and is used only for
+query/change observation; remote commits never advance the wire generation.
+This separation prevents two peers from echoing unchanged snapshots forever.
+The serialized payload uses little-endian CDR encapsulation bytes followed by
+a bounded private frame:
+
+| Offset | Field | Rule |
+|---:|---|---|
+| 0 | CDR encapsulation | `00 01 00 00` |
+| 4 | magic | ASCII `ORTG` |
+| 8 | version / reserved | version 1; every reserved byte zero |
+| 10 | node count | unsigned 16-bit; at most 8 |
+| 12 | endpoint count | unsigned 16-bit; at most 16 |
+| 16 | graph generation | unsigned 64-bit, nonzero and at most signed RTPS sequence maximum |
+| 24... | node records | node ID; bounded name, namespace, enclave lengths; exact bytes |
+| after nodes | endpoint records | node ID, entity ID, kind, naming flag, four bounded string lengths, exact strings |
+
+The frame has no optional or inferred trailing data. A parser rejects a wrong
+encapsulation, magic/version, nonzero reserved field, invalid count, empty or
+over-bound required string, duplicate node/entity ID, endpoint without an
+announced owner, invalid endpoint kind, payload/RTPS sequence mismatch, stale
+generation, unknown participant,
+capacity overflow, truncation, or trailing byte. Parsing completes into fixed
+temporary arrays before the cache is modified. The commit then removes the
+previous snapshot for exactly that participant and inserts the validated
+replacement; failure preserves the last valid state.
+
+### Change and expiry sequence
+
+```mermaid
+sequenceDiagram
+    participant App as ROS application
+    participant RMW as RMW entity API
+    participant G as GraphCache
+    participant W as Context worker
+    participant Peer as Remote peer
+    App->>RMW: create node or endpoint
+    RMW->>G: validate and commit local record
+    G-->>RMW: generation advanced
+    RMW->>RMW: trigger graph guard
+    RMW->>W: notify worker
+    W->>G: serialize complete local snapshot
+    W->>Peer: private RTPS graph DATA
+    Peer->>Peer: validate complete snapshot
+    Peer->>Peer: atomic participant replacement
+    Peer->>Peer: trigger graph guard
+```
+
+The worker sends SPDP and then the current graph snapshot plus ordinary SEDP
+records to each live participant on the 250 ms announcement cadence. A remote
+snapshot is accepted only after SPDP established its participant identity. A
+graceful endpoint/node destruction advances and announces an empty or reduced
+snapshot. If a process disappears without cleanup, the five-second SPDP lease
+removes its participant, every SEDP endpoint, every graph node/endpoint, and
+reliable association state; the receiving context emits one graph change.
+
+### Implemented graph APIs
+
+| API | Current result |
+|---|---|
+| `rmw_get_node_names` | names and namespaces from one cache snapshot |
+| `rmw_get_node_names_with_enclaves` | names, namespaces, and announced enclaves |
+| `rmw_get_topic_names_and_types` | coalesced publisher/subscription topics and unique types |
+| `rmw_get_publisher_names_and_types_by_node` | publisher topics for every matching node identity |
+| `rmw_get_subscriber_names_and_types_by_node` | subscription topics for every matching node identity |
+| `rmw_count_publishers` / `rmw_count_subscribers` | exact cached endpoint count for one validated ROS topic |
+
+Normal queries return ROS topic/type names. `no_demangle=true` returns the DDS
+topic and type identities stored in the same endpoint record. Literal DDS
+endpoints always retain their literal identity. Output is built in a temporary
+`rmw_names_and_types_t` or `rcutils_string_array_t` and assigned only after all
+caller-allocator operations succeed. Query-result allocation is required by
+the RMW ABI and is outside the deterministic worker path.
+
+Services/clients and topic endpoint-information arrays remain unsupported.
+The selected APIs validate implementation identity, handle/context lifetime,
+allocator validity, zero-initialized outputs, node/topic syntax, and requested
+node existence. An absent by-node target returns
+`RMW_RET_NODE_NAME_NON_EXISTENT`; fixed-cache exhaustion or malformed network
+state never becomes partial query output.
+
+### Errors, faults, and recovery
+
+| Condition | Immediate behavior | Fault ownership |
+|---|---|---|
+| local record invalid, duplicate, or cache full | entity creation rolls back; `nullptr`/mapped error | `ORT-FLT-RMW-002` or integration defect |
+| remote snapshot malformed, stale, duplicate, foreign, or over-bound | discard complete snapshot; retain prior participant state | `ORT-FLT-RMW-004` |
+| caller allocator fails while building a query | free temporary result; return `RMW_RET_BAD_ALLOC`; output unchanged | caller/query owner |
+| invalid handle/name/namespace/topic/nonzero output | return pinned Jazzy argument or implementation error | caller contract |
+| requested node absent | `RMW_RET_NODE_NAME_NON_EXISTENT` | normal graph race/result |
+| participant lease expires | atomically remove its graph state and trigger graph guard | normal discovery transition |
+
+`GraphError` provides exact internal categories: `invalid_argument`,
+`invalid_record`, `capacity_exceeded`, `duplicate_record`, `record_not_found`,
+`stale_snapshot`, `malformed_snapshot`, and `buffer_overflow`. These values are
+not wire-stable fault codes. `ORT-FLT-RMW-004` is the stable containment class.
+
+### Concurrency and qualification boundary
+
+All cache mutations and snapshots hold `graph_mutex`; no caller allocation,
+network send, endpoint lock, or user callback occurs while that mutex is
+retained. Entity creation/destruction may briefly acquire `graph_mutex` while
+already holding its registry mutex so the entity slot and graph record commit
+as one externally visible transition. No path acquires an entity registry or
+endpoint mutex while holding `graph_mutex`; query and network paths use only
+the graph lock. Every path releases `graph_mutex` before guard/network
+notification. The network worker parses into stack/fixed arrays, commits under
+the mutex, releases it, then wakes graph waiters. No graph operation creates a
+thread or allocates worker-path memory.
+
+`test_rmw_graph_cache.cpp` covers local lifecycle, exact wire round trip,
+stale/malformed atomicity, and participant removal. `test_graph.cpp` covers
+the public query and graph-guard contract. `test_network_runtime.cpp` proves
+two-context propagation and five-second lease expiry. `run_ros2_graph.py` and
+`ros2_graph_probe.cpp` run two separate-process `rclcpp` cases for graceful
+removal and forced-process loss. This passes G4.3 only for same-host
+OpenRTDDS-to-OpenRTDDS Jazzy graph discovery.
 
 ## Service and client behavior
 
@@ -1326,11 +1470,11 @@ discovery announcement, lease, wait, and shutdown join has a monotonic bound.
 |---|---|---|
 | G4.1 Build/load | Jazzy build/install, exact symbol/load test, runtime selection, failure injection, allocation balance, and init/node/shutdown ASan/LSan/UBSan stress | Passed by PR26: adapter lifecycle scaffold loads |
 | G4.2 Topics | C/C++ fixed-message best-effort and reliable cross-language talker/listener matrix, forced-loss repair, QoS and metadata tests | Passed by PR34 for the documented same-host bounded profile |
-| G4.3 Graph | multi-process graph add/query/remove and lease-expiry tests | selected graph introspection |
+| G4.3 Graph | multi-process graph add/query/remove and lease-expiry tests | Passed by PR35 for selected same-host OpenRTDDS graph introspection |
 | G4.4 Services | concurrent request/reply correlation, wait readiness, invalid response test | bounded ROS services |
 | G4.5 Conformance | versioned upstream allowlist, exclusions, stress, sanitizers, determinism analysis | ROS 2 Jazzy readiness for documented profile |
 
-G4.1 and G4.2 are passed; G4 remains Planned until all five gates pass. Passing a lower
+G4.1, G4.2, and G4.3 are passed; G4 remains Planned until all five gates pass. Passing a lower
 gate shall be claimed precisely and shall not be described as general ROS 2
 support.
 

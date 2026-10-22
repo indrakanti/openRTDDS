@@ -84,7 +84,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-007 | Draft | — | Planned mapping vectors and inspection | — |
 | ORT-RMW-008 | Draft | — | Planned QoS mapping/compatibility tests and analysis | — |
 | ORT-RMW-009 | Draft | — | Planned wait/guard tests and race analysis | — |
-| ORT-RMW-010 | Draft | — | Planned graph tests and multi-process demonstration | Planned graph probe |
+| ORT-RMW-010 | Verified | `rmw/graph_cache.hpp`, `rmw/graph_cache.cpp`, `rmw_openrtdds_cpp/src/graph.cpp`, `network_runtime.cpp` | `test_rmw_graph_cache.cpp`, `test_graph.cpp`, `test_network_runtime.cpp`, `run_ros2_graph.py` | `ros2_graph_probe.cpp` |
 | ORT-RMW-011 | Draft | — | Planned service tests and client/service demonstration | Planned service pair |
 | ORT-RMW-012 | Draft | — | Planned GID and message-info tests | — |
 | ORT-RMW-013 | Draft | — | Planned event/status tests | — |
@@ -94,7 +94,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-017 | Draft | — | Planned feature-reporting tests and inspection | — |
 | ORT-RMW-018 | Draft | — | Planned G4.1 build/load test | — |
 | ORT-RMW-019 | Draft | — | Planned G4.2 topic tests and demonstration | Planned ROS topic pair |
-| ORT-RMW-020 | Draft | — | Planned G4.3 graph tests and demonstration | Planned ROS graph pair |
+| ORT-RMW-020 | Verified | `rmw/graph_cache.hpp`, `rmw_openrtdds_cpp/src/graph.cpp`, `network_runtime.cpp` | `test_graph.cpp`, `test_network_runtime.cpp`, `run_ros2_graph.py`, Jazzy CI | `ros2_graph_probe.cpp` |
 | ORT-RMW-021 | Draft | — | Planned G4.4 service tests and demonstration | Planned ROS service pair |
 | ORT-RMW-022 | Draft | — | Planned G4.5 conformance tests and analysis | — |
 | ORT-RMW-023 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp`, bounded-storage analysis | — |
@@ -129,6 +129,8 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-052 | Verified | `rmw_openrtdds_cpp/src/network_runtime.cpp`, `type_support.cpp`, `publisher.cpp`, `subscription.cpp`, `wait.cpp` | `test_network_runtime.cpp`, `run_ros2_topic_matrix.py`, Jazzy CI | `ros2_talker_listener.cpp`, `ros2_c_talker_listener.c` |
 | ORT-RMW-053 | Verified | `rmw_openrtdds_cpp/src/network_runtime.hpp`, `network_runtime.cpp`, core reliability state/message modules | `test_network_runtime.cpp` first-DATA loss/repair, Jazzy sanitizer CI | `ros2_talker_listener.cpp`, `ros2_c_talker_listener.c` reliable mode |
 | ORT-RMW-054 | Verified | `rmw_openrtdds_cpp/src/network_runtime.cpp`, `type_support.cpp`, `publisher.cpp`, `subscription.cpp`, `wait.cpp` | `test_network_runtime.cpp`, `run_ros2_topic_matrix.py`, Jazzy CI | `ros2_talker_listener.cpp`, `ros2_c_talker_listener.c` |
+| ORT-RMW-055 | Verified | `rmw/graph_cache.hpp`, `rmw/graph_cache.cpp`, `rmw_openrtdds_cpp/src/internal.hpp`, `graph.cpp`, `network_runtime.cpp`, `rmw_adapter.cpp`, `publisher.cpp`, `subscription.cpp` | `test_rmw_graph_cache.cpp`, `test_graph.cpp`, `test_network_runtime.cpp`, Jazzy sanitizer CI | `ros2_graph_probe.cpp` |
+| ORT-RMW-056 | Verified | `rmw_openrtdds_cpp/src/graph.cpp`, `type_support.cpp`, `network_runtime.cpp` | `test_graph.cpp`, `test_network_runtime.cpp`, `run_ros2_graph.py`, Jazzy CI | `ros2_graph_probe.cpp` |
 
 Paths in the matrix are relative to `include/openrtdds/`, `tests/`, or
 `examples/` as appropriate. The machine checker independently tracks each

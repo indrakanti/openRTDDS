@@ -38,6 +38,7 @@ constexpr std::size_t kMaximumSamplesPerPublisherPass = 32U;
 constexpr openrtdds::rtps::ProtocolVersion kProtocol{2U, 3U};
 constexpr openrtdds::rtps::VendorId kVendor{{0x01U, 0x42U}};
 constexpr openrtdds::rtps::EntityId kUnknownReader{{0U, 0U, 0U, 0U}};
+constexpr openrtdds::rtps::EntityId kGraphWriter{{0U, 0U, 0xF1U, 0xC2U}};
 
 [[nodiscard]] std::uint64_t monotonic_now_ns() noexcept {
   return static_cast<std::uint64_t>(
@@ -305,6 +306,30 @@ void NetworkRuntime::announce(const std::uint64_t now_ns) noexcept {
   static_cast<void>(metadata_socket_.send_to(
       spdp_destination_, spdp_.data(), spdp_size_));
 
+  std::size_t graph_payload_size = 0U;
+  std::uint64_t graph_generation = 0U;
+  openrtdds::rmw::GraphError graph_error =
+      openrtdds::rmw::GraphError::none;
+  {
+    std::lock_guard<std::mutex> graph_lock(context_->impl->graph_mutex);
+    graph_error = context_->impl->graph.serialize_local(
+        graph_payload_.data(), graph_payload_.size(), graph_payload_size,
+        graph_generation);
+  }
+  openrtdds::rtps::DataMessageConfig graph_config{};
+  graph_config.version = kProtocol;
+  graph_config.vendor_id = kVendor;
+  graph_config.guid_prefix = context_->impl->participant_prefix;
+  graph_config.reader_id = kUnknownReader;
+  graph_config.writer_id = kGraphWriter;
+  graph_config.sequence_number = graph_generation;
+  openrtdds::rtps::DataMessageBuilder graph_builder(
+      graph_message_.data(), graph_message_.size());
+  const bool graph_ready =
+      (graph_error == openrtdds::rmw::GraphError::none) &&
+      graph_builder.build(graph_config, graph_payload_.data(),
+                          graph_payload_size);
+
   for (const auto& participant : participants_) {
     if (!participant.occupied) {
       continue;
@@ -312,6 +337,10 @@ void NetworkRuntime::announce(const std::uint64_t now_ns) noexcept {
     UdpEndpoint remote{};
     if (!first_endpoint(participant.data.metatraffic_unicast, remote)) {
       continue;
+    }
+    if (graph_ready) {
+      static_cast<void>(metadata_socket_.send_to(
+          remote, graph_builder.data(), graph_builder.size()));
     }
     {
       std::lock_guard<std::mutex> lock(
@@ -382,6 +411,28 @@ void NetworkRuntime::receive_discovery(const std::uint64_t now_ns) noexcept {
       const GuidPrefix prefix = packet_prefix(receive_buffer_.data(),
                                                received.bytes);
       if (find_participant(prefix) == nullptr) {
+        continue;
+      }
+      openrtdds::rtps::DataMessageView graph_view{};
+      if ((openrtdds::rtps::parse_data_message(
+               receive_buffer_.data(), received.bytes, graph_view) ==
+           openrtdds::rtps::RtpsError::none) &&
+          (graph_view.writer_id == kGraphWriter) &&
+          (graph_view.reader_id == kUnknownReader)) {
+        openrtdds::rmw::GraphError graph_error =
+            openrtdds::rmw::GraphError::none;
+        openrtdds::rmw::GraphUpdate update =
+            openrtdds::rmw::GraphUpdate::rejected;
+        {
+          std::lock_guard<std::mutex> graph_lock(context_->impl->graph_mutex);
+          update = context_->impl->graph.apply_remote(
+              prefix, graph_view.serialized_payload, graph_view.payload_size,
+              graph_view.sequence_number, graph_error);
+        }
+        static_cast<void>(graph_error);
+        if (update == openrtdds::rmw::GraphUpdate::changed) {
+          notify_graph_change(context_);
+        }
         continue;
       }
       openrtdds::rtps::SedpMessageView endpoint_view{};
@@ -899,11 +950,19 @@ void NetworkRuntime::prune_reliable_links() noexcept {
 
 void NetworkRuntime::expire_remote_state(const std::uint64_t now_ns) noexcept {
   bool changed = false;
+  bool graph_changed = false;
   for (auto& participant : participants_) {
     if (participant.occupied &&
         ((now_ns - participant.last_seen_ns) >= kRemoteStateLifetimeNs)) {
       const auto prefix = participant.data.guid_prefix;
       participant = {};
+      {
+        std::lock_guard<std::mutex> graph_lock(context_->impl->graph_mutex);
+        graph_changed =
+            (context_->impl->graph.remove_remote_participant(prefix) ==
+             openrtdds::rmw::GraphUpdate::changed) ||
+            graph_changed;
+      }
       for (auto& endpoint : endpoints_) {
         if (endpoint.occupied &&
             (endpoint.data.participant_guid_prefix.value == prefix.value)) {
@@ -922,6 +981,9 @@ void NetworkRuntime::expire_remote_state(const std::uint64_t now_ns) noexcept {
   }
   if (changed) {
     recompute_matches();
+  }
+  if (graph_changed) {
+    notify_graph_change(context_);
   }
 }
 

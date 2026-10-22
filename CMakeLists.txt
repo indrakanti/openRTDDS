@@ -17,6 +17,7 @@ add_library(openrtdds
   src/core/version.cpp
   src/os/linux/realtime.cpp
   src/rmw/foundation.cpp
+  src/rmw/graph_cache.cpp
   src/rtps/data_message.cpp
   src/rtps/message_router.cpp
   src/rtps/reliability_messages.cpp
@@ -152,6 +153,7 @@ if(BUILD_TESTING AND OPENRTDDS_BUILD_TESTS)
     tests/test_message_router.cpp
     tests/test_realtime.cpp
     tests/test_rmw_foundation.cpp
+    tests/test_rmw_graph_cache.cpp
     tests/test_reliability_messages.cpp
     tests/test_reliability_state.cpp
     tests/test_rtps_data_message.cpp

@@ -302,6 +302,66 @@ template <typename Members>
   return true;
 }
 
+template <typename Members>
+[[nodiscard]] bool build_ros_type_name(
+    const Members* const members, const bool convert_c_namespace,
+    std::array<char, kDdsNameCapacity>& output) noexcept {
+  if ((members == nullptr) || (members->message_namespace_ == nullptr) ||
+      (members->message_name_ == nullptr) ||
+      (members->message_name_[0] == '\0')) {
+    return false;
+  }
+  std::array<char, kDdsNameCapacity> candidate{};
+  char* cursor = candidate.data();
+  std::size_t remaining = candidate.size();
+  const char* const name_space = members->message_namespace_;
+  for (std::size_t index = 0U; name_space[index] != '\0'; ++index) {
+    if (convert_c_namespace && (name_space[index] == '_') &&
+        (name_space[index + 1U] == '_')) {
+      if (!append_character(cursor, remaining, '/')) {
+        return false;
+      }
+      ++index;
+    } else if (!convert_c_namespace && (name_space[index] == ':') &&
+               (name_space[index + 1U] == ':')) {
+      if (!append_character(cursor, remaining, '/')) {
+        return false;
+      }
+      ++index;
+    } else if (!append_character(cursor, remaining, name_space[index])) {
+      return false;
+    }
+  }
+  if ((name_space[0] != '\0') &&
+      !append_character(cursor, remaining, '/')) {
+    return false;
+  }
+  if (!append_text(cursor, remaining, members->message_name_, false)) {
+    return false;
+  }
+  output = candidate;
+  return true;
+}
+
+[[nodiscard]] bool derive_ros_type_name(
+    const rosidl_message_type_support_t* const type_support,
+    const TypeSupportLanguage language,
+    std::array<char, kDdsNameCapacity>& output) noexcept {
+  if ((type_support == nullptr) || (type_support->data == nullptr)) {
+    return false;
+  }
+  if (language == TypeSupportLanguage::introspection_c) {
+    return build_ros_type_name(
+        static_cast<const rosidl_typesupport_introspection_c__MessageMembers*>(
+            type_support->data),
+        true, output);
+  }
+  return build_ros_type_name(
+      static_cast<const rosidl_typesupport_introspection_cpp::MessageMembers*>(
+          type_support->data),
+      false, output);
+}
+
 [[nodiscard]] bool derive_type_name(
     const rosidl_message_type_support_t* type_support,
     TypeSupportLanguage& language,
@@ -500,7 +560,10 @@ bool map_ros_to_dds_names(
   if (!derive_type_name(type_support, language, candidate.type_name, error)) {
     return false;
   }
-  static_cast<void>(language);
+  if (!derive_ros_type_name(type_support, language, candidate.ros_type_name)) {
+    error = TypeSupportError::name_limit_exceeded;
+    return false;
+  }
 
   char* cursor = candidate.topic_name.data();
   std::size_t remaining = candidate.topic_name.size();

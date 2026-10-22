@@ -319,7 +319,9 @@ struct CppFixture final {
           names, error) ||
       (std::strcmp(names.topic_name.data(), "rt/camera/image") != 0) ||
       (std::strcmp(names.type_name.data(),
-                   "demo_msgs::msg::dds_::Bounded_") != 0)) {
+                   "demo_msgs::msg::dds_::Bounded_") != 0) ||
+      (std::strcmp(names.ros_type_name.data(),
+                   "demo_msgs/msg/Bounded") != 0)) {
     return 20;
   }
   if (!rmw_openrtdds_cpp::map_ros_to_dds_names(

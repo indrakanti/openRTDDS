@@ -51,6 +51,7 @@ struct TypeSupportInfo final {
 struct DdsNames final {
   std::array<char, kDdsNameCapacity> topic_name{};
   std::array<char, kDdsNameCapacity> type_name{};
+  std::array<char, kDdsNameCapacity> ros_type_name{};
 };
 
 [[nodiscard]] RMW_OPENRTDDS_CPP_PUBLIC const char* to_string(

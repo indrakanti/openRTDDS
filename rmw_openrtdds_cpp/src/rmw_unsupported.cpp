@@ -246,20 +246,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   3, ARG_TYPES(const rmw_event_t *, void *, bool *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_get_publisher_names_and_types_by_node,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  6, ARG_TYPES(
-    const rmw_node_t *, rcutils_allocator_t *, const char *, const char *, bool,
-    rmw_names_and_types_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_get_subscriber_names_and_types_by_node,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  6, ARG_TYPES(
-    const rmw_node_t *, rcutils_allocator_t *, const char *, const char *, bool,
-    rmw_names_and_types_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_get_service_names_and_types_by_node,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   5, ARG_TYPES(
@@ -274,40 +260,11 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
     rmw_names_and_types_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_get_topic_names_and_types,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  4, ARG_TYPES(
-    const rmw_node_t *, rcutils_allocator_t *, bool,
-    rmw_names_and_types_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_get_service_names_and_types,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(
     const rmw_node_t *, rcutils_allocator_t *,
     rmw_names_and_types_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_get_node_names,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_node_t *, rcutils_string_array_t *, rcutils_string_array_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_get_node_names_with_enclaves,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  4, ARG_TYPES(
-    const rmw_node_t *, rcutils_string_array_t *,
-    rcutils_string_array_t *, rcutils_string_array_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_count_publishers,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_node_t *, const char *, size_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_count_subscribers,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_node_t *, const char *, size_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_count_clients,
