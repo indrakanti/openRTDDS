@@ -236,7 +236,6 @@ if(BUILD_TESTING)
     -Wall -Wextra -Wpedantic -Werror)
   target_link_libraries(test_rmw_events PRIVATE
     ${PROJECT_NAME}
-    OpenRTDDS::openrtdds
     Threads::Threads
     rcutils::rcutils
     rmw::rmw
