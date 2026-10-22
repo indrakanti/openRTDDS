@@ -4,6 +4,8 @@
 
 #include "rcutils/allocator.h"
 #include "rcutils/strdup.h"
+#include "rmw/error_handling.h"
+#include "rmw/get_topic_names_and_types.h"
 #include "rmw/init.h"
 #include "rmw/init_options.h"
 #include "rmw/names_and_types.h"
