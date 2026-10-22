@@ -43,12 +43,15 @@ struct PublisherData final {
   std::uint32_t slot_generation{0U};
   TypeSupportInfo type_info{};
   DdsNames names{};
+  RosChannel channel{RosChannel::topic};
+  bool graph_visible{true};
   EndpointResourcePlan resources{};
   openrtdds::rtps::GuidPrefix participant_prefix{};
   openrtdds::rtps::EntityId writer_id{};
   rmw_gid_t gid{};
   std::uint8_t* storage{nullptr};
   std::size_t storage_size{0U};
+  std::size_t serialized_capacity{0U};
   std::uint8_t* staging{nullptr};
   std::uint8_t* data_message_staging{nullptr};
   std::uint8_t* data_message{nullptr};
@@ -193,6 +196,96 @@ void release_slot(detail::PublisherSlot& slot) noexcept {
   return RMW_RET_INVALID_ARGUMENT;
 }
 
+[[nodiscard]] rmw_ret_t publish_sample(
+    PublisherData& data, const void* const ros_message,
+    const rmw_request_id_t* const request_id) noexcept {
+  if (ros_message == nullptr) {
+    RMW_SET_ERROR_MSG("ROS message is null");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  const bool service_sample = data.channel != RosChannel::topic;
+  if (service_sample != (request_id != nullptr)) {
+    RMW_SET_ERROR_MSG("publisher channel and correlation metadata disagree");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  if (data.node->context->impl->shutdown) {
+    RMW_SET_ERROR_MSG("publisher context has been shutdown");
+    return RMW_RET_ERROR;
+  }
+
+  std::unique_lock<std::mutex> lock(data.mutex);
+  const std::size_t payload_offset =
+      service_sample ? detail::kServiceCorrelationSize : 0U;
+  CodecResult codec{};
+  if (!serialize_xcdr1(
+          data.type_support, ros_message, data.staging + payload_offset,
+          data.type_info.maximum_serialized_size,
+          CodecByteOrder::little_endian, codec)) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("publisher serialization failed: %s",
+                                         to_string(codec.error));
+    return RMW_RET_ERROR;
+  }
+  if (service_sample) {
+    std::memcpy(data.staging, request_id->writer_guid,
+                RMW_GID_STORAGE_SIZE);
+    const auto sequence = static_cast<std::uint64_t>(
+        request_id->sequence_number);
+    for (std::size_t index = 0U; index < sizeof(sequence); ++index) {
+      data.staging[RMW_GID_STORAGE_SIZE + index] =
+          static_cast<std::uint8_t>(sequence >> (index * 8U));
+    }
+  }
+  const std::size_t serialized_size = payload_offset + codec.bytes_processed;
+  if (data.next_sequence >=
+      static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())) {
+    RMW_SET_ERROR_MSG("publisher sequence space is exhausted");
+    return RMW_RET_ERROR;
+  }
+  openrtdds::rtps::DataMessageConfig config{};
+  config.version = kProtocol;
+  config.vendor_id = kVendor;
+  config.guid_prefix = data.participant_prefix;
+  config.reader_id = kUnknownReader;
+  config.writer_id = data.writer_id;
+  config.sequence_number = data.next_sequence;
+  config.submessage_byte_order =
+      openrtdds::serialization::ByteOrder::little_endian;
+  openrtdds::rtps::DataMessageBuilder builder(
+      data.data_message_staging,
+      data.serialized_capacity + kDataMessageOverhead);
+  if (!builder.build(config, data.staging, serialized_size)) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("RTPS DATA construction failed: %s",
+                                         openrtdds::rtps::to_string(
+                                             builder.error()));
+    return RMW_RET_ERROR;
+  }
+  std::uint64_t timestamp = 0U;
+  if (!timestamp_now(timestamp)) {
+    RMW_SET_ERROR_MSG("unable to read publisher source timestamp");
+    return RMW_RET_ERROR;
+  }
+
+  const std::size_t history_index = data.history_next;
+  std::memcpy(data.history + (history_index * data.serialized_capacity),
+              data.staging, serialized_size);
+  const PublisherSampleMetadata metadata{
+      data.next_sequence, timestamp, serialized_size};
+  std::memcpy(data.data_message, data.data_message_staging, builder.size());
+  data.history_metadata[history_index] = metadata;
+  data.history_next =
+      (history_index + 1U) % data.resources.history_sample_slots;
+  if (data.history_size < data.resources.history_sample_slots) {
+    ++data.history_size;
+  }
+  data.last_sample = metadata;
+  data.data_message_size = builder.size();
+  ++data.next_sequence;
+  rmw_context_t* const context = data.node->context;
+  lock.unlock();
+  detail::notify_network(context);
+  return RMW_RET_OK;
+}
+
 }  // namespace
 
 bool inspect_publisher(const rmw_publisher_t* const publisher,
@@ -296,8 +389,7 @@ bool publisher_network_copy_next(
   openrtdds::rtps::DataMessageBuilder builder(packet, capacity);
   if (!builder.build(
           config,
-          data->history +
-              (selected * data->type_info.maximum_serialized_size),
+          data->history + (selected * data->serialized_capacity),
           metadata.serialized_size)) {
     return false;
   }
@@ -319,15 +411,15 @@ void publisher_network_set_match_count(void* const opaque,
 
 }  // namespace rmw_openrtdds_cpp
 
-extern "C" {
-
 // Requirements: ORT-RMW-004, ORT-RMW-045, ORT-RMW-046
-rmw_publisher_t* rmw_create_publisher(
+rmw_publisher_t* rmw_openrtdds_cpp::detail::create_publisher_endpoint(
     const rmw_node_t* node,
     const rosidl_message_type_support_t* type_support,
     const char* topic_name,
     const rmw_qos_profile_t* qos_profile,
-    const rmw_publisher_options_t* publisher_options) {
+    const rmw_publisher_options_t* publisher_options,
+    const rmw_openrtdds_cpp::RosChannel channel,
+    const bool graph_visible) noexcept {
   using namespace rmw_openrtdds_cpp;
   if ((node == nullptr) || (node->context == nullptr) ||
       (node->data == nullptr) || (type_support == nullptr) ||
@@ -386,7 +478,7 @@ rmw_publisher_t* rmw_create_publisher(
     return nullptr;
   }
   DdsNames names{};
-  if (!map_ros_to_dds_names(resolved_type_support, RosChannel::topic, topic_name,
+  if (!map_ros_to_dds_names(resolved_type_support, channel, topic_name,
                             qos_profile->avoid_ros_namespace_conventions,
                             names, type_error)) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("publisher name mapping failed: %s",
@@ -430,17 +522,31 @@ rmw_publisher_t* rmw_create_publisher(
                    : new (data_storage) PublisherData{};
   char* topic_copy = rcutils_strdup(topic_name, allocator);
 
+  std::size_t serialized_capacity = type_info.maximum_serialized_size;
+  if ((channel != RosChannel::topic) &&
+      !checked_add(serialized_capacity, detail::kServiceCorrelationSize,
+                   serialized_capacity)) {
+    serialized_capacity = 0U;
+  }
   std::size_t data_capacity = 0U;
   std::size_t runtime_bytes = 0U;
   std::size_t packet_storage_bytes = 0U;
-  if (!checked_add(type_info.maximum_serialized_size, kDataMessageOverhead,
+  std::size_t history_storage_bytes = 0U;
+  if ((serialized_capacity == 0U) ||
+      !checked_add(serialized_capacity, kDataMessageOverhead,
                    data_capacity) ||
       !checked_add(data_capacity, data_capacity, packet_storage_bytes) ||
-      !checked_add(type_info.maximum_serialized_size, packet_storage_bytes,
+      !checked_add(serialized_capacity, packet_storage_bytes,
                    runtime_bytes) ||
-      !checked_add(runtime_bytes, resources.history_storage_bytes,
-                   runtime_bytes)) {
+      (resources.history_sample_slots >
+       (std::numeric_limits<std::size_t>::max() / serialized_capacity))) {
     runtime_bytes = 0U;
+  } else {
+    history_storage_bytes =
+        resources.history_sample_slots * serialized_capacity;
+    if (!checked_add(runtime_bytes, history_storage_bytes, runtime_bytes)) {
+      runtime_bytes = 0U;
+    }
   }
   auto* storage = runtime_bytes == 0U
                       ? nullptr
@@ -472,15 +578,18 @@ rmw_publisher_t* rmw_create_publisher(
   data->slot_generation = slot.generation;
   data->type_info = type_info;
   data->names = names;
+  data->channel = channel;
+  data->graph_visible = graph_visible;
   data->resources = resources;
   data->participant_prefix = participant_prefix(*context);
   data->writer_id = writer_id(slot_index);
   data->gid = make_gid(data->participant_prefix, data->writer_id);
   data->storage = storage;
   data->storage_size = runtime_bytes;
+  data->serialized_capacity = serialized_capacity;
   data->staging = storage;
   data->data_message_staging =
-      storage + type_info.maximum_serialized_size;
+      storage + serialized_capacity;
   data->data_message = data->data_message_staging + data_capacity;
   data->history = data->data_message + data_capacity;
   if (!build_sedp(*data, *context)) {
@@ -495,7 +604,7 @@ rmw_publisher_t* rmw_create_publisher(
   }
 
   auto* node_data = static_cast<detail::NodeData*>(node->data);
-  {
+  if (graph_visible) {
     std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
     const auto graph_error = context->impl->graph.add_local_endpoint(
         data->participant_prefix, data->writer_id, node_data->graph_id,
@@ -525,8 +634,34 @@ rmw_publisher_t* rmw_create_publisher(
   publisher->can_loan_messages = false;
   slot.data = data;
   ++node_data->publisher_count;
-  detail::notify_graph_change(context);
+  if (graph_visible) {
+    detail::notify_graph_change(context);
+  }
   return publisher;
+}
+
+rmw_ret_t rmw_openrtdds_cpp::detail::publish_service_sample(
+    const rmw_publisher_t* const publisher,
+    const rmw_request_id_t& request_id,
+    const void* const ros_message) noexcept {
+  PublisherData* data = nullptr;
+  if (!valid_publisher(publisher, data)) {
+    return invalid_publisher_error(publisher);
+  }
+  return publish_sample(*data, ros_message, &request_id);
+}
+
+extern "C" {
+
+rmw_publisher_t* rmw_create_publisher(
+    const rmw_node_t* node,
+    const rosidl_message_type_support_t* type_support,
+    const char* topic_name,
+    const rmw_qos_profile_t* qos_profile,
+    const rmw_publisher_options_t* publisher_options) {
+  return rmw_openrtdds_cpp::detail::create_publisher_endpoint(
+      node, type_support, topic_name, qos_profile, publisher_options,
+      rmw_openrtdds_cpp::RosChannel::topic, true);
 }
 
 rmw_ret_t rmw_destroy_publisher(rmw_node_t* node,
@@ -560,8 +695,9 @@ rmw_ret_t rmw_destroy_publisher(rmw_node_t* node,
     RMW_SET_ERROR_MSG("publisher ownership count is inconsistent");
     return RMW_RET_ERROR;
   }
-  bool graph_removed = false;
-  {
+  const bool graph_visible = data->graph_visible;
+  bool graph_removed = !graph_visible;
+  if (graph_visible) {
     std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
     const auto graph_error =
         context->impl->graph.remove_local_endpoint(data->writer_id);
@@ -580,7 +716,9 @@ rmw_ret_t rmw_destroy_publisher(rmw_node_t* node,
   data->~PublisherData();
   allocator.deallocate(data, allocator.state);
   allocator.deallocate(publisher, allocator.state);
-  detail::notify_graph_change(context);
+  if (graph_visible) {
+    detail::notify_graph_change(context);
+  }
   return graph_removed ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
@@ -600,69 +738,7 @@ rmw_ret_t rmw_publish(const rmw_publisher_t* publisher,
   if (!valid_publisher(publisher, data)) {
     return invalid_publisher_error(publisher);
   }
-  if (data->node->context->impl->shutdown) {
-    RMW_SET_ERROR_MSG("publisher context has been shutdown");
-    return RMW_RET_ERROR;
-  }
-
-  std::unique_lock<std::mutex> lock(data->mutex);
-  CodecResult codec{};
-  if (!serialize_xcdr1(data->type_support, ros_message, data->staging,
-                       data->type_info.maximum_serialized_size,
-                       CodecByteOrder::little_endian, codec)) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("publisher serialization failed: %s",
-                                         to_string(codec.error));
-    return RMW_RET_ERROR;
-  }
-  if (data->next_sequence >=
-      static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())) {
-    RMW_SET_ERROR_MSG("publisher sequence space is exhausted");
-    return RMW_RET_ERROR;
-  }
-  openrtdds::rtps::DataMessageConfig config{};
-  config.version = kProtocol;
-  config.vendor_id = kVendor;
-  config.guid_prefix = data->participant_prefix;
-  config.reader_id = kUnknownReader;
-  config.writer_id = data->writer_id;
-  config.sequence_number = data->next_sequence;
-  config.submessage_byte_order =
-      openrtdds::serialization::ByteOrder::little_endian;
-  openrtdds::rtps::DataMessageBuilder builder(
-      data->data_message_staging,
-      data->type_info.maximum_serialized_size + kDataMessageOverhead);
-  if (!builder.build(config, data->staging, codec.bytes_processed)) {
-    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING("RTPS DATA construction failed: %s",
-                                         openrtdds::rtps::to_string(
-                                             builder.error()));
-    return RMW_RET_ERROR;
-  }
-  std::uint64_t timestamp = 0U;
-  if (!timestamp_now(timestamp)) {
-    RMW_SET_ERROR_MSG("unable to read publisher source timestamp");
-    return RMW_RET_ERROR;
-  }
-
-  const std::size_t history_index = data->history_next;
-  std::memcpy(data->history +
-                  (history_index * data->type_info.maximum_serialized_size),
-              data->staging, codec.bytes_processed);
-  const PublisherSampleMetadata metadata{
-      data->next_sequence, timestamp, codec.bytes_processed};
-  std::memcpy(data->data_message, data->data_message_staging, builder.size());
-  data->history_metadata[history_index] = metadata;
-  data->history_next =
-      (history_index + 1U) % data->resources.history_sample_slots;
-  if (data->history_size < data->resources.history_sample_slots) {
-    ++data->history_size;
-  }
-  data->last_sample = metadata;
-  data->data_message_size = builder.size();
-  ++data->next_sequence;
-  rmw_context_t* const context = data->node->context;
-  lock.unlock();
-  detail::notify_network(context);
-  return RMW_RET_OK;
+  return publish_sample(*data, ros_message, nullptr);
 }
 
 rmw_ret_t rmw_publisher_count_matched_subscriptions(

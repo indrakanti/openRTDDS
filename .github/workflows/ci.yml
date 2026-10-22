@@ -274,7 +274,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             binutils build-essential cmake python3-colcon-common-extensions \
-            ros-jazzy-rcl ros-jazzy-rclcpp ros-jazzy-std-msgs \
+            ros-jazzy-rcl ros-jazzy-rclcpp ros-jazzy-example-interfaces ros-jazzy-std-msgs \
             ros-jazzy-rmw-implementation \
             ros-jazzy-rosidl-typesupport-introspection-c \
             ros-jazzy-rosidl-typesupport-introspection-cpp
@@ -337,7 +337,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             build-essential cmake python3-colcon-common-extensions \
-            ros-jazzy-rcl ros-jazzy-rclcpp ros-jazzy-std-msgs \
+            ros-jazzy-rcl ros-jazzy-rclcpp ros-jazzy-example-interfaces ros-jazzy-std-msgs \
             ros-jazzy-rmw-implementation \
             ros-jazzy-rosidl-typesupport-introspection-c \
             ros-jazzy-rosidl-typesupport-introspection-cpp

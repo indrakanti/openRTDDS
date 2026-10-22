@@ -67,6 +67,7 @@ the listed API errors exist; automatic fault emission is not yet implemented.
 | `ORT-FLT-RMW-004` (Current) | Warning/Error | malformed, stale, duplicate, foreign, or over-bound ROS graph snapshot | discovery/context owner |
 | `ORT-FLT-RMW-005` (Current for wait) | Error/Fatal by context | wait ownership, observation, concurrent-use, or wake failure | context owner |
 | `ORT-FLT-RMW-006` | Fatal at endpoint creation | unsupported, invalid, or over-bound QoS/resource plan | application/configuration owner |
+| `ORT-FLT-RMW-007` (Current) | Warning/Error | malformed, foreign, unknown, duplicate, or exhausted service correlation identity | service/client owner |
 
 Severity is deployment-configurable except where the selected deterministic
 profile cannot satisfy its assumptions. The component detecting an API error

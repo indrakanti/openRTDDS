@@ -18,6 +18,7 @@
   <test_depend>rmw_implementation</test_depend>
   <test_depend>rcl</test_depend>
   <test_depend>rclcpp</test_depend>
+  <test_depend>example_interfaces</test_depend>
   <test_depend>std_msgs</test_depend>
 
   <member_of_group>rmw_implementation_packages</member_of_group>
