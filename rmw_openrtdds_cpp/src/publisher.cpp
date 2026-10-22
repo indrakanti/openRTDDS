@@ -64,6 +64,8 @@ struct PublisherData final {
   std::size_t history_next{0U};
   std::uint64_t next_sequence{1U};
   std::size_t matched_subscriptions{0U};
+  std::size_t total_matched_subscriptions{0U};
+  std::uint64_t match_generation{1U};
   PublisherSampleMetadata last_sample{};
   std::mutex mutex{};
 };
@@ -397,14 +399,72 @@ bool publisher_network_copy_next(
   return true;
 }
 
-void publisher_network_set_match_count(void* const opaque,
-                                       const std::size_t count) noexcept {
+std::size_t publisher_network_set_match_count(
+    void* const opaque, const std::size_t count) noexcept {
   if (opaque == nullptr) {
-    return;
+    return 0U;
   }
   auto* data = static_cast<PublisherData*>(opaque);
+  bool changed = false;
+  std::size_t transitions = 0U;
+  {
+    std::lock_guard<std::mutex> lock(data->mutex);
+    if (count != data->matched_subscriptions) {
+      transitions = count > data->matched_subscriptions
+                        ? count - data->matched_subscriptions
+                        : data->matched_subscriptions - count;
+      if (count > data->matched_subscriptions) {
+        data->total_matched_subscriptions +=
+            count - data->matched_subscriptions;
+      }
+      data->matched_subscriptions = count;
+      ++data->match_generation;
+      if (data->match_generation == 0U) {
+        data->match_generation = 1U;
+      }
+      changed = true;
+    }
+  }
+  if (changed) {
+    notify_waiters(data->node->context);
+  }
+  return transitions;
+}
+
+bool publisher_event_source(const rmw_publisher_t* const publisher,
+                            rmw_context_t*& context, void*& source,
+                            MatchedStatusSnapshot& snapshot) noexcept {
+  PublisherData* data = nullptr;
+  if (!valid_publisher(publisher, data)) {
+    return false;
+  }
+  context = data->node->context;
+  source = data;
   std::lock_guard<std::mutex> lock(data->mutex);
-  data->matched_subscriptions = count;
+  snapshot = {data->total_matched_subscriptions,
+              data->matched_subscriptions, data->match_generation};
+  return true;
+}
+
+bool publisher_matched_status(const void* const source,
+                              const rmw_context_t* const context,
+                              MatchedStatusSnapshot& snapshot) noexcept {
+  if ((source == nullptr) || !context_is_valid(context)) {
+    return false;
+  }
+  auto* data = const_cast<PublisherData*>(
+      static_cast<const PublisherData*>(source));
+  if ((data->slot_index >= kPublisherCapacity) ||
+      !context->impl->publishers[data->slot_index].occupied ||
+      (context->impl->publishers[data->slot_index].data != data) ||
+      (context->impl->publishers[data->slot_index].generation !=
+       data->slot_generation)) {
+    return false;
+  }
+  std::lock_guard<std::mutex> lock(data->mutex);
+  snapshot = {data->total_matched_subscriptions,
+              data->matched_subscriptions, data->match_generation};
+  return true;
 }
 
 }  // namespace detail

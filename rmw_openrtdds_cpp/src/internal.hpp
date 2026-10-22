@@ -25,6 +25,7 @@ constexpr std::size_t kGuardConditionCapacity = 16U;
 constexpr std::size_t kPublisherCapacity = 8U;
 constexpr std::size_t kSubscriptionCapacity = 8U;
 constexpr std::size_t kWaitSetCapacity = 8U;
+constexpr std::size_t kEventCapacity = 16U;
 constexpr std::size_t kWaitConditionCapacity = 32U;
 constexpr std::size_t kServiceCorrelationSize =
     RMW_GID_STORAGE_SIZE + sizeof(std::int64_t);
@@ -76,6 +77,18 @@ struct WaitSetSlot final {
   bool occupied{false};
 };
 
+struct EventSlot final {
+  void* data{nullptr};
+  std::uint32_t generation{1U};
+  bool occupied{false};
+};
+
+struct MatchedStatusSnapshot final {
+  std::size_t total_count{0U};
+  std::size_t current_count{0U};
+  std::uint64_t generation{0U};
+};
+
 [[nodiscard]] inline bool identifier_matches(
     const char* const identifier) noexcept {
   return (identifier != nullptr) &&
@@ -108,6 +121,10 @@ struct rmw_context_impl_s final {
              rmw_openrtdds_cpp::detail::kWaitSetCapacity>
       wait_sets{};
   std::mutex wait_set_registry_mutex{};
+  std::array<rmw_openrtdds_cpp::detail::EventSlot,
+             rmw_openrtdds_cpp::detail::kEventCapacity>
+      events{};
+  std::mutex event_registry_mutex{};
   std::mutex wait_mutex{};
   std::condition_variable wait_condition{};
   std::uint64_t wait_generation{1U};
@@ -162,6 +179,19 @@ namespace rmw_openrtdds_cpp::detail {
   return false;
 }
 
+[[nodiscard]] inline bool context_has_events(
+    const rmw_context_t* const context) noexcept {
+  if (!context_is_valid(context)) {
+    return false;
+  }
+  for (const auto& slot : context->impl->events) {
+    if (slot.occupied) {
+      return true;
+    }
+  }
+  return false;
+}
+
 inline void notify_waiters(rmw_context_t* const context) noexcept {
   if (!context_is_valid(context)) {
     return;
@@ -188,8 +218,16 @@ inline void notify_waiters(rmw_context_t* const context) noexcept {
     void* data, std::uint64_t after_sequence, std::uint8_t* packet,
     std::size_t capacity, NetworkSample& sample) noexcept;
 
-void publisher_network_set_match_count(void* data,
-                                       std::size_t count) noexcept;
+[[nodiscard]] std::size_t publisher_network_set_match_count(
+    void* data, std::size_t count) noexcept;
+
+[[nodiscard]] bool publisher_event_source(
+    const rmw_publisher_t* publisher, rmw_context_t*& context,
+    void*& source, MatchedStatusSnapshot& snapshot) noexcept;
+
+[[nodiscard]] bool publisher_matched_status(
+    const void* source, const rmw_context_t* context,
+    MatchedStatusSnapshot& snapshot) noexcept;
 
 [[nodiscard]] bool subscription_network_view(
     void* data, NetworkEndpointView& view) noexcept;
@@ -198,8 +236,24 @@ void publisher_network_set_match_count(void* data,
     void* data, const std::uint8_t* packet, std::size_t packet_size,
     std::uint64_t received_timestamp_ns) noexcept;
 
-void subscription_network_set_match_count(void* data,
-                                          std::size_t count) noexcept;
+[[nodiscard]] std::size_t subscription_network_set_match_count(
+    void* data, std::size_t count) noexcept;
+
+[[nodiscard]] bool subscription_event_source(
+    const rmw_subscription_t* subscription, rmw_context_t*& context,
+    void*& source, MatchedStatusSnapshot& snapshot) noexcept;
+
+[[nodiscard]] bool subscription_matched_status(
+    const void* source, const rmw_context_t* context,
+    MatchedStatusSnapshot& snapshot) noexcept;
+
+[[nodiscard]] bool event_wait_data_valid(
+    const void* data, const rmw_context_t* context) noexcept;
+
+[[nodiscard]] bool event_wait_ready(const void* data) noexcept;
+
+void notify_event_source(rmw_context_t* context, const void* source,
+                         std::size_t number_of_events) noexcept;
 
 void notify_network(rmw_context_t* context) noexcept;
 

@@ -79,6 +79,8 @@ struct SubscriptionData final {
   std::uint64_t accepted_samples{0U};
   std::uint64_t dropped_samples{0U};
   std::size_t matched_publishers{0U};
+  std::size_t total_matched_publishers{0U};
+  std::uint64_t match_generation{1U};
   std::mutex mutex{};
 };
 
@@ -614,14 +616,71 @@ bool subscription_network_receive(
           result.ignored_local);
 }
 
-void subscription_network_set_match_count(void* const opaque,
-                                          const std::size_t count) noexcept {
+std::size_t subscription_network_set_match_count(
+    void* const opaque, const std::size_t count) noexcept {
   if (opaque == nullptr) {
-    return;
+    return 0U;
   }
   auto* data = static_cast<SubscriptionData*>(opaque);
+  bool changed = false;
+  std::size_t transitions = 0U;
+  {
+    std::lock_guard<std::mutex> lock(data->mutex);
+    if (count != data->matched_publishers) {
+      transitions = count > data->matched_publishers
+                        ? count - data->matched_publishers
+                        : data->matched_publishers - count;
+      if (count > data->matched_publishers) {
+        data->total_matched_publishers += count - data->matched_publishers;
+      }
+      data->matched_publishers = count;
+      ++data->match_generation;
+      if (data->match_generation == 0U) {
+        data->match_generation = 1U;
+      }
+      changed = true;
+    }
+  }
+  if (changed) {
+    notify_waiters(data->node->context);
+  }
+  return transitions;
+}
+
+bool subscription_event_source(
+    const rmw_subscription_t* const subscription, rmw_context_t*& context,
+    void*& source, MatchedStatusSnapshot& snapshot) noexcept {
+  SubscriptionData* data = nullptr;
+  if (!valid_subscription(subscription, data)) {
+    return false;
+  }
+  context = data->node->context;
+  source = data;
   std::lock_guard<std::mutex> lock(data->mutex);
-  data->matched_publishers = count;
+  snapshot = {data->total_matched_publishers, data->matched_publishers,
+              data->match_generation};
+  return true;
+}
+
+bool subscription_matched_status(const void* const source,
+                                 const rmw_context_t* const context,
+                                 MatchedStatusSnapshot& snapshot) noexcept {
+  if ((source == nullptr) || !context_is_valid(context)) {
+    return false;
+  }
+  auto* data = const_cast<SubscriptionData*>(
+      static_cast<const SubscriptionData*>(source));
+  if ((data->slot_index >= kSubscriptionCapacity) ||
+      !context->impl->subscriptions[data->slot_index].occupied ||
+      (context->impl->subscriptions[data->slot_index].data != data) ||
+      (context->impl->subscriptions[data->slot_index].generation !=
+       data->slot_generation)) {
+    return false;
+  }
+  std::lock_guard<std::mutex> lock(data->mutex);
+  snapshot = {data->total_matched_publishers, data->matched_publishers,
+              data->match_generation};
+  return true;
 }
 
 }  // namespace detail

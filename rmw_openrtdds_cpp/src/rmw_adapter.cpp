@@ -458,6 +458,10 @@ rmw_ret_t rmw_context_fini(rmw_context_t* context) {
     RMW_SET_ERROR_MSG("context still owns wait sets");
     return RMW_RET_INVALID_ARGUMENT;
   }
+  if (rmw_openrtdds_cpp::detail::context_has_events(context)) {
+    RMW_SET_ERROR_MSG("context still owns events");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
   const auto foundation_result = context->impl->foundation.finalize();
   if (foundation_result != openrtdds::rmw::AdapterError::none) {
     RMW_SET_ERROR_MSG("context still owns nodes or guard conditions");

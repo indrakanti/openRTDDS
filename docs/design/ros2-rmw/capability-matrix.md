@@ -14,13 +14,13 @@ it does not mean the corresponding `rmw` function is implemented.
 | Type support | generated-handle resolution to allocation-free Jazzy C/C++ introspection, bounded size analysis, two-pass codec, endpoint integration, and C/C++ cross-language `UInt32` matrix | expand qualified type/application matrix | G4.2 passed |
 | Topic/type names | fixed `rt/rq/rr` mapping, service suffixes, C/C++ DDS type identity, and 255-byte validation | publisher/subscription/service/client consumption and SEDP announcement | G4.2 foundation by PR27 |
 | QoS | reliability, volatile durability, KEEP_LAST | complete supported-policy map, defaults, compatibility API, events | G4.2/G4.5 |
-| Wait sets | bounded 8-set registry, 32-condition ceiling, subscription/service/client/guard filtering, generation wake, monotonic timeout, and shutdown unblock | event readiness follows G4.5 | G4.2/G4.4 passed |
+| Wait sets | bounded 8-set registry, 32-condition ceiling, subscription/service/client/guard/event filtering, generation wake, monotonic timeout, and shutdown unblock | none in initial scope | G4.2/G4.4/G4.5 passed |
 | Guard conditions | fixed slots, trigger/wake generations, blocking wait integration, and graph-change wake | service/client/event statuses | G4.2/G4.3 passed |
 | ROS graph | fixed local/remote cache, private bounded RTPS snapshot, node/topic/type/by-node/count queries, graph guard, graceful removal, and lease expiry | vendor-native graph exchange and endpoint-info arrays | G4.3 passed |
 | Services/clients | bounded endpoint pairs, fixed correlation envelope/table, stable client GID, monotonic sequence, readiness, availability, and two-process `rclcpp` qualification | vendor-RMW service interoperability is outside the initial G4.4 gate | G4.4 passed |
 | GIDs and message info | stable writer `rmw_gid_t`, remote discovery correlation, publication/reception sequences, fallback source/receive timestamps, and ROS take evidence | RTPS `INFO_TS` source time | G4.2 passed |
-| Events | parser/state errors | bounded status counters and waitable events | G4.5 |
-| Feature reporting | all Jazzy optional features conservatively report unsupported | update the map only as qualified features are added | G4.1/G4.5 |
+| Events | bounded publication/subscription matched counters, 16 event slots, callback/wait/take/fini semantics | deadline, liveliness, incompatible QoS/type, and message-lost remain truthfully unsupported | G4.5 event slice passed |
+| Feature reporting | matched event types report supported; every other Jazzy optional feature remains conservative | update the map only as qualified features are added | G4.1 plus G4.5 event slice |
 | Security | none | DDS Security and SROS 2 integration | excluded initially |
 | Loaned messages/zero-copy | fixed sample/history storage | ownership-compatible loan API | excluded initially |
 | Content filtering | none | expression/filter implementation | excluded initially |
@@ -34,8 +34,9 @@ it does not mean the corresponding `rmw` function is implemented.
    and metadata.
 3. G4.3: distributed graph cache, discovery propagation, queries, and expiry.
 4. G4.4 (passed by PR36): client/service request-response channels and correlation.
-5. G4.5: supported events, upstream conformance allowlist, stress, sanitizer,
-   and deterministic-profile analysis.
+5. G4.5: matched events and a pinned upstream conformance selection are PR37;
+   executing the upstream selection plus deployment stress, latency, packaging,
+   and deterministic-profile evidence remain for PR38.
 
 ## Remaining focused change plan
 
@@ -51,8 +52,8 @@ be merged into one oversized change.
 | 33 | Same-host bounded discovery/UDP worker and C++ best-effort ROS talker-listener (completed) | G4.2 |
 | 34 | Reliable worker repair, C/C++ topic matrix, and G4.2 closure (completed) | G4.2 |
 | 35 | Bounded ROS graph cache, discovery propagation, queries, and expiry (completed) | G4.3 |
-| 36 | Service/client request-reply identity, correlation, and readiness (current) | G4.4 |
-| 37 | Events/status conditions and selected Jazzy conformance allowlist | G4.5 |
+| 36 | Service/client request-reply identity, correlation, and readiness (completed) | G4.4 |
+| 37 | Events/status conditions and selected Jazzy conformance allowlist (current) | G4.5 |
 | 38 | Deployment hardening: interface configuration, stress, latency, packaging, and safety evidence | G4.5 |
 
 An earlier gate may introduce a function that returns `RMW_RET_UNSUPPORTED`.

@@ -26,6 +26,7 @@ rmw_destroy_service
 rmw_destroy_subscription
 rmw_destroy_wait_set
 rmw_event_set_callback
+rmw_event_fini
 rmw_event_type_is_supported
 rmw_feature_supported
 rmw_fini_publisher_allocation
