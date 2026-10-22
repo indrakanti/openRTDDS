@@ -12,6 +12,7 @@
 #include "openrtdds/rmw/graph_cache.hpp"
 #include "openrtdds/rtps/sedp.hpp"
 #include "rmw/rmw.h"
+#include "rmw_openrtdds_cpp/type_support.hpp"
 
 namespace rmw_openrtdds_cpp::detail {
 
@@ -25,6 +26,9 @@ constexpr std::size_t kPublisherCapacity = 8U;
 constexpr std::size_t kSubscriptionCapacity = 8U;
 constexpr std::size_t kWaitSetCapacity = 8U;
 constexpr std::size_t kWaitConditionCapacity = 32U;
+constexpr std::size_t kServiceCorrelationSize =
+    RMW_GID_STORAGE_SIZE + sizeof(std::int64_t);
+constexpr std::size_t kServiceOutstandingCapacity = 32U;
 
 using Foundation = openrtdds::rmw::AdapterContext<
     kNodeCapacity, kGuardConditionCapacity>;
@@ -200,5 +204,38 @@ void subscription_network_set_match_count(void* data,
 void notify_network(rmw_context_t* context) noexcept;
 
 void notify_graph_change(rmw_context_t* context) noexcept;
+
+[[nodiscard]] rmw_publisher_t* create_publisher_endpoint(
+    const rmw_node_t* node,
+    const rosidl_message_type_support_t* type_support,
+    const char* topic_name,
+    const rmw_qos_profile_t* qos_profile,
+    const rmw_publisher_options_t* publisher_options,
+    RosChannel channel, bool graph_visible) noexcept;
+
+[[nodiscard]] rmw_subscription_t* create_subscription_endpoint(
+    const rmw_node_t* node,
+    const rosidl_message_type_support_t* type_support,
+    const char* topic_name,
+    const rmw_qos_profile_t* qos_profile,
+    const rmw_subscription_options_t* subscription_options,
+    RosChannel channel, bool graph_visible) noexcept;
+
+[[nodiscard]] rmw_ret_t publish_service_sample(
+    const rmw_publisher_t* publisher, const rmw_request_id_t& request_id,
+    const void* ros_message) noexcept;
+
+[[nodiscard]] rmw_ret_t take_service_sample(
+    const rmw_subscription_t* subscription, rmw_service_info_t* service_info,
+    void* ros_message, bool* taken,
+    bool (*accept)(const rmw_request_id_t&, void*) = nullptr,
+    void* accept_context = nullptr) noexcept;
+
+[[nodiscard]] bool client_wait_data_valid(
+    const void* data, const rmw_context_t* context) noexcept;
+[[nodiscard]] bool client_wait_ready(const void* data) noexcept;
+[[nodiscard]] bool service_wait_data_valid(
+    const void* data, const rmw_context_t* context) noexcept;
+[[nodiscard]] bool service_wait_ready(const void* data) noexcept;
 
 }  // namespace rmw_openrtdds_cpp::detail

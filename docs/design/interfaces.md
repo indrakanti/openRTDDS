@@ -35,6 +35,7 @@ structure. Exceptions are neither thrown nor translated.
 |---|---|---|
 | `rmw_openrtdds_cpp/type_support.hpp` | `rmw_openrtdds_cpp` | direct Jazzy C/C++ bounded schema analysis and ROS/DDS name mapping |
 | `rmw_openrtdds_cpp/xcdr1_codec.hpp` | `rmw_openrtdds_cpp` | allocation-free introspection-driven XCDR1 serialization and validated deserialization into pre-sized storage |
+| `rmw` service/client C ABI | global C symbols | bounded endpoint-pair lifecycle, request/reply correlation, QoS queries, wait readiness, client GID, and availability |
 
 These headers belong to the separately built ament package and may expose ROS
 types. They do not enter the ROS-free `OpenRTDDS::openrtdds` public interface.
@@ -45,8 +46,9 @@ types. They do not enter the ROS-free `OpenRTDDS::openrtdds` public interface.
 ROS 2 Jazzy symbol surface, qualified lifecycle slice, bounded direct
 introspection analysis, name mapping, and XCDR1 codec. ROS types, allocators,
 and package dependencies remain outside the OpenRTDDS core public headers.
-Future opaque endpoint handles will refer to generation-checked objects owned
-by a bounded context; they will not expose core C++ objects directly.
+Opaque endpoint handles refer to implementation-owned objects and do not expose
+core C++ objects directly. Service/client behavior is detailed in
+[`ros2-rmw/services.md`](ros2-rmw/services.md).
 
 The adapter boundary includes context and node lifecycle, publisher and
 subscription handles, type-erased serialization, QoS conversion, wait sets,

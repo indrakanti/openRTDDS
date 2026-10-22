@@ -811,8 +811,10 @@ change with the same wait mutex before broadcasting.
 
 `rmw_create_wait_set(context, 0)` maps the generic unbounded request to the
 documented implementation ceiling of 32. Requests above 32 fail without
-claiming a slot. Services, clients, and events remain truthful unsupported
-conditions in this increment; zero-count containers are accepted.
+claiming a slot. Services and clients expose the readiness of their owned
+request/response subscriptions. Events remain truthful unsupported conditions
+in this increment; zero-count containers are accepted. The exact service
+composition is specified in [services.md](services.md).
 
 ### Wait return and fault behavior
 
@@ -822,7 +824,7 @@ conditions in this increment; zero-count containers are accepted.
 | monotonic deadline reached | `RMW_RET_TIMEOUT` | clear all supported entries |
 | context shutdown | `RMW_RET_ERROR` | clear all supported entries and set diagnostic |
 | invalid, foreign, stale, or over-capacity entry | `RMW_RET_INVALID_ARGUMENT` | reject before blocking |
-| nonempty service, client, or event set | `RMW_RET_UNSUPPORTED` | no fabricated readiness |
+| nonempty event set | `RMW_RET_UNSUPPORTED` | no fabricated readiness |
 | same wait set already active | `RMW_RET_ERROR` | preserve the active wait |
 
 Wait-set destruction is not concurrent with `rmw_wait`; an observed active
@@ -1340,7 +1342,8 @@ endpoints always retain their literal identity. Output is built in a temporary
 caller-allocator operations succeed. Query-result allocation is required by
 the RMW ABI and is outside the deterministic worker path.
 
-Services/clients and topic endpoint-information arrays remain unsupported.
+Service-name/type graph queries and topic endpoint-information arrays remain
+unsupported. Service/client data exchange is Current under G4.4.
 The selected APIs validate implementation identity, handle/context lifetime,
 allocator validity, zero-initialized outputs, node/topic syntax, and requested
 node existence. An absent by-node target returns
@@ -1392,6 +1395,9 @@ request table owns a state of `free`, `awaiting_response`, or `completed`.
 Responses with an unknown client GID, sequence, or already-completed record are
 discarded and counted as diagnostics. Timeout policy belongs to the caller;
 the adapter does not retry service requests autonomously.
+
+The implemented wire envelope, API contracts, fixed ownership, sequence flow,
+and verification evidence are specified in [services.md](services.md).
 
 ## API validation and errors
 

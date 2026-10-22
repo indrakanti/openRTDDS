@@ -45,6 +45,7 @@ add_library(${PROJECT_NAME} SHARED
   src/qos.cpp
   src/rmw_adapter.cpp
   src/rmw_unsupported.cpp
+  src/services.cpp
   src/subscription.cpp
   src/type_support.cpp
   src/wait.cpp
@@ -132,6 +133,7 @@ if(BUILD_TESTING)
   find_package(rcl REQUIRED)
   find_package(rclcpp REQUIRED)
   find_package(rmw_implementation REQUIRED)
+  find_package(example_interfaces REQUIRED)
   find_package(std_msgs REQUIRED)
 
   add_executable(test_rmw_lifecycle test/test_rmw_lifecycle.cpp)
@@ -227,6 +229,20 @@ if(BUILD_TESTING)
   )
   add_test(NAME rmw_openrtdds_wait COMMAND test_rmw_wait)
 
+  add_executable(test_rmw_services test/test_services.cpp)
+  target_compile_features(test_rmw_services PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_services PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_services PRIVATE
+    ${PROJECT_NAME}
+    Threads::Threads
+    rcutils::rcutils
+    rmw::rmw
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+  )
+  add_test(NAME rmw_openrtdds_services COMMAND test_rmw_services)
+  set_tests_properties(rmw_openrtdds_services PROPERTIES TIMEOUT 20)
+
   add_executable(test_rmw_graph test/test_graph.cpp)
   target_compile_features(test_rmw_graph PRIVATE cxx_std_17)
   target_compile_options(test_rmw_graph PRIVATE
@@ -290,6 +306,20 @@ if(BUILD_TESTING)
       "${CMAKE_CURRENT_SOURCE_DIR}/test/run_ros2_graph.py"
       "$<TARGET_FILE:openrtdds_ros2_graph_probe>")
   set_tests_properties(rmw_openrtdds_ros2_graph PROPERTIES TIMEOUT 30)
+
+  add_executable(openrtdds_ros2_add_service
+    examples/ros2_add_service.cpp)
+  target_compile_features(openrtdds_ros2_add_service PRIVATE cxx_std_17)
+  target_compile_options(openrtdds_ros2_add_service PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  ament_target_dependencies(openrtdds_ros2_add_service
+    example_interfaces rclcpp)
+
+  add_test(NAME rmw_openrtdds_ros2_service
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/test/run_ros2_service.py"
+      "$<TARGET_FILE:openrtdds_ros2_add_service>")
+  set_tests_properties(rmw_openrtdds_ros2_service PROPERTIES TIMEOUT 20)
 
   add_executable(test_rmw_memory_qualification
     test/test_rmw_memory_qualification.cpp)

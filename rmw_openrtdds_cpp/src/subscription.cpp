@@ -58,12 +58,15 @@ struct SubscriptionData final {
   std::uint32_t slot_generation{0U};
   TypeSupportInfo type_info{};
   DdsNames names{};
+  RosChannel channel{RosChannel::topic};
+  bool graph_visible{true};
   EndpointResourcePlan resources{};
   openrtdds::rtps::GuidPrefix participant_prefix{};
   openrtdds::rtps::EntityId reader_id{};
   std::array<std::uint8_t, RMW_GID_STORAGE_SIZE> reader_guid{};
   std::uint8_t* history{nullptr};
   std::size_t history_storage_size{0U};
+  std::size_t serialized_capacity{0U};
   std::array<SubscriptionSampleMetadata, kMaximumHistoryDepth>
       history_metadata{};
   std::array<WriterState, kWriterStateCapacity> writers{};
@@ -268,8 +271,7 @@ void release_slot(detail::SubscriptionSlot& slot) noexcept {
   CodecResult codec{};
   if (!deserialize_xcdr1(
           data->type_support,
-          data->history +
-              (index * data->type_info.maximum_serialized_size),
+          data->history + (index * data->serialized_capacity),
           metadata.serialized_size,
           data->type_info.maximum_serialized_size, ros_message, codec)) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -279,6 +281,80 @@ void release_slot(detail::SubscriptionSlot& slot) noexcept {
   if (info != nullptr) {
     *info = message_info(metadata);
   }
+  data->history_head =
+      (data->history_head + 1U) % data->resources.history_sample_slots;
+  --data->history_size;
+  *taken = true;
+  return RMW_RET_OK;
+}
+
+[[nodiscard]] rmw_ret_t take_service(
+    const rmw_subscription_t* const subscription,
+    rmw_service_info_t* const service_info, void* const ros_message,
+    bool* const taken,
+    bool (*const accept)(const rmw_request_id_t&, void*),
+    void* const accept_context) noexcept {
+  if ((service_info == nullptr) || (ros_message == nullptr) ||
+      (taken == nullptr)) {
+    RMW_SET_ERROR_MSG("service take requires non-null outputs");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  SubscriptionData* data = nullptr;
+  if (!valid_subscription(subscription, data)) {
+    return invalid_subscription_error(subscription);
+  }
+  if (data->channel == RosChannel::topic) {
+    RMW_SET_ERROR_MSG("subscription is not a service channel");
+    return RMW_RET_INVALID_ARGUMENT;
+  }
+  if (data->node->context->impl->shutdown) {
+    RMW_SET_ERROR_MSG("subscription context has been shutdown");
+    return RMW_RET_ERROR;
+  }
+
+  std::lock_guard<std::mutex> lock(data->mutex);
+  *taken = false;
+  if (data->history_size == 0U) {
+    return RMW_RET_OK;
+  }
+  const std::size_t index = data->history_head;
+  const auto& metadata = data->history_metadata[index];
+  if (metadata.serialized_size <= detail::kServiceCorrelationSize) {
+    RMW_SET_ERROR_MSG("service sample has a truncated correlation envelope");
+    return RMW_RET_ERROR;
+  }
+  const std::uint8_t* const sample =
+      data->history + (index * data->serialized_capacity);
+  rmw_service_info_t candidate{};
+  candidate.source_timestamp = static_cast<rmw_time_point_value_t>(
+      metadata.source_timestamp_ns);
+  candidate.received_timestamp = static_cast<rmw_time_point_value_t>(
+      metadata.received_timestamp_ns);
+  std::memcpy(candidate.request_id.writer_guid, sample,
+              RMW_GID_STORAGE_SIZE);
+  std::uint64_t sequence = 0U;
+  for (std::size_t byte = 0U; byte < sizeof(sequence); ++byte) {
+    sequence |= static_cast<std::uint64_t>(
+        sample[RMW_GID_STORAGE_SIZE + byte]) << (byte * 8U);
+  }
+  candidate.request_id.sequence_number = static_cast<std::int64_t>(sequence);
+  if ((accept != nullptr) &&
+      !accept(candidate.request_id, accept_context)) {
+    data->history_head =
+        (data->history_head + 1U) % data->resources.history_sample_slots;
+    --data->history_size;
+    return RMW_RET_OK;
+  }
+  CodecResult codec{};
+  if (!deserialize_xcdr1(
+          data->type_support, sample + detail::kServiceCorrelationSize,
+          metadata.serialized_size - detail::kServiceCorrelationSize,
+          data->type_info.maximum_serialized_size, ros_message, codec)) {
+    RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
+        "service deserialization failed: %s", to_string(codec.error));
+    return RMW_RET_ERROR;
+  }
+  *service_info = candidate;
   data->history_head =
       (data->history_head + 1U) % data->resources.history_sample_slots;
   --data->history_size;
@@ -365,7 +441,7 @@ bool receive_data_message(
     return false;
   }
   if ((view.payload_size == 0U) ||
-      (view.payload_size > data->type_info.maximum_serialized_size)) {
+      (view.payload_size > data->serialized_capacity)) {
     candidate.error = SubscriptionReceiveError::payload_too_large;
     result = candidate;
     return false;
@@ -436,8 +512,7 @@ bool receive_data_message(
     candidate.dropped_oldest = true;
   }
   std::memcpy(
-      data->history +
-          (history_index * data->type_info.maximum_serialized_size),
+      data->history + (history_index * data->serialized_capacity),
       view.serialized_payload, view.payload_size);
   const std::uint64_t reception_sequence = data->next_reception_sequence;
   data->history_metadata[history_index] = {
@@ -580,15 +655,15 @@ bool inspect_subscription(
 
 }  // namespace rmw_openrtdds_cpp
 
-extern "C" {
-
 // Requirements: ORT-RMW-005, ORT-RMW-047, ORT-RMW-048
-rmw_subscription_t* rmw_create_subscription(
+rmw_subscription_t* rmw_openrtdds_cpp::detail::create_subscription_endpoint(
     const rmw_node_t* node,
     const rosidl_message_type_support_t* type_support,
     const char* topic_name,
     const rmw_qos_profile_t* qos_profile,
-    const rmw_subscription_options_t* subscription_options) {
+    const rmw_subscription_options_t* subscription_options,
+    const rmw_openrtdds_cpp::RosChannel channel,
+    const bool graph_visible) noexcept {
   using namespace rmw_openrtdds_cpp;
   if ((node == nullptr) || (node->context == nullptr) ||
       (node->data == nullptr) || (type_support == nullptr) ||
@@ -653,7 +728,7 @@ rmw_subscription_t* rmw_create_subscription(
     return nullptr;
   }
   DdsNames names{};
-  if (!map_ros_to_dds_names(resolved_type_support, RosChannel::topic, topic_name,
+  if (!map_ros_to_dds_names(resolved_type_support, channel, topic_name,
                             qos_profile->avoid_ros_namespace_conventions,
                             names, type_error)) {
     RMW_SET_ERROR_MSG_WITH_FORMAT_STRING(
@@ -696,10 +771,26 @@ rmw_subscription_t* rmw_create_subscription(
                    ? nullptr
                    : new (data_storage) SubscriptionData{};
   char* topic_copy = rcutils_strdup(topic_name, allocator);
-  auto* history = resources.history_storage_bytes == 0U
+  std::size_t serialized_capacity = type_info.maximum_serialized_size;
+  if ((channel != RosChannel::topic) &&
+      (serialized_capacity <=
+       (std::numeric_limits<std::size_t>::max() -
+        detail::kServiceCorrelationSize))) {
+    serialized_capacity += detail::kServiceCorrelationSize;
+  } else if (channel != RosChannel::topic) {
+    serialized_capacity = 0U;
+  }
+  const std::size_t history_storage_bytes =
+      (serialized_capacity != 0U) &&
+              (resources.history_sample_slots <=
+               (std::numeric_limits<std::size_t>::max() /
+                serialized_capacity))
+          ? resources.history_sample_slots * serialized_capacity
+          : 0U;
+  auto* history = history_storage_bytes == 0U
                       ? nullptr
                       : static_cast<std::uint8_t*>(allocator.allocate(
-                            resources.history_storage_bytes, allocator.state));
+                            history_storage_bytes, allocator.state));
   if ((subscription == nullptr) || (data == nullptr) ||
       (topic_copy == nullptr) || (history == nullptr)) {
     if (history != nullptr) {
@@ -727,12 +818,15 @@ rmw_subscription_t* rmw_create_subscription(
   data->slot_generation = slot.generation;
   data->type_info = type_info;
   data->names = names;
+  data->channel = channel;
+  data->graph_visible = graph_visible;
   data->resources = resources;
   data->participant_prefix = participant_prefix(*context);
   data->reader_id = reader_id(slot_index);
   make_guid(data->participant_prefix, data->reader_id, data->reader_guid);
   data->history = history;
-  data->history_storage_size = resources.history_storage_bytes;
+  data->history_storage_size = history_storage_bytes;
+  data->serialized_capacity = serialized_capacity;
   if (!build_sedp(*data, *context)) {
     allocator.deallocate(history, allocator.state);
     allocator.deallocate(topic_copy, allocator.state);
@@ -745,7 +839,7 @@ rmw_subscription_t* rmw_create_subscription(
   }
 
   auto* node_data = static_cast<detail::NodeData*>(node->data);
-  {
+  if (graph_visible) {
     std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
     const auto graph_error = context->impl->graph.add_local_endpoint(
         data->participant_prefix, data->reader_id, node_data->graph_id,
@@ -776,8 +870,33 @@ rmw_subscription_t* rmw_create_subscription(
   subscription->is_cft_enabled = false;
   slot.data = data;
   ++node_data->subscription_count;
-  detail::notify_graph_change(context);
+  if (graph_visible) {
+    detail::notify_graph_change(context);
+  }
   return subscription;
+}
+
+rmw_ret_t rmw_openrtdds_cpp::detail::take_service_sample(
+    const rmw_subscription_t* const subscription,
+    rmw_service_info_t* const service_info, void* const ros_message,
+    bool* const taken,
+    bool (*const accept)(const rmw_request_id_t&, void*),
+    void* const accept_context) noexcept {
+  return take_service(subscription, service_info, ros_message, taken,
+                      accept, accept_context);
+}
+
+extern "C" {
+
+rmw_subscription_t* rmw_create_subscription(
+    const rmw_node_t* node,
+    const rosidl_message_type_support_t* type_support,
+    const char* topic_name,
+    const rmw_qos_profile_t* qos_profile,
+    const rmw_subscription_options_t* subscription_options) {
+  return rmw_openrtdds_cpp::detail::create_subscription_endpoint(
+      node, type_support, topic_name, qos_profile, subscription_options,
+      rmw_openrtdds_cpp::RosChannel::topic, true);
 }
 
 rmw_ret_t rmw_destroy_subscription(rmw_node_t* node,
@@ -811,8 +930,9 @@ rmw_ret_t rmw_destroy_subscription(rmw_node_t* node,
     RMW_SET_ERROR_MSG("subscription ownership count is inconsistent");
     return RMW_RET_ERROR;
   }
-  bool graph_removed = false;
-  {
+  const bool graph_visible = data->graph_visible;
+  bool graph_removed = !graph_visible;
+  if (graph_visible) {
     std::lock_guard<std::mutex> graph_lock(context->impl->graph_mutex);
     const auto graph_error =
         context->impl->graph.remove_local_endpoint(data->reader_id);
@@ -831,7 +951,9 @@ rmw_ret_t rmw_destroy_subscription(rmw_node_t* node,
   data->~SubscriptionData();
   allocator.deallocate(data, allocator.state);
   allocator.deallocate(subscription, allocator.state);
-  detail::notify_graph_change(context);
+  if (graph_visible) {
+    detail::notify_graph_change(context);
+  }
   return graph_removed ? RMW_RET_OK : RMW_RET_ERROR;
 }
 
@@ -901,8 +1023,7 @@ rmw_ret_t rmw_take_sequence(
     CodecResult codec{};
     if (!deserialize_xcdr1(
             data->type_support,
-            data->history +
-                (index * data->type_info.maximum_serialized_size),
+            data->history + (index * data->serialized_capacity),
             metadata.serialized_size,
             data->type_info.maximum_serialized_size,
             message_sequence->data[offset], codec)) {

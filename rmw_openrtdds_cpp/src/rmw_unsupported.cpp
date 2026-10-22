@@ -177,70 +177,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   2, ARG_TYPES(const rmw_subscription_t *, void *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_create_client,
-  rmw_client_t *, nullptr,
-  4, ARG_TYPES(
-    const rmw_node_t *, const rosidl_service_type_support_t *, const char *,
-    const rmw_qos_profile_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_destroy_client,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(rmw_node_t *, rmw_client_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_send_request,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_client_t *, const void *, int64_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_take_response,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  4, ARG_TYPES(const rmw_client_t *, rmw_service_info_t *, void *, bool *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_client_request_publisher_get_actual_qos,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_client_t *, rmw_qos_profile_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_client_response_subscription_get_actual_qos,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_client_t *, rmw_qos_profile_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_create_service,
-  rmw_service_t *, nullptr,
-  4, ARG_TYPES(
-    const rmw_node_t *, const rosidl_service_type_support_t *, const char *,
-    const rmw_qos_profile_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_destroy_service,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(rmw_node_t *, rmw_service_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_take_request,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  4, ARG_TYPES(const rmw_service_t *, rmw_service_info_t *, void *, bool *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_send_response,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_service_t *, rmw_request_id_t *, void *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_service_response_publisher_get_actual_qos,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_service_t *, rmw_qos_profile_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_service_request_subscription_get_actual_qos,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_service_t *, rmw_qos_profile_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_take_event,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(const rmw_event_t *, void *, bool *))
@@ -277,19 +213,9 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   3, ARG_TYPES(const rmw_node_t *, const char *, size_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_get_gid_for_client,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  2, ARG_TYPES(const rmw_client_t *, rmw_gid_t *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_compare_gids_equal,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(const rmw_gid_t *, const rmw_gid_t *, bool *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_service_server_is_available,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_node_t *, const rmw_client_t *, bool *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_set_log_severity,

@@ -154,7 +154,7 @@ relationships that are not fully represented by SPDP and SEDP alone.
 
 ### ORT-RMW-011 — Service and client request/reply
 
-**Status:** Draft
+**Status:** Verified
 
 **Verification:** Test, Demonstration
 
@@ -297,7 +297,7 @@ beyond user-data delivery.
 
 ### ORT-RMW-021 — ROS service qualification gate
 
-**Status:** Draft
+**Status:** Verified
 
 **Verification:** Test, Demonstration
 

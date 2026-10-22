@@ -86,7 +86,7 @@ machine checker independently validates requirement references in feature
 | ORT-RMW-008 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-009 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-010 | Current | `ros2-rmw/detailed-design.md` |
-| ORT-RMW-011 | Planned | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-011 | Current | `ros2-rmw/services.md` |
 | ORT-RMW-012 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-013 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-014 | Planned | `ros2-rmw/detailed-design.md` |
@@ -96,7 +96,7 @@ machine checker independently validates requirement references in feature
 | ORT-RMW-018 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-019 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-020 | Current | `ros2-rmw/detailed-design.md` |
-| ORT-RMW-021 | Planned | `ros2-rmw/detailed-design.md` |
+| ORT-RMW-021 | Current | `ros2-rmw/services.md` |
 | ORT-RMW-022 | Planned | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-023 | Current | `ros2-rmw/detailed-design.md` |
 | ORT-RMW-024 | Current | `ros2-rmw/detailed-design.md` |
