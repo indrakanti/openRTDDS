@@ -271,12 +271,14 @@ rmw_client_t* rmw_create_client(
       (rmw_get_gid_for_publisher(data->request_publisher, &data->gid) !=
        RMW_RET_OK)) {
     if (data->response_subscription != nullptr) {
-      static_cast<void>(rmw_destroy_subscription(
-          const_cast<rmw_node_t*>(node), data->response_subscription));
+      const rmw_ret_t cleanup_result = rmw_destroy_subscription(
+          const_cast<rmw_node_t*>(node), data->response_subscription);
+      static_cast<void>(cleanup_result);
     }
     if (data->request_publisher != nullptr) {
-      static_cast<void>(rmw_destroy_publisher(
-          const_cast<rmw_node_t*>(node), data->request_publisher));
+      const rmw_ret_t cleanup_result = rmw_destroy_publisher(
+          const_cast<rmw_node_t*>(node), data->request_publisher);
+      static_cast<void>(cleanup_result);
     }
     allocator.deallocate(name, allocator.state);
     data->~ClientData();
@@ -479,12 +481,14 @@ rmw_service_t* rmw_create_service(
   if ((data->request_subscription == nullptr) ||
       (data->response_publisher == nullptr)) {
     if (data->response_publisher != nullptr) {
-      static_cast<void>(rmw_destroy_publisher(
-          const_cast<rmw_node_t*>(node), data->response_publisher));
+      const rmw_ret_t cleanup_result = rmw_destroy_publisher(
+          const_cast<rmw_node_t*>(node), data->response_publisher);
+      static_cast<void>(cleanup_result);
     }
     if (data->request_subscription != nullptr) {
-      static_cast<void>(rmw_destroy_subscription(
-          const_cast<rmw_node_t*>(node), data->request_subscription));
+      const rmw_ret_t cleanup_result = rmw_destroy_subscription(
+          const_cast<rmw_node_t*>(node), data->request_subscription);
+      static_cast<void>(cleanup_result);
     }
     allocator.deallocate(name, allocator.state);
     data->~ServiceData();
