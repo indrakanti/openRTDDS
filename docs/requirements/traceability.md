@@ -87,7 +87,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-010 | Verified | `rmw/graph_cache.hpp`, `rmw/graph_cache.cpp`, `rmw_openrtdds_cpp/src/graph.cpp`, `network_runtime.cpp` | `test_rmw_graph_cache.cpp`, `test_graph.cpp`, `test_network_runtime.cpp`, `run_ros2_graph.py` | `ros2_graph_probe.cpp` |
 | ORT-RMW-011 | Verified | `rmw_openrtdds_cpp/src/services.cpp`, `publisher.cpp`, `subscription.cpp`, `wait.cpp` | `test_services.cpp`, Jazzy sanitizer CI | `ros2_add_service.cpp` |
 | ORT-RMW-012 | Draft | — | Planned GID and message-info tests | — |
-| ORT-RMW-013 | Draft | — | Planned event/status tests | — |
+| ORT-RMW-013 | Verified | `rmw_openrtdds_cpp/src/events.cpp`, `publisher.cpp`, `subscription.cpp`, `wait.cpp` | `test_events.cpp`, `test_wait.cpp`, Jazzy sanitizer CI | ROS 2 matched-event callbacks use the RMW event path |
 | ORT-RMW-014 | Draft | — | Planned ABI error tests and inspection | — |
 | ORT-RMW-015 | Draft | — | Planned exhaustion/allocation tests and analysis | — |
 | ORT-RMW-016 | Draft | — | Planned concurrency/shutdown tests and analysis | — |
@@ -96,7 +96,7 @@ from source tags and rejects missing or unknown evidence.
 | ORT-RMW-019 | Draft | — | Planned G4.2 topic tests and demonstration | Planned ROS topic pair |
 | ORT-RMW-020 | Verified | `rmw/graph_cache.hpp`, `rmw_openrtdds_cpp/src/graph.cpp`, `network_runtime.cpp` | `test_graph.cpp`, `test_network_runtime.cpp`, `run_ros2_graph.py`, Jazzy CI | `ros2_graph_probe.cpp` |
 | ORT-RMW-021 | Verified | `rmw_openrtdds_cpp/src/services.cpp`, `wait.cpp` | `test_services.cpp`, `run_ros2_service.py`, Jazzy CI | `ros2_add_service.cpp` |
-| ORT-RMW-022 | Draft | — | Planned G4.5 conformance tests and analysis | — |
+| ORT-RMW-022 | Draft | `rmw_openrtdds_cpp/test/jazzy_conformance_allowlist.txt`, `events.cpp` | `rmw_openrtdds_conformance_allowlist`, `test_events.cpp`, complete ABI and sanitizer CI; upstream allowlist execution remains PR38 work | selected Jazzy conformance qualification set |
 | ORT-RMW-023 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp`, bounded-storage analysis | — |
 | ORT-RMW-024 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp` | `rmw_foundation_lifecycle.cpp` |
 | ORT-RMW-025 | Verified | `rmw/foundation.hpp` | `test_rmw_foundation.cpp` | `rmw_foundation_lifecycle.cpp` |

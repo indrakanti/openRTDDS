@@ -782,7 +782,7 @@ each successful handle owns one allocator-created `rmw_wait_set_t` and one
 |---|---|
 | `rmw_create_wait_set(context, max_conditions)` | active OpenRTDDS context; returns one bounded handle or null with a diagnostic |
 | `rmw_destroy_wait_set(wait_set)` | releases an inactive owned handle, including after context shutdown |
-| `rmw_wait(subscriptions, guards, services, clients, events, wait_set, timeout)` | filters supported arrays in place and returns ready, timeout, unsupported, or exact validation/shutdown failure |
+| `rmw_wait(subscriptions, guards, services, clients, events, wait_set, timeout)` | filters supported arrays in place and returns ready, timeout, or exact validation/shutdown failure |
 | `rmw_trigger_guard_condition(guard)` | commits one trigger generation, advances the context wake generation, then broadcasts |
 
 | Type or member | Responsibility | Bound / synchronization |
@@ -794,8 +794,9 @@ each successful handle owns one allocator-created `rmw_wait_set_t` and one
 | `wait_condition` | blocks without retaining an entity lock | context-owned condition variable |
 
 Each context owns one wakeup primitive shared by a bounded readiness registry.
-Guard conditions maintain trigger generations and subscriptions expose
-nonempty accepted-sample history as level-triggered readiness. A wait call
+Guard conditions maintain trigger generations, subscriptions expose nonempty
+accepted-sample history, and matched events compare endpoint and last-taken
+generations. A wait call
 locks the context wake domain, checks all entries, records the wake generation,
 then blocks until it changes, shutdown begins, or the absolute monotonic
 deadline expires. Spurious wakeups recheck state without extending that
@@ -812,9 +813,11 @@ change with the same wait mutex before broadcasting.
 `rmw_create_wait_set(context, 0)` maps the generic unbounded request to the
 documented implementation ceiling of 32. Requests above 32 fail without
 claiming a slot. Services and clients expose the readiness of their owned
-request/response subscriptions. Events remain truthful unsupported conditions
-in this increment; zero-count containers are accepted. The exact service
-composition is specified in [services.md](services.md).
+request/response subscriptions. Publication- and subscription-matched events
+are accepted; other event types remain truthfully unsupported at event
+initialization. The exact event state machine is specified in
+[events-and-conformance.md](events-and-conformance.md), and service composition
+is specified in [services.md](services.md).
 
 ### Wait return and fault behavior
 
@@ -824,7 +827,7 @@ composition is specified in [services.md](services.md).
 | monotonic deadline reached | `RMW_RET_TIMEOUT` | clear all supported entries |
 | context shutdown | `RMW_RET_ERROR` | clear all supported entries and set diagnostic |
 | invalid, foreign, stale, or over-capacity entry | `RMW_RET_INVALID_ARGUMENT` | reject before blocking |
-| nonempty event set | `RMW_RET_UNSUPPORTED` | no fabricated readiness |
+| invalid or stale event | `RMW_RET_INVALID_ARGUMENT` | reject before blocking |
 | same wait set already active | `RMW_RET_ERROR` | preserve the active wait |
 
 Wait-set destruction is not concurrent with `rmw_wait`; an observed active
@@ -1080,10 +1083,11 @@ the worker boundary:
 | five-second lease expires | remove participant/endpoints and recompute counts | normal discovery transition |
 | shutdown requested | wake, stop, join, then close all three sockets | none |
 
-The fault codes above define containment ownership; the current worker does not
-yet expose asynchronous status counters or RMW events. Adding those counters
-belongs to G4.5. No asynchronous failure is reported retroactively from a
-successful `rmw_publish` call.
+The fault codes above define containment ownership. The worker exposes only
+compatible endpoint connection and disconnection as matched RMW status events;
+it does not reinterpret transport or reliability failures as QoS, deadline,
+liveliness, or message-lost events. No asynchronous failure is reported
+retroactively from a successful `rmw_publish` call.
 
 ### Generic ROS type support and application qualification
 

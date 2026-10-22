@@ -1,0 +1,9 @@
+# Reviewed against ros2/rmw_implementation jazzy at commit
+# 835ff87c676cd65634edd3ad7ba88c8d8a0452e7.
+# upstream source | OpenRTDDS qualification evidence
+test_create_destroy_node.cpp|rmw_openrtdds_lifecycle
+test_event.cpp|rmw_openrtdds_events
+test_init_options.cpp|rmw_openrtdds_lifecycle
+test_init_shutdown.cpp|rmw_openrtdds_lifecycle
+test_qos_profile_check_compatible.cpp|rmw_openrtdds_qos
+test_wait_set.cpp|rmw_openrtdds_wait

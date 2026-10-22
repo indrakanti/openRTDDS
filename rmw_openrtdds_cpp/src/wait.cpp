@@ -84,7 +84,8 @@ void release_slot(detail::WaitSetSlot& slot) noexcept {
 void clear_entries(rmw_subscriptions_t* const subscriptions,
                    rmw_guard_conditions_t* const guards,
                    rmw_services_t* const services,
-                   rmw_clients_t* const clients) noexcept {
+                   rmw_clients_t* const clients,
+                   rmw_events_t* const events) noexcept {
   if ((subscriptions != nullptr) && (subscriptions->subscribers != nullptr)) {
     for (std::size_t index = 0U; index < subscriptions->subscriber_count;
          ++index) {
@@ -107,11 +108,11 @@ void clear_entries(rmw_subscriptions_t* const subscriptions,
       clients->clients[index] = nullptr;
     }
   }
-}
-
-[[nodiscard]] bool unsupported_conditions_present(
-    const rmw_events_t* const events) noexcept {
-  return (events != nullptr) && (events->event_count != 0U);
+  if ((events != nullptr) && (events->events != nullptr)) {
+    for (std::size_t index = 0U; index < events->event_count; ++index) {
+      events->events[index] = nullptr;
+    }
+  }
 }
 
 }  // namespace
@@ -230,10 +231,6 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
   }
   WaitingClaim claim(data->waiting);
 
-  if (unsupported_conditions_present(events)) {
-    RMW_SET_ERROR_MSG("event wait conditions are unsupported");
-    return RMW_RET_UNSUPPORTED;
-  }
   const std::size_t subscription_count =
       subscriptions == nullptr ? 0U : subscriptions->subscriber_count;
   const std::size_t guard_count =
@@ -243,6 +240,8 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
       services == nullptr ? 0U : services->service_count;
   const std::size_t client_count =
       clients == nullptr ? 0U : clients->client_count;
+  const std::size_t event_count =
+      events == nullptr ? 0U : events->event_count;
   if (!valid_pointer_array(
           subscription_count,
           subscriptions == nullptr ? nullptr : subscriptions->subscribers) ||
@@ -254,13 +253,18 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
           service_count, services == nullptr ? nullptr : services->services) ||
       !valid_pointer_array(
           client_count, clients == nullptr ? nullptr : clients->clients) ||
+      !valid_pointer_array(
+          event_count, events == nullptr ? nullptr : events->events) ||
       (subscription_count > data->maximum_conditions) ||
       (guard_count > (data->maximum_conditions - subscription_count)) ||
       (service_count >
        (data->maximum_conditions - subscription_count - guard_count)) ||
       (client_count >
        (data->maximum_conditions - subscription_count - guard_count -
-        service_count))) {
+        service_count)) ||
+      (event_count >
+       (data->maximum_conditions - subscription_count - guard_count -
+        service_count - client_count))) {
     RMW_SET_ERROR_MSG("invalid or over-capacity wait condition array");
     return RMW_RET_INVALID_ARGUMENT;
   }
@@ -293,6 +297,12 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
       return RMW_RET_INVALID_ARGUMENT;
     }
   }
+  for (std::size_t index = 0U; index < event_count; ++index) {
+    if (!detail::event_wait_data_valid(events->events[index], context)) {
+      RMW_SET_ERROR_MSG("wait set contains an invalid event");
+      return RMW_RET_INVALID_ARGUMENT;
+    }
+  }
 
   const bool finite_timeout = wait_timeout != nullptr;
   const rmw_duration_t timeout_ns =
@@ -307,12 +317,14 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
   std::array<bool, detail::kWaitConditionCapacity> guard_ready{};
   std::array<bool, detail::kWaitConditionCapacity> service_ready{};
   std::array<bool, detail::kWaitConditionCapacity> client_ready{};
+  std::array<bool, detail::kWaitConditionCapacity> event_ready{};
   std::array<std::uint64_t, detail::kWaitConditionCapacity>
       guard_generations{};
   std::unique_lock<std::mutex> lock(context->impl->wait_mutex);
   for (;;) {
     if (context->impl->shutdown.load()) {
-      clear_entries(subscriptions, guard_conditions, services, clients);
+      clear_entries(subscriptions, guard_conditions, services, clients,
+                    events);
       RMW_SET_ERROR_MSG("wait interrupted because the context was shutdown");
       return RMW_RET_ERROR;
     }
@@ -331,7 +343,8 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
           guard->handle, guard->last_observed_generation,
           guard_generations[index], ready);
       if (error != openrtdds::rmw::AdapterError::none) {
-        clear_entries(subscriptions, guard_conditions, services, clients);
+        clear_entries(subscriptions, guard_conditions, services, clients,
+                      events);
         RMW_SET_ERROR_MSG("wait could not observe a guard condition");
         return RMW_RET_ERROR;
       }
@@ -346,6 +359,10 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
     for (std::size_t index = 0U; index < client_count; ++index) {
       client_ready[index] = detail::client_wait_ready(clients->clients[index]);
       any_ready = any_ready || client_ready[index];
+    }
+    for (std::size_t index = 0U; index < event_count; ++index) {
+      event_ready[index] = detail::event_wait_ready(events->events[index]);
+      any_ready = any_ready || event_ready[index];
     }
 
     if (any_ready) {
@@ -373,13 +390,19 @@ rmw_ret_t rmw_wait(rmw_subscriptions_t* subscriptions,
           clients->clients[index] = nullptr;
         }
       }
+      for (std::size_t index = 0U; index < event_count; ++index) {
+        if (!event_ready[index]) {
+          events->events[index] = nullptr;
+        }
+      }
       return RMW_RET_OK;
     }
 
     if (finite_timeout &&
         ((timeout_ns == 0) ||
          (std::chrono::steady_clock::now() >= deadline))) {
-      clear_entries(subscriptions, guard_conditions, services, clients);
+      clear_entries(subscriptions, guard_conditions, services, clients,
+                    events);
       return RMW_RET_TIMEOUT;
     }
     const std::uint64_t observed_generation = context->impl->wait_generation;

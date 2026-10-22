@@ -72,11 +72,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   3, ARG_TYPES(const rmw_publisher_t *, void *, rmw_publisher_allocation_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_publisher_event_init,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(rmw_event_t *, const rmw_publisher_t *, rmw_event_type_t))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_publish_serialized_message,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3,
@@ -126,11 +121,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   1, ARG_TYPES(rmw_subscription_allocation_t *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_subscription_event_init,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(rmw_event_t *, const rmw_subscription_t *, rmw_event_type_t))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_subscription_set_content_filter,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   2, ARG_TYPES(
@@ -175,11 +165,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_return_loaned_message_from_subscription,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   2, ARG_TYPES(const rmw_subscription_t *, void *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_take_event,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(const rmw_event_t *, void *, bool *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_get_service_names_and_types_by_node,
@@ -277,12 +262,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
     rmw_client_t *, rmw_event_callback_t, const void *))
 
 OPENRTDDS_UNSUPPORTED_RMW_FN(
-  rmw_event_set_callback,
-  rmw_ret_t, RMW_RET_UNSUPPORTED,
-  3, ARG_TYPES(
-    rmw_event_t *, rmw_event_callback_t, const void *))
-
-OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_take_dynamic_message,
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   4, ARG_TYPES(
@@ -306,12 +285,6 @@ OPENRTDDS_UNSUPPORTED_RMW_FN(
   rmw_ret_t, RMW_RET_UNSUPPORTED,
   3, ARG_TYPES(
     const char *, rcutils_allocator_t *, rosidl_dynamic_typesupport_serialization_support_t *))
-
-// Capability predicates report false without leaving a stale error.
-bool rmw_event_type_is_supported(const rmw_event_type_t event_type) {
-  static_cast<void>(event_type);
-  return false;
-}
 
 #undef OPENRTDDS_UNSUPPORTED_RMW_FN
 #undef OPENRTDDS_ARGS_7

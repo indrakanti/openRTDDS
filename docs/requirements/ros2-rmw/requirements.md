@@ -184,7 +184,7 @@ request/response correlation.
 
 ### ORT-RMW-013 — Events and status conditions
 
-**Status:** Draft
+**Status:** Verified
 
 **Verification:** Test
 

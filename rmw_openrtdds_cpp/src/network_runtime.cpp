@@ -988,6 +988,13 @@ void NetworkRuntime::expire_remote_state(const std::uint64_t now_ns) noexcept {
 }
 
 void NetworkRuntime::recompute_matches() noexcept {
+  struct ChangedSource final {
+    void* data{nullptr};
+    std::size_t transitions{0U};
+  };
+  std::array<ChangedSource, kPublisherCapacity + kSubscriptionCapacity>
+      changed{};
+  std::size_t changed_count = 0U;
   {
     std::lock_guard<std::mutex> lock(
         context_->impl->publisher_registry_mutex);
@@ -1005,7 +1012,11 @@ void NetworkRuntime::recompute_matches() noexcept {
           ++matches;
         }
       }
-      publisher_network_set_match_count(slot.data, matches);
+      const std::size_t transitions =
+          publisher_network_set_match_count(slot.data, matches);
+      if ((transitions != 0U) && (changed_count < changed.size())) {
+        changed[changed_count++] = {slot.data, transitions};
+      }
     }
   }
   {
@@ -1025,8 +1036,16 @@ void NetworkRuntime::recompute_matches() noexcept {
           ++matches;
         }
       }
-      subscription_network_set_match_count(slot.data, matches);
+      const std::size_t transitions =
+          subscription_network_set_match_count(slot.data, matches);
+      if ((transitions != 0U) && (changed_count < changed.size())) {
+        changed[changed_count++] = {slot.data, transitions};
+      }
     }
+  }
+  for (std::size_t index = 0U; index < changed_count; ++index) {
+    notify_event_source(context_, changed[index].data,
+                        changed[index].transitions);
   }
 }
 

@@ -39,6 +39,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/.."
 set_target_properties(openrtdds PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(${PROJECT_NAME} SHARED
+  src/events.cpp
   src/graph.cpp
   src/network_runtime.cpp
   src/publisher.cpp
@@ -228,6 +229,26 @@ if(BUILD_TESTING)
     rmw::rmw
   )
   add_test(NAME rmw_openrtdds_wait COMMAND test_rmw_wait)
+
+  add_executable(test_rmw_events test/test_events.cpp)
+  target_compile_features(test_rmw_events PRIVATE cxx_std_17)
+  target_compile_options(test_rmw_events PRIVATE
+    -Wall -Wextra -Wpedantic -Werror)
+  target_link_libraries(test_rmw_events PRIVATE
+    ${PROJECT_NAME}
+    Threads::Threads
+    rcutils::rcutils
+    rmw::rmw
+    rosidl_typesupport_introspection_c::rosidl_typesupport_introspection_c
+  )
+  add_test(NAME rmw_openrtdds_events COMMAND test_rmw_events)
+  set_tests_properties(rmw_openrtdds_events PROPERTIES TIMEOUT 20)
+
+  add_test(NAME rmw_openrtdds_conformance_allowlist
+    COMMAND "${Python3_EXECUTABLE}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/test/check_conformance_allowlist.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/test/jazzy_conformance_allowlist.txt"
+      "${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt")
 
   add_executable(test_rmw_services test/test_services.cpp)
   target_compile_features(test_rmw_services PRIVATE cxx_std_17)
